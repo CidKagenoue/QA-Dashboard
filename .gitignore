@@ -1,0 +1,26 @@
+# Node / NestJS
+node_modules/
+dist/
+.env
+*.log
+
+# Prisma
+backend/prisma/migrations/
+
+# Flutter
+.dart_tool/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+frontend/.packages
+frontend/.pub-cache/
+frontend/pubspec.lock
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db

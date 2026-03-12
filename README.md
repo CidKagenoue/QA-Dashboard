@@ -1,66 +1,100 @@
 # QA Dashboard
 
-A bare-bones connected full-stack starter app. Every layer talks to the next — Flutter → NestJS → Prisma → PostgreSQL.
+Full-stack login starter with:
 
-## Tech Stack
-
-- **Frontend:** Flutter (web + mobile)
-- **Backend:** NestJS (TypeScript)
-- **ORM:** Prisma
-- **Database:** PostgreSQL
+- Flutter app in the repository root
+- NestJS API in `qa-login-backend`
+- Prisma + PostgreSQL for data storage
 
 ## Prerequisites
 
-- [Flutter SDK](https://docs.flutter.dev/get-started/install)
-- [Node.js 20+](https://nodejs.org/)
-- [Docker & Docker Compose](https://docs.docker.com/get-docker/)
+- Flutter SDK (Dart 3.x)
+- Node.js 20+
+- npm
+- PostgreSQL running locally (or remotely)
 
-## Quick Start
+## Project Structure
 
-### Option A — Docker (PostgreSQL + backend together)
+- Flutter frontend: `./`
+- Backend API: `./qa-login-backend`
+- Prisma schema: `./qa-login-backend/prisma/schema.prisma`
+
+## 1. Start the Backend
+
+Open a terminal in `qa-login-backend`:
 
 ```bash
-docker-compose up -d
+cd qa-login-backend
+npm install
 ```
 
-This starts PostgreSQL on port `5432` and the NestJS backend on port `3000`.
+Make sure your `.env` has a valid PostgreSQL connection string:
 
-> **Note:** On first run the backend will start, but the database may not have migrations applied yet.
-> Run migrations manually after the containers are up:
->
-> ```bash
-> cd backend
-> npm install
-> npx prisma migrate dev --name init
-> ```
+```env
+DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/qa_dashboard?schema=public"
+```
 
-### Option B — Run the backend manually
+In `qa-login-backend/prisma/schema.prisma`, confirm the datasource includes the URL:
+
+```prisma
+datasource db {
+	provider = "postgresql"
+	url      = env("DATABASE_URL")
+}
+```
+
+Apply database migrations and generate Prisma client:
 
 ```bash
-cd backend
-npm install
-cp .env.example .env          # edit DATABASE_URL if needed
-npx prisma migrate dev --name init
+npx prisma migrate dev
+npx prisma generate
+```
+
+Start the API:
+
+```bash
 npm run start:dev
 ```
 
-### Run the frontend
+Backend runs on:
+
+`http://localhost:3001`
+
+## 2. Start the Flutter App
+
+Open another terminal at the repository root:
 
 ```bash
-cd frontend
 flutter pub get
 flutter run
 ```
 
-> For **web** or **iOS simulator**, change `baseUrl` in `frontend/lib/services/api_service.dart` from `http://10.0.2.2:3000/api` to `http://localhost:3000/api`.
+## API Base URL Notes
 
-## API Endpoints
+The app currently uses:
 
-| Method | Path          | Description                     |
-|--------|---------------|---------------------------------|
-| GET    | /api/health   | Returns `{ status, timestamp }` |
-| GET    | /api/users    | Returns all users from the DB   |
+`http://localhost:3001`
 
-## Notes
+in `lib/services/api_service.dart`.
 
-This is a **bare-bones starter** — no auth, no complex state management, no extra modules. The team will add everything else incrementally on top of this foundation.
+If you run on Android emulator, use:
+
+`http://10.0.2.2:3001`
+
+instead of localhost.
+
+## Auth Endpoints
+
+- `POST /auth/register`
+- `POST /auth/login`
+
+## Common Commands
+
+From `qa-login-backend`:
+
+```bash
+npm run start:dev
+npm run db:migrate
+npm run db:push
+npm run db:studio
+```

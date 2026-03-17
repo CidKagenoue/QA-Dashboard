@@ -85,7 +85,6 @@ instead of localhost.
 
 ## Auth Endpoints
 
-- `POST /auth/register`
 - `POST /auth/login`
 
 ## Common Commands

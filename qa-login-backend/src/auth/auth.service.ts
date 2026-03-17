@@ -1,50 +1,19 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { UserService } from '../user/user.service';
 import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
-import { LoginDto, RegisterDto } from './dto/auth.dto';
+import { LoginDto } from './dto/auth.dto';
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleInit {
   constructor(private userService: UserService) {}
 
-  async register(registerDto: RegisterDto) {
-    const { email, password, name } = registerDto;
-
-    console.log('Registration attempt for email:', email);
-
-    // Check if user already exists
-    const existingUser = await this.userService.findByEmail(email);
-    if (existingUser) {
-      console.log('User already exists for email:', email);
-      throw new UnauthorizedException('User already exists');
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 12);
-
-    console.log('Creating new user...');
-
-    // Create user
-    const user = await this.userService.create({
-      email,
-      password: hashedPassword,
-      name,
-    });
-
-    console.log('User created successfully with ID:', user.id);
-
-    // Generate JWT token
-    const token = this.generateToken(user.id, user.email);
-
-    return {
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-      },
-      token,
-    };
+  async onModuleInit() {
+    await this.ensureDefaultAdmin();
   }
 
   async login(loginDto: LoginDto) {
@@ -94,8 +63,22 @@ export class AuthService {
   async verifyToken(token: string) {
     try {
       return jwt.verify(token, process.env.JWT_SECRET || 'dev_secret_change_me');
-    } catch (error) {
+    } catch {
       throw new UnauthorizedException('Invalid token');
     }
+  }
+
+  private async ensureDefaultAdmin() {
+    const existingAdmin = await this.userService.findByEmail('admin');
+    if (existingAdmin) {
+      return;
+    }
+
+    const hashedPassword = await bcrypt.hash('root123', 12);
+    await this.userService.create({
+      email: 'admin',
+      password: hashedPassword,
+      name: 'Administrator',
+    });
   }
 }

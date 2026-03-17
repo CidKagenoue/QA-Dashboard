@@ -78,32 +78,6 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  Future<void> register(String email, String password, {String? name}) async {
-    _isLoading = true;
-    notifyListeners();
-
-    try {
-      final response = await ApiService.register(
-        email: email,
-        password: password,
-        name: name,
-      );
-
-      _token = response['token'];
-      _user = User.fromJson(response['user']);
-
-      // Store auth data
-      await _storeAuth(_user!, _token!);
-
-      _isLoading = false;
-      notifyListeners();
-    } catch (e) {
-      _isLoading = false;
-      notifyListeners();
-      rethrow;
-    }
-  }
-
   Future<void> logout() async {
     _user = null;
     _token = null;

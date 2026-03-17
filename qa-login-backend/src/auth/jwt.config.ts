@@ -3,6 +3,7 @@ import { SignOptions, VerifyOptions } from 'jsonwebtoken';
 const DEFAULT_ISSUER = 'qa-login-backend';
 const DEFAULT_AUDIENCE = 'qa-dashboard';
 const DEFAULT_EXPIRES_IN = '15m';
+const DEFAULT_REFRESH_EXPIRES_IN = '7d';
 const MIN_SECRET_LENGTH = 32;
 const weakSecrets = new Set([
   'root',
@@ -45,7 +46,37 @@ export function getJwtSignOptions(): SignOptions {
   };
 }
 
+export function getRefreshJwtSecret(): string {
+  const refreshSecret = readEnv('JWT_REFRESH_SECRET');
+  return refreshSecret ?? getJwtSecret();
+}
+
+export function getRefreshJwtSignOptions(): SignOptions {
+  const issuer = readEnv('JWT_ISSUER') ?? DEFAULT_ISSUER;
+  const audience = readEnv('JWT_AUDIENCE') ?? DEFAULT_AUDIENCE;
+  const expiresIn = (readEnv('JWT_REFRESH_EXPIRES_IN') ??
+    DEFAULT_REFRESH_EXPIRES_IN) as SignOptions['expiresIn'];
+
+  return {
+    algorithm: 'HS256',
+    issuer,
+    audience,
+    expiresIn,
+  };
+}
+
 export function getJwtVerifyOptions(): VerifyOptions {
+  const issuer = readEnv('JWT_ISSUER') ?? DEFAULT_ISSUER;
+  const audience = readEnv('JWT_AUDIENCE') ?? DEFAULT_AUDIENCE;
+
+  return {
+    algorithms: ['HS256'],
+    issuer,
+    audience,
+  };
+}
+
+export function getRefreshJwtVerifyOptions(): VerifyOptions {
   const issuer = readEnv('JWT_ISSUER') ?? DEFAULT_ISSUER;
   const audience = readEnv('JWT_AUDIENCE') ?? DEFAULT_AUDIENCE;
 
@@ -59,4 +90,6 @@ export function getJwtVerifyOptions(): VerifyOptions {
 export function assertJwtConfiguration(): void {
   getJwtSecret();
   getJwtSignOptions();
+  getRefreshJwtSecret();
+  getRefreshJwtSignOptions();
 }

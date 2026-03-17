@@ -39,7 +39,16 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     try {
-      request.user = jwt.verify(token, getJwtSecret(), getJwtVerifyOptions());
+      const payload = jwt.verify(
+        token,
+        getJwtSecret(),
+        getJwtVerifyOptions(),
+      ) as JwtPayload | string;
+      if (typeof payload === 'string' || payload.type !== 'access') {
+        throw new UnauthorizedException('Invalid token type');
+      }
+
+      request.user = payload;
       return true;
     } catch {
       throw new UnauthorizedException('Invalid token');

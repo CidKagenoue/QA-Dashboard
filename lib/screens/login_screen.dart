@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
-import 'register_screen.dart';
 import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -132,7 +131,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              'Email',
+                              'Username',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w500,
@@ -144,7 +143,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               controller: _emailController,
                               keyboardType: TextInputType.emailAddress,
                               decoration: InputDecoration(
-                                hintText: 'OualidKasmi@gmail.com',
+                                hintText: 'admin',
                                 hintStyle: const TextStyle(color: Colors.grey),
                                 filled: true,
                                 fillColor: Colors.white,
@@ -164,10 +163,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return 'Please enter your email';
-                                }
-                                if (!value.contains('@')) {
-                                  return 'Please enter a valid email';
+                                  return 'Please enter your username';
                                 }
                                 return null;
                               },
@@ -290,25 +286,6 @@ class _LoginScreenState extends State<LoginScreen> {
                             'Wachtwoord vergeten',
                             style: TextStyle(
                               color: Colors.grey,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 40),
-
-                        // Register Link
-                        TextButton(
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => const RegisterScreen(),
-                              ),
-                            );
-                          },
-                          child: const Text(
-                            "Don't have an account? Register",
-                            style: TextStyle(
-                              color: Color(0xFF7CB342),
                               fontSize: 14,
                             ),
                           ),

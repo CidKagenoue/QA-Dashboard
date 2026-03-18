@@ -3,10 +3,12 @@
 
 generator client {
   provider = "prisma-client-js"
+  version = "6"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -17,5 +19,24 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  departmentLeaders DepartmentLeader[]
+
   @@map("users")
+}
+
+model Department{
+  id Int @id @default(autoincrement())
+  name String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  leaders   DepartmentLeader[]
+}
+
+model DepartmentLeader {
+  id           Int        @id @default(autoincrement())
+  department   Department @relation(fields: [departmentId], references: [id])
+  departmentId Int
+  user         User       @relation(fields: [userId], references: [id])
+  userId       Int
 }

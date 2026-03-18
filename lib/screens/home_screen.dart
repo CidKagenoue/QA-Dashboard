@@ -84,6 +84,7 @@ class HomeScreen extends StatelessWidget {
                           Text('This is where your QA dashboard content will go.'),
                           SizedBox(height: 8),
                           Text('You can add charts, tables, and other widgets here.'),
+                          
                         ],
                       ),
                     ),

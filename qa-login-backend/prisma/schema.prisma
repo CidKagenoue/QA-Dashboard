@@ -3,6 +3,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  version = "6"
 }
 
 datasource db {
@@ -19,6 +20,8 @@ model User {
   updatedAt            DateTime              @updatedAt
   refreshTokenSessions RefreshTokenSession[]
 
+  departmentLeaders DepartmentLeader[]
+
   @@map("users")
 }
 
@@ -33,4 +36,21 @@ model RefreshTokenSession {
 
   @@index([userId], map: "refresh_token_sessions_user_id_idx")
   @@map("refresh_token_sessions")
+}
+
+model Department {
+  id Int @id @default(autoincrement())
+  name String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  leaders   DepartmentLeader[]
+}
+
+model DepartmentLeader {
+  id           Int        @id @default(autoincrement())
+  department   Department @relation(fields: [departmentId], references: [id])
+  departmentId Int
+  user         User       @relation(fields: [userId], references: [id])
+  userId       Int
 }

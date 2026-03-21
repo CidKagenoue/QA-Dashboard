@@ -35,7 +35,7 @@ export class JwtAuthGuard implements CanActivate {
     const token = this.extractBearerToken(request.headers.authorization);
 
     if (!token) {
-      throw new UnauthorizedException('Missing or invalid Authorization header');
+      throw new UnauthorizedException('Authorization-header ontbreekt of is ongeldig');
     }
 
     try {
@@ -45,13 +45,13 @@ export class JwtAuthGuard implements CanActivate {
         getJwtVerifyOptions(),
       ) as JwtPayload | string;
       if (typeof payload === 'string' || payload.type !== 'access') {
-        throw new UnauthorizedException('Invalid token type');
+        throw new UnauthorizedException('Ongeldig token-type');
       }
 
       request.user = payload;
       return true;
     } catch {
-      throw new UnauthorizedException('Invalid token');
+      throw new UnauthorizedException('Ongeldige token');
     }
   }
 

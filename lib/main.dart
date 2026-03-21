@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'services/auth_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/reset_password_screen.dart';
 
 void main() {
   runApp(const QADashboardApp());
@@ -10,6 +11,19 @@ void main() {
 
 class QADashboardApp extends StatelessWidget {
   const QADashboardApp({super.key});
+
+  Widget _buildInitialScreen() {
+    final uri = Uri.base;
+
+    if (uri.path == '/reset-password') {
+      return ResetPasswordScreen(
+        email: '',
+        initialToken: uri.queryParameters['token'],
+      );
+    }
+
+    return const AuthWrapper();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +35,7 @@ class QADashboardApp extends StatelessWidget {
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
           useMaterial3: true,
         ),
-        home: const AuthWrapper(),
+        home: _buildInitialScreen(),
         debugShowCheckedModeBanner: false,
       ),
     );

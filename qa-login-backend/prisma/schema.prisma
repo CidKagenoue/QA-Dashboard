@@ -19,6 +19,7 @@ model User {
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
   refreshTokenSessions RefreshTokenSession[]
+  passwordResetTokens  PasswordResetToken[]
 
   departmentLeaders DepartmentLeader[]
 
@@ -53,4 +54,17 @@ model DepartmentLeader {
   departmentId Int
   user         User       @relation(fields: [userId], references: [id])
   userId       Int
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    Int       @map("user_id")
+  token     String    @unique
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "password_reset_tokens_user_id_idx")
+  @@map("password_reset_tokens")
 }

@@ -7,10 +7,10 @@ export class AppController {
   @Get()
   getApiInfo() {
     return {
-      message: 'QA Dashboard API is running',
+      message: 'QA Dashboard API draait',
       version: '1.0.0',
       endpoints: {
-        'POST /auth/login': 'Login user',
+        'POST /auth/login': 'Gebruiker inloggen',
       },
       timestamp: new Date().toISOString(),
     };

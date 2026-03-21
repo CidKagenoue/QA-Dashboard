@@ -11,11 +11,20 @@ import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
 import {
   LoginDto,
+  RefreshTokenDto,
   ForgotPasswordDto,
   ResetPasswordDto,
   VerifyResetTokenDto,
 } from './dto/auth.dto';
 import * as crypto from 'crypto';
+import {
+  getJwtSecret,
+  getJwtSignOptions,
+  getRefreshJwtSecret,
+  getRefreshJwtSignOptions,
+  getRefreshJwtVerifyOptions,
+  getJwtVerifyOptions,
+} from './jwt.config';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -31,7 +40,8 @@ export class AuthService implements OnModuleInit {
   }
 
   async login(loginDto: LoginDto) {
-    const { email, password } = loginDto;
+    const email = loginDto.email.trim();
+    const { password } = loginDto;
 
     console.log('Login attempt for email:', email);
 
@@ -53,8 +63,8 @@ export class AuthService implements OnModuleInit {
 
     console.log('Login successful for email:', email);
 
-    // Generate JWT token
-    const token = this.generateToken(user.id, user.email);
+    // Generate access + refresh token pair and store refresh session.
+    const tokens = await this.generateTokenPair(user.id, user.email);
 
     return {
       user: {
@@ -62,7 +72,84 @@ export class AuthService implements OnModuleInit {
         email: user.email,
         name: user.name,
       },
-      token,
+      token: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    };
+  }
+
+  async refresh(refreshTokenDto: RefreshTokenDto) {
+    const { refreshToken } = refreshTokenDto;
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token ontbreekt');
+    }
+
+    let payload: jwt.JwtPayload;
+    try {
+      const verified = jwt.verify(
+        refreshToken,
+        getRefreshJwtSecret(),
+        getRefreshJwtVerifyOptions(),
+      );
+
+      if (typeof verified === 'string') {
+        throw new UnauthorizedException('Ongeldige refresh token');
+      }
+
+      payload = verified as jwt.JwtPayload;
+    } catch {
+      throw new UnauthorizedException('Ongeldige refresh token');
+    }
+
+    if (payload.type !== 'refresh' || typeof payload.sid !== 'string') {
+      throw new UnauthorizedException('Ongeldig refresh token-type');
+    }
+
+    const userId = Number(payload.sub);
+    if (!Number.isInteger(userId)) {
+      throw new UnauthorizedException('Ongeldige refresh token payload');
+    }
+
+    const session = await this.prismaService.refreshTokenSession.findUnique({
+      where: { id: payload.sid },
+    });
+
+    if (!session || session.revokedAt || session.expiresAt <= new Date()) {
+      throw new UnauthorizedException('Refresh sessie is ongeldig of verlopen');
+    }
+
+    const incomingHash = this.hashToken(refreshToken);
+    if (session.tokenHash !== incomingHash) {
+      throw new UnauthorizedException('Refresh token komt niet overeen met sessie');
+    }
+
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException('Gebruiker niet gevonden');
+    }
+
+    const nextSessionId = crypto.randomUUID();
+    const nextRefreshToken = this.generateRefreshToken(userId, nextSessionId);
+    const nextRefreshTokenHash = this.hashToken(nextRefreshToken);
+    const nextRefreshTokenExpiresAt = this.getTokenExpiration(nextRefreshToken);
+
+    await this.prismaService.$transaction([
+      this.prismaService.refreshTokenSession.update({
+        where: { id: session.id },
+        data: { revokedAt: new Date() },
+      }),
+      this.prismaService.refreshTokenSession.create({
+        data: {
+          id: nextSessionId,
+          userId,
+          tokenHash: nextRefreshTokenHash,
+          expiresAt: nextRefreshTokenExpiresAt,
+        },
+      }),
+    ]);
+
+    return {
+      token: this.generateAccessToken(user.id, user.email),
+      refreshToken: nextRefreshToken,
     };
   }
 
@@ -205,17 +292,61 @@ export class AuthService implements OnModuleInit {
     };
   }
 
-  private generateToken(userId: number, email: string): string {
+  private generateAccessToken(userId: number, email: string): string {
     return jwt.sign(
-      { sub: userId, email },
-      process.env.JWT_SECRET || 'dev_secret_change_me',
-      { expiresIn: '7d' }
+      { sub: userId, email, type: 'access' },
+      getJwtSecret(),
+      getJwtSignOptions(),
     );
+  }
+
+  private generateRefreshToken(userId: number, sessionId: string): string {
+    return jwt.sign(
+      { sub: userId, type: 'refresh', sid: sessionId },
+      getRefreshJwtSecret(),
+      getRefreshJwtSignOptions(),
+    );
+  }
+
+  private async generateTokenPair(userId: number, email: string) {
+    const accessToken = this.generateAccessToken(userId, email);
+
+    const sessionId = crypto.randomUUID();
+    const refreshToken = this.generateRefreshToken(userId, sessionId);
+    const refreshTokenHash = this.hashToken(refreshToken);
+    const refreshTokenExpiresAt = this.getTokenExpiration(refreshToken);
+
+    await this.prismaService.refreshTokenSession.create({
+      data: {
+        id: sessionId,
+        userId,
+        tokenHash: refreshTokenHash,
+        expiresAt: refreshTokenExpiresAt,
+      },
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+    };
+  }
+
+  private hashToken(rawToken: string): string {
+    return crypto.createHash('sha256').update(rawToken).digest('hex');
+  }
+
+  private getTokenExpiration(token: string): Date {
+    const payload = jwt.decode(token) as jwt.JwtPayload | null;
+    if (!payload?.exp) {
+      throw new BadRequestException('Kan token expiratie niet bepalen');
+    }
+
+    return new Date(payload.exp * 1000);
   }
 
   async verifyToken(token: string) {
     try {
-      return jwt.verify(token, process.env.JWT_SECRET || 'dev_secret_change_me');
+      return jwt.verify(token, getJwtSecret(), getJwtVerifyOptions());
     } catch {
       throw new UnauthorizedException('Ongeldige token');
     }

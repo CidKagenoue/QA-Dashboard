@@ -2,6 +2,7 @@ import { Controller, Post, Body, HttpStatus, HttpCode, Req } from '@nestjs/commo
 import { AuthService } from './auth.service';
 import {
   LoginDto,
+  RefreshTokenDto,
   ForgotPasswordDto,
   ResetPasswordDto,
   VerifyResetTokenDto,
@@ -34,6 +35,18 @@ export class AuthController {
       return await this.authService.forgotPassword(forgotPasswordDto, req?.headers?.origin);
     } catch (error) {
       console.error('Forgot password error:', error.message);
+      throw error;
+    }
+  }
+
+  @Public()
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  async refresh(@Body() refreshTokenDto: RefreshTokenDto) {
+    try {
+      return await this.authService.refresh(refreshTokenDto);
+    } catch (error) {
+      console.error('Refresh error:', error.message);
       throw error;
     }
   }

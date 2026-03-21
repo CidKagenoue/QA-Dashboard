@@ -27,6 +27,27 @@ class ApiService {
     }
   }
 
+  static Future<Map<String, dynamic>> refreshToken({
+    required String refreshToken,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/refresh'),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'refreshToken': refreshToken,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['message'] ?? 'Token verversen mislukt');
+    }
+  }
+
   static Future<Map<String, dynamic>> forgotPassword(String email) async {
     final response = await http.post(
       Uri.parse('$baseUrl/auth/forgot-password'),
@@ -87,6 +108,32 @@ class ApiService {
     } else {
       final error = jsonDecode(response.body);
       throw Exception(error['message'] ?? 'Ongeldige of verlopen reset-link');
+    }
+  }
+
+  static Future<Map<String, dynamic>> updateProfile({
+    required int userId,
+    required String token,
+    String? name,
+    String? email,
+  }) async {
+    final response = await http.patch(
+      Uri.parse('$baseUrl/users/$userId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        if (name != null) 'name': name,
+        if (email != null) 'email': email,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['message'] ?? 'Profiel updaten mislukt');
     }
   }
 }

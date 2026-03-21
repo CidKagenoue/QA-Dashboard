@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
 import 'departments_screen.dart';
+import 'profile_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -13,6 +14,16 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('QA Dashboard'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const AccountScreen(),
+                ),
+              );
+            },
+          ),
           Consumer<AuthService>(
             builder: (context, authService, child) {
               return IconButton(

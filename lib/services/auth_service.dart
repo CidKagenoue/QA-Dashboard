@@ -104,6 +104,38 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  
+  Future<void> updateProfile({
+    required String email,
+    required String name,
+    }) async {
+      if (_user == null || _token == null) {
+        throw Exception('Not authenticated');
+      }
+
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final response = await ApiService.updateProfile(
+        userId: _user!.id,
+        token: _token!,
+        email: email,
+        name: name,
+      );
+
+      _user = User.fromJson(response);
+      await _storeAuth(_user!, _token!);
+
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
   Future<void> logout() async {
     _user = null;
     _token = null;

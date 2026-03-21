@@ -51,4 +51,29 @@ class ApiService {
       throw Exception(error['message'] ?? 'Login failed');
     }
   }
+  static Future<Map<String, dynamic>> updateProfile({
+    required int userId,
+    required String token,
+    String? name,
+    String? email,
+  }) async {
+    final response = await http.patch(
+      Uri.parse('$baseUrl/user/$userId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        if (name != null) 'name': name,
+        if (email != null) 'email': email,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['message'] ?? 'Update failed');
+    }
+  }
 }

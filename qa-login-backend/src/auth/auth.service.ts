@@ -24,6 +24,12 @@ type SafeUser = {
   id: number;
   email: string;
   name: string | null;
+  isAdmin: boolean;
+  basisAccess: boolean;
+  whsToursAccess: boolean;
+  ovaAccess: boolean;
+  japGppAccess: boolean;
+  maintenanceInspectionsAccess: boolean;
 };
 
 @Injectable()
@@ -34,7 +40,9 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto) {
-    const { email, password, name } = registerDto;
+    const email = registerDto.email.trim().toLowerCase();
+    const password = registerDto.password;
+    const name = registerDto.name?.trim() || null;
 
     // Check if user already exists
     const existingUser = await this.userService.findByEmail(email);
@@ -44,19 +52,22 @@ export class AuthService {
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
+    const shouldPromoteFirstUserToAdmin = (await this.userService.countUsers()) === 0;
 
     // Create user
     const user = await this.userService.create({
       email,
       password: hashedPassword,
       name,
+      isAdmin: shouldPromoteFirstUserToAdmin,
     });
 
     return this.buildAuthResponse(user);
   }
 
   async login(loginDto: LoginDto) {
-    const { email, password } = loginDto;
+    const email = loginDto.email.trim().toLowerCase();
+    const password = loginDto.password;
 
     // Find user
     const user = await this.userService.findByEmail(email);
@@ -173,6 +184,14 @@ export class AuthService {
         id: user.id,
         email: user.email,
         name: user.name,
+        isAdmin: user.isAdmin,
+        access: {
+          basis: user.basisAccess,
+          whsTours: user.whsToursAccess,
+          ova: user.ovaAccess,
+          japGpp: user.japGppAccess,
+          maintenanceInspections: user.maintenanceInspectionsAccess,
+        },
       },
       token: accessToken,
       accessToken,

@@ -86,18 +86,26 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const Spacer(),
                   IconButton(
-                    icon: const Icon(Icons.notifications_outlined, color: Colors.white, size: 28),
+                    icon: const Icon(
+                      Icons.notifications_outlined,
+                      color: Colors.white,
+                      size: 28,
+                    ),
                     onPressed: () {},
                   ),
                   IconButton(
-                    icon: const Icon(Icons.settings_outlined, color: Colors.white, size: 28),
+                    icon: const Icon(
+                      Icons.settings_outlined,
+                      color: Colors.white,
+                      size: 28,
+                    ),
                     onPressed: () {},
                   ),
                 ],
               ),
             ),
           ),
-          
+
           // Main Content
           Expanded(
             child: SingleChildScrollView(
@@ -110,7 +118,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Column(
                       children: [
                         const SizedBox(height: 40),
-                        
+
                         // User Avatar
                         Container(
                           width: 120,
@@ -150,17 +158,26 @@ class _LoginScreenState extends State<LoginScreen> {
                                 fillColor: Colors.white,
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(color: Colors.grey[300]!),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey[300]!,
+                                  ),
                                 ),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(color: Colors.grey[300]!),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey[300]!,
+                                  ),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(color: Color(0xFF7CB342)),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFF7CB342),
+                                  ),
                                 ),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 16,
+                                ),
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
@@ -199,15 +216,21 @@ class _LoginScreenState extends State<LoginScreen> {
                                 fillColor: Colors.white,
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(color: Colors.grey[300]!),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey[300]!,
+                                  ),
                                 ),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(color: Colors.grey[300]!),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey[300]!,
+                                  ),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(color: Color(0xFF7CB342)),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFF7CB342),
+                                  ),
                                 ),
                                 suffixIcon: IconButton(
                                   icon: Icon(
@@ -222,7 +245,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                     });
                                   },
                                 ),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 16,
+                                ),
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
@@ -246,7 +272,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                 width: 350,
                                 height: 50,
                                 child: ElevatedButton(
-                                  onPressed: authService.isLoading ? null : _handleLogin,
+                                  onPressed: authService.isLoading
+                                      ? null
+                                      : _handleLogin,
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFF7CB342),
                                     foregroundColor: Colors.white,
@@ -283,15 +311,16 @@ class _LoginScreenState extends State<LoginScreen> {
                           onPressed: () {
                             // Handle forgot password
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Forgot password functionality not implemented yet')),
+                              const SnackBar(
+                                content: Text(
+                                  'Forgot password functionality not implemented yet',
+                                ),
+                              ),
                             );
                           },
                           child: const Text(
                             'Wachtwoord vergeten',
-                            style: TextStyle(
-                              color: Colors.grey,
-                              fontSize: 14,
-                            ),
+                            style: TextStyle(color: Colors.grey, fontSize: 14),
                           ),
                         ),
                         const SizedBox(height: 40),

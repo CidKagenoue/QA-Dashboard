@@ -12,6 +12,10 @@ export class AppController {
       endpoints: {
         'POST /auth/register': 'Register a new user',
         'POST /auth/login': 'Login user',
+        'GET /accounts': 'List accounts for account management',
+        'POST /accounts': 'Create a managed account',
+        'PATCH /accounts/:id/access': 'Update account access rights',
+        'DELETE /accounts/:id': 'Delete a managed account',
       },
       timestamp: new Date().toISOString(),
     };

@@ -291,6 +291,35 @@ export class AuthService implements OnModuleInit {
       message: 'Wachtwoord is succesvol gewijzigd. Je kunt nu inloggen met je nieuwe wachtwoord.',
     };
   }
+  async changePassword(
+    userId: number,
+    currentPassword: string,
+    newPassword: string,
+    confirmNewPassword: string
+    ) {
+      const user = await this.userService.findById(userId);
+      if (!user) throw new UnauthorizedException('Gebruiker niet gevonden');
+
+      const valid = await bcrypt.compare(currentPassword, user.password);
+      if (!valid) throw new UnauthorizedException('Huidig wachtwoord klopt niet');
+
+      if (newPassword !== confirmNewPassword) {
+        throw new BadRequestException('Wachtwoorden komen niet overeen');
+      }
+
+      if (newPassword.length < 8) {
+        throw new BadRequestException('Wachtwoord moet minimaal 8 tekens zijn');
+      }
+
+      const hashed = await bcrypt.hash(newPassword, 12);
+
+      await this.prismaService.user.update({
+        where: { id: userId },
+        data: { password: hashed },
+      });
+
+      return { message: 'Wachtwoord succesvol gewijzigd' };
+  }
 
   private generateAccessToken(userId: number, email: string): string {
     return jwt.sign(

@@ -229,7 +229,7 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
                     _SidebarItem(
                       'Profiel',
                       onTap: () {
-                        Navigator.of(context).pushReplacement(_buildSmoothRoute(const AccountScreen()));
+                        Navigator.of(context).pushReplacement(_buildSmoothRoute(const ProfileScreen()));
                       },
                     ),
                     const SizedBox(height: 20),

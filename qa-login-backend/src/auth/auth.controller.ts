@@ -1,8 +1,3 @@
-<<<<<<< HEAD
-import { Controller, Post, Body, HttpStatus, HttpCode, HttpException } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { LoginDto, RegisterDto } from './dto/auth.dto';
-=======
 import { Controller, Post, Body, HttpStatus, HttpCode, Req, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
@@ -14,23 +9,12 @@ import {
 } from './dto/auth.dto';
 import { Public } from './public.decorator';
 import { JwtPayload } from 'jsonwebtoken';
->>>>>>> 17698a8 (feat(profile): implement password change modal and backend route)
 
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
-  @Post('register')
-  async register(@Body() registerDto: RegisterDto) {
-    try {
-      console.log('Register request received:', { email: registerDto.email, hasName: !!registerDto.name });
-      return await this.authService.register(registerDto);
-    } catch (error) {
-      console.error('Registration error:', error.message);
-      throw error;
-    }
-  }
-
+  @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() loginDto: LoginDto) {
@@ -42,8 +26,6 @@ export class AuthController {
       throw error;
     }
   }
-<<<<<<< HEAD
-=======
 
   @Public()
   @Post('forgot-password')
@@ -138,5 +120,4 @@ export class AuthController {
       body.confirmNewPassword,
     );
   }
->>>>>>> 17698a8 (feat(profile): implement password change modal and backend route)
 }

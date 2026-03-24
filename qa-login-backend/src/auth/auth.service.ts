@@ -1,54 +1,47 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  UnauthorizedException,
+  BadRequestException,
+} from '@nestjs/common';
 import { UserService } from '../user/user.service';
+import { PrismaService } from '../prisma/prisma.service';
+import { EmailService } from '../email/email.service';
 import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
-import { LoginDto, RegisterDto } from './dto/auth.dto';
+import {
+  LoginDto,
+  RefreshTokenDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
+  VerifyResetTokenDto,
+} from './dto/auth.dto';
+import * as crypto from 'crypto';
+import {
+  getJwtSecret,
+  getJwtSignOptions,
+  getRefreshJwtSecret,
+  getRefreshJwtSignOptions,
+  getRefreshJwtVerifyOptions,
+  getJwtVerifyOptions,
+} from './jwt.config';
 
 @Injectable()
-export class AuthService {
-  constructor(private userService: UserService) {}
+export class AuthService implements OnModuleInit {
+  constructor(
+    private userService: UserService,
+    private prismaService: PrismaService,
+    private emailService: EmailService,
+  ) {}
 
-  async register(registerDto: RegisterDto) {
-    const { email, password, name } = registerDto;
-
-    console.log('Registration attempt for email:', email);
-
-    // Check if user already exists
-    const existingUser = await this.userService.findByEmail(email);
-    if (existingUser) {
-      console.log('User already exists for email:', email);
-      throw new UnauthorizedException('User already exists');
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 12);
-
-    console.log('Creating new user...');
-
-    // Create user
-    const user = await this.userService.create({
-      email,
-      password: hashedPassword,
-      name,
-    });
-
-    console.log('User created successfully with ID:', user.id);
-
-    // Generate JWT token
-    const token = this.generateToken(user.id, user.email);
-
-    return {
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-      },
-      token,
-    };
+  async onModuleInit() {
+    await this.ensureDefaultAdmin();
+    await this.ensureTestUser();
   }
 
   async login(loginDto: LoginDto) {
-    const { email, password } = loginDto;
+    const email = loginDto.email.trim();
+    const { password } = loginDto;
 
     console.log('Login attempt for email:', email);
 
@@ -56,7 +49,7 @@ export class AuthService {
     const user = await this.userService.findByEmail(email);
     if (!user) {
       console.log('User not found for email:', email);
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException('Ongeldig e-mailadres of wachtwoord');
     }
 
     console.log('User found, verifying password...');
@@ -65,13 +58,13 @@ export class AuthService {
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       console.log('Invalid password for email:', email);
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException('Ongeldig e-mailadres of wachtwoord');
     }
 
     console.log('Login successful for email:', email);
 
-    // Generate JWT token
-    const token = this.generateToken(user.id, user.email);
+    // Generate access + refresh token pair and store refresh session.
+    const tokens = await this.generateTokenPair(user.id, user.email);
 
     return {
       user: {
@@ -79,13 +72,11 @@ export class AuthService {
         email: user.email,
         name: user.name,
       },
-      token,
+      token: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
     };
   }
 
-<<<<<<< HEAD
-  private generateToken(userId: number, email: string): string {
-=======
   async refresh(refreshTokenDto: RefreshTokenDto) {
     const { refreshToken } = refreshTokenDto;
     if (!refreshToken) {
@@ -331,19 +322,91 @@ export class AuthService {
   }
 
   private generateAccessToken(userId: number, email: string): string {
->>>>>>> 17698a8 (feat(profile): implement password change modal and backend route)
     return jwt.sign(
-      { sub: userId, email },
-      process.env.JWT_SECRET || 'dev_secret_change_me',
-      { expiresIn: '7d' }
+      { sub: userId, email, type: 'access' },
+      getJwtSecret(),
+      getJwtSignOptions(),
     );
+  }
+
+  private generateRefreshToken(userId: number, sessionId: string): string {
+    return jwt.sign(
+      { sub: userId, type: 'refresh', sid: sessionId },
+      getRefreshJwtSecret(),
+      getRefreshJwtSignOptions(),
+    );
+  }
+
+  private async generateTokenPair(userId: number, email: string) {
+    const accessToken = this.generateAccessToken(userId, email);
+
+    const sessionId = crypto.randomUUID();
+    const refreshToken = this.generateRefreshToken(userId, sessionId);
+    const refreshTokenHash = this.hashToken(refreshToken);
+    const refreshTokenExpiresAt = this.getTokenExpiration(refreshToken);
+
+    await this.prismaService.refreshTokenSession.create({
+      data: {
+        id: sessionId,
+        userId,
+        tokenHash: refreshTokenHash,
+        expiresAt: refreshTokenExpiresAt,
+      },
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+    };
+  }
+
+  private hashToken(rawToken: string): string {
+    return crypto.createHash('sha256').update(rawToken).digest('hex');
+  }
+
+  private getTokenExpiration(token: string): Date {
+    const payload = jwt.decode(token) as jwt.JwtPayload | null;
+    if (!payload?.exp) {
+      throw new BadRequestException('Kan token expiratie niet bepalen');
+    }
+
+    return new Date(payload.exp * 1000);
   }
 
   async verifyToken(token: string) {
     try {
-      return jwt.verify(token, process.env.JWT_SECRET || 'dev_secret_change_me');
-    } catch (error) {
-      throw new UnauthorizedException('Invalid token');
+      return jwt.verify(token, getJwtSecret(), getJwtVerifyOptions());
+    } catch {
+      throw new UnauthorizedException('Ongeldige token');
     }
+  }
+
+  private async ensureDefaultAdmin() {
+    const existingAdmin = await this.userService.findByEmail('admin');
+    if (existingAdmin) {
+      return;
+    }
+
+    const hashedPassword = await bcrypt.hash('root123', 12);
+    await this.userService.create({
+      email: 'admin',
+      password: hashedPassword,
+      name: 'Administrator',
+    });
+  }
+
+  private async ensureTestUser() {
+    const existingUser = await this.userService.findByEmail('Oualidkasmi5@gmail.com');
+    if (existingUser) {
+      return;
+    }
+
+    const hashedPassword = await bcrypt.hash('root123', 12);
+    await this.userService.create({
+      email: 'Oualidkasmi5@gmail.com',
+      password: hashedPassword,
+      name: 'Ouali Kasmi',
+    });
+    console.log('Test user created: Oualidkasmi5@gmail.com');
   }
 }

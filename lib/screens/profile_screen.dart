@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
+import 'departments_screen.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -15,6 +16,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
+
+  Route _buildSmoothRoute(Widget page) {
+    return PageRouteBuilder(
+      transitionDuration: const Duration(milliseconds: 280),
+      reverseTransitionDuration: const Duration(milliseconds: 220),
+      pageBuilder: (context, animation, secondaryAnimation) => page,
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+
+        final slide = Tween<Offset>(
+          begin: const Offset(0.04, 0),
+          end: Offset.zero,
+        ).animate(curved);
+
+        return FadeTransition(
+          opacity: curved,
+          child: SlideTransition(
+            position: slide,
+            child: child,
+          ),
+        );
+      },
+    );
+  }
 
   @override
   void initState() {
@@ -45,7 +74,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF7CB342),
-        title: const Text('vlotter'),
+        foregroundColor: Colors.white,
+        title: const Text(
+          'vlotter',
+          style: TextStyle(color: Colors.white),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
@@ -69,16 +102,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    _SidebarItem('Profiel', selected: true),
-                    SizedBox(height: 20),
-                    _SidebarItem('Meldingen'),
-                    SizedBox(height: 20),
-                    _SidebarItem('Accountbeheer'),
-                    SizedBox(height: 20),
-                    _SidebarItem('Afdelingen'),
-                    SizedBox(height: 20),
-                    _SidebarItem('Locaties'),
+                  children: [
+                    const _SidebarItem('Profiel', selected: true),
+                    const SizedBox(height: 20),
+                    const _SidebarItem('Meldingen'),
+                    const SizedBox(height: 20),
+                    const _SidebarItem('Accountbeheer'),
+                    const SizedBox(height: 20),
+                    _SidebarItem(
+                      'Afdelingen',
+                      onTap: () {
+                        Navigator.of(context).push(_buildSmoothRoute(const DepartmentsScreen()));
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    const _SidebarItem('Locaties'),
                   ],
                 ),
               ),
@@ -488,16 +526,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
 class _SidebarItem extends StatelessWidget {
   final String title;
   final bool selected;
-  const _SidebarItem(this.title, {this.selected = false});
+  final VoidCallback? onTap;
+
+  const _SidebarItem(this.title, {this.selected = false, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      title,
-      style: TextStyle(
-        fontSize: 16,
-        color: selected ? Colors.black : Colors.black54,
-        fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Text(
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            color: selected ? Colors.black : Colors.black54,
+            fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
       ),
     );
   }

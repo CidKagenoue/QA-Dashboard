@@ -3,14 +3,14 @@ import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
 
-class AccountScreen extends StatefulWidget {
-  const AccountScreen({super.key});
+class ProfileScreen extends StatefulWidget {
+  const ProfileScreen({super.key});
 
   @override
-  State<AccountScreen> createState() => _AccountScreenState();
+  State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _AccountScreenState extends State<AccountScreen> {
+class _ProfileScreenState extends State<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
@@ -176,13 +176,7 @@ class _AccountScreenState extends State<AccountScreen> {
                                     Expanded(
                                       flex: 1,
                                       child: _PasswordAdjustButton(
-                                        onPressed: () {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(
-                                              content: Text('Wachtwoord aanpassen is niet live geïmplementeerd'),
-                                            ),
-                                          );
-                                        },
+                                        onPressed: _openPasswordChangeSheet,
                                       ),
                                     ),
                                   ],
@@ -290,6 +284,205 @@ class _AccountScreenState extends State<AccountScreen> {
       ),
     );
   }
+ void _openPasswordChangeSheet() {
+  final currentCtl = TextEditingController();
+  final newCtl = TextEditingController();
+  final confirmCtl = TextEditingController();
+  final formKey = GlobalKey<FormState>();
+
+  bool showCurrent = false;
+  bool showNew = false;
+  bool showConfirm = false;
+
+  showDialog(
+    context: context,
+    barrierDismissible: true,
+    builder: (ctx) {
+      return Center(
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            width: 420,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  blurRadius: 24,
+                  spreadRadius: 4,
+                  color: Colors.black.withValues(alpha: .15),
+                )
+              ],
+            ),
+            child: StatefulBuilder(
+              builder: (ctx, setState) {
+                return Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Wachtwoord wijzigen',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // CURRENT PASSWORD
+                      TextFormField(
+                        controller: currentCtl,
+                        obscureText: !showCurrent,
+                        decoration: InputDecoration(
+                          labelText: 'Huidig wachtwoord',
+                          prefixIcon: const Icon(Icons.lock),
+                          suffixIcon: IconButton(
+                            icon: Icon(showCurrent
+                                ? Icons.visibility
+                                : Icons.visibility_off),
+                            onPressed: () => setState(
+                                () => showCurrent = !showCurrent),
+                          ),
+                        ),
+                        validator: (v) {
+                          if (v == null || v.isEmpty) {
+                            return 'Voer je huidige wachtwoord in';
+                          }
+                          if (v.length < 6) {
+                            return 'Minimaal 6 tekens';
+                          }
+                          return null;
+                        },
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // NEW PASSWORD
+                      TextFormField(
+                        controller: newCtl,
+                        obscureText: !showNew,
+                        decoration: InputDecoration(
+                          labelText: 'Nieuw wachtwoord',
+                          prefixIcon: const Icon(Icons.lock),
+                          suffixIcon: IconButton(
+                            icon: Icon(showNew
+                                ? Icons.visibility
+                                : Icons.visibility_off),
+                            onPressed: () =>
+                                setState(() => showNew = !showNew),
+                          ),
+                        ),
+                        validator: (v) {
+                          if (v == null || v.isEmpty) {
+                            return 'Voer een nieuw wachtwoord in';
+                          }
+                          if (v.length < 7) {
+                            return 'Minimaal 7 tekens';
+                          }
+                          return null;
+                        },
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // CONFIRM PASSWORD
+                      TextFormField(
+                        controller: confirmCtl,
+                        obscureText: !showConfirm,
+                        decoration: InputDecoration(
+                          labelText: 'Bevestig wachtwoord',
+                          prefixIcon: const Icon(Icons.lock),
+                          suffixIcon: IconButton(
+                            icon: Icon(showConfirm
+                                ? Icons.visibility
+                                : Icons.visibility_off),
+                            onPressed: () => setState(
+                                () => showConfirm = !showConfirm),
+                          ),
+                        ),
+                        validator: (v) {
+                          if (v == null || v.isEmpty) {
+                            return 'Bevestig je wachtwoord';
+                          }
+                          if (v != newCtl.text) {
+                            return 'Wachtwoorden komen niet overeen';
+                          }
+                          return null;
+                        },
+                      ),
+
+                      const SizedBox(height: 28),
+
+                      Consumer<AuthService>(
+                        builder: (_, auth, _) => SizedBox(
+                          width: double.infinity,
+                          height: 48,
+                          child: ElevatedButton(
+                            onPressed: auth.isLoading
+                                ? null
+                                : () async {
+                                    if (!formKey.currentState!.validate()) {
+                                      return;
+                                    }
+
+                                    try {
+                                      await context
+                                          .read<AuthService>()
+                                          .changePassword(
+                                            currentPassword:
+                                                currentCtl.text,
+                                            newPassword: newCtl.text,
+                                            confirmNewPassword:
+                                                confirmCtl.text,
+                                          );
+
+                                      if (!mounted) return;
+                                        Navigator.of(context).pop();
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Wachtwoord succesvol gewijzigd',
+                                            ),
+                                          ),
+                                        );
+                                      
+                                    } catch (e) {
+                                      ScaffoldMessenger.of(ctx).showSnackBar(
+                                        SnackBar(
+                                          content: Text(e.toString()),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF7CB342),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: auth.isLoading
+                                ? const CircularProgressIndicator(
+                                    color: Colors.white,
+                                  )
+                                : const Text('Opslaan'),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
 }
 
 class _SidebarItem extends StatelessWidget {
@@ -406,3 +599,4 @@ class _DeptChip extends StatelessWidget {
     );
   }
 }
+

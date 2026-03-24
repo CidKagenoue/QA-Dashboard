@@ -22,7 +22,13 @@ class HomeScreen extends StatelessWidget {
             icon: const Icon(Icons.settings_outlined),
             onPressed: () {
               Navigator.of(context).push(
+<<<<<<< HEAD
                 MaterialPageRoute(builder: (_) => const AccountScreen()),
+=======
+                MaterialPageRoute(
+                  builder: (context) => const ProfileScreen(),
+                ),
+>>>>>>> 17698a8 (feat(profile): implement password change modal and backend route)
               );
             },
           ),

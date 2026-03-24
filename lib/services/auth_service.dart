@@ -145,4 +145,28 @@ class AuthService extends ChangeNotifier {
 
     notifyListeners();
   }
+  Future<void> changePassword({
+  required String currentPassword,
+  required String newPassword,
+  required String confirmNewPassword,
+  }) async {
+    if (_token == null) {
+      throw Exception('Niet ingelogd');
+    }
+
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      await ApiService.changePassword(
+        token: _token!,
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+        confirmNewPassword: confirmNewPassword,
+      );
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 }

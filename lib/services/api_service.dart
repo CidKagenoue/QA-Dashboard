@@ -76,4 +76,30 @@ class ApiService {
       throw Exception(error['message'] ?? 'Update failed');
     }
   }
+  static Future<void> changePassword({
+  required String token,
+  required String currentPassword,
+  required String newPassword,
+  required String confirmNewPassword,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/change-password'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+        'confirmNewPassword': confirmNewPassword,
+      }),
+    );
+
+    if (response.statusCode == 204 || response.statusCode == 200) {
+      return;
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['message'] ?? 'Wachtwoord wijzigen mislukt');
+    }
+  }
 }

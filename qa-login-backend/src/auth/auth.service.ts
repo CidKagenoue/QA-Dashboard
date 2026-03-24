@@ -415,6 +415,11 @@ export class AuthService implements OnModuleInit {
   private async ensureDefaultAdmin() {
     const existingAdmin = await this.userService.findByEmail('admin');
     if (existingAdmin) {
+      if (!existingAdmin.isAdmin) {
+        await this.userService.update(existingAdmin.id, {
+          isAdmin: true,
+        });
+      }
       return;
     }
 

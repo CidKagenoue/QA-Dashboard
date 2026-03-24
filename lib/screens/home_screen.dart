@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../services/auth_service.dart';
-import 'account_management_screen.dart';
+import 'account_management_page.dart';
 import 'departments_screen.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
@@ -20,9 +20,7 @@ class HomeScreen extends StatelessWidget {
             icon: const Icon(Icons.settings_outlined),
             onPressed: () {
               Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const AccountScreen(),
-                ),
+                MaterialPageRoute(builder: (context) => const AccountScreen()),
               );
             },
           ),
@@ -50,9 +48,7 @@ class HomeScreen extends StatelessWidget {
         builder: (context, authService, child) {
           final user = authService.user;
           if (user == null) {
-            return const Center(
-              child: Text('No user data available'),
-            );
+            return const Center(child: Text('No user data available'));
           }
 
           return Padding(
@@ -93,12 +89,8 @@ class HomeScreen extends StatelessWidget {
                         children: [
                           Text(
                             'Dashboard Content',
-                            style: Theme.of(context)
-                                .textTheme
-                                .headlineSmall
-                                ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 16),
                           const Text(
@@ -132,26 +124,29 @@ class HomeScreen extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              if (authService.canManageAccounts)
-                                ElevatedButton.icon(
-                                  onPressed: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            const _AccountManagementPage(),
-                                      ),
-                                    );
-                                  },
-                                  icon: const Icon(Icons.manage_accounts),
-                                  label: const Text('Manage Accounts'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF4F6D2A),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 24,
-                                      vertical: 12,
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const AccountManagementPage(),
                                     ),
+                                  );
+                                },
+                                icon: const Icon(Icons.manage_accounts),
+                                label: Text(
+                                  authService.canManageAccounts
+                                      ? 'Manage Accounts'
+                                      : 'Open Account Management',
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF4F6D2A),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 24,
+                                    vertical: 12,
                                   ),
                                 ),
+                              ),
                             ],
                           ),
                         ],
@@ -164,18 +159,6 @@ class HomeScreen extends StatelessWidget {
           );
         },
       ),
-    );
-  }
-}
-
-class _AccountManagementPage extends StatelessWidget {
-  const _AccountManagementPage();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Accountbeheer')),
-      body: const AccountManagementScreen(),
     );
   }
 }

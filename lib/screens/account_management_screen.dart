@@ -42,6 +42,49 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
           return const Center(child: CircularProgressIndicator());
         }
 
+        if (!accountManagementService.canManageAccounts) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(28),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 720),
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(28),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.lock_outline_rounded,
+                          size: 48,
+                          color: Color(0xFF7C8A72),
+                        ),
+                        const SizedBox(height: 18),
+                        Text(
+                          'Accountbeheer geopend',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Je zit op de juiste pagina, maar dit account heeft momenteel geen adminrechten om accounts te beheren.',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Log in met een admin-account om gebruikers aan te maken, rechten aan te passen en accounts te verwijderen.',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
         return RefreshIndicator(
           onRefresh: accountManagementService.refresh,
           child: SingleChildScrollView(

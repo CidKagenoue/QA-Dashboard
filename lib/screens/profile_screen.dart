@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
+import 'account_management_page.dart';
 import 'departments_screen.dart';
 import 'login_screen.dart';
 
@@ -36,10 +37,7 @@ class _AccountScreenState extends State<AccountScreen> {
 
         return FadeTransition(
           opacity: curved,
-          child: SlideTransition(
-            position: slide,
-            child: child,
-          ),
+          child: SlideTransition(position: slide, child: child),
         );
       },
     );
@@ -50,7 +48,7 @@ class _AccountScreenState extends State<AccountScreen> {
     super.initState();
     final user = Provider.of<AuthService>(context, listen: false).user;
     if (user != null) {
-        final effectiveName = user.name ?? '';
+      final effectiveName = user.name ?? '';
       _firstNameController.text = effectiveName;
       _emailController.text = user.email;
       final split = effectiveName.split(' ');
@@ -75,10 +73,7 @@ class _AccountScreenState extends State<AccountScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF7CB342),
         foregroundColor: Colors.white,
-        title: const Text(
-          'vlotter',
-          style: TextStyle(color: Colors.white),
-        ),
+        title: const Text('vlotter', style: TextStyle(color: Colors.white)),
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
@@ -107,12 +102,21 @@ class _AccountScreenState extends State<AccountScreen> {
                     const SizedBox(height: 20),
                     const _SidebarItem('Meldingen'),
                     const SizedBox(height: 20),
-                    const _SidebarItem('Accountbeheer'),
+                    _SidebarItem(
+                      'Accountbeheer',
+                      onTap: () {
+                        Navigator.of(context).push(
+                          _buildSmoothRoute(const AccountManagementPage()),
+                        );
+                      },
+                    ),
                     const SizedBox(height: 20),
                     _SidebarItem(
                       'Afdelingen',
                       onTap: () {
-                        Navigator.of(context).push(_buildSmoothRoute(const DepartmentsScreen()));
+                        Navigator.of(
+                          context,
+                        ).push(_buildSmoothRoute(const DepartmentsScreen()));
                       },
                     ),
                     const SizedBox(height: 20),
@@ -145,14 +149,24 @@ class _AccountScreenState extends State<AccountScreen> {
                                   width: 2,
                                 ),
                               ),
-                              child: const Icon(Icons.person, size: 70, color: Colors.black54),
+                              child: const Icon(
+                                Icons.person,
+                                size: 70,
+                                color: Colors.black54,
+                              ),
                             ),
                             Container(
-                              margin: const EdgeInsets.only(bottom: 6, right: 6),
+                              margin: const EdgeInsets.only(
+                                bottom: 6,
+                                right: 6,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 shape: BoxShape.circle,
-                                border: Border.all(color: Colors.grey.shade400, width: 1),
+                                border: Border.all(
+                                  color: Colors.grey.shade400,
+                                  width: 1,
+                                ),
                               ),
                               padding: const EdgeInsets.all(3),
                               child: const Icon(Icons.edit, size: 14),
@@ -175,7 +189,9 @@ class _AccountScreenState extends State<AccountScreen> {
                                         label: 'Voornaam',
                                         controller: _firstNameController,
                                         validator: (v) =>
-                                            v == null || v.trim().isEmpty ? 'Voornaam is verplicht' : null,
+                                            v == null || v.trim().isEmpty
+                                            ? 'Voornaam is verplicht'
+                                            : null,
                                       ),
                                     ),
                                     const SizedBox(width: 20),
@@ -198,9 +214,11 @@ class _AccountScreenState extends State<AccountScreen> {
                                       child: _LabeledTextField(
                                         label: 'E‑Mail',
                                         controller: _emailController,
-                                        keyboardType: TextInputType.emailAddress,
+                                        keyboardType:
+                                            TextInputType.emailAddress,
                                         validator: (value) {
-                                          if (value == null || value.trim().isEmpty) {
+                                          if (value == null ||
+                                              value.trim().isEmpty) {
                                             return 'E-mail is verplicht';
                                           }
                                           if (!value.contains('@')) {
@@ -215,9 +233,13 @@ class _AccountScreenState extends State<AccountScreen> {
                                       flex: 1,
                                       child: _PasswordAdjustButton(
                                         onPressed: () {
-                                          ScaffoldMessenger.of(context).showSnackBar(
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
                                             const SnackBar(
-                                              content: Text('Wachtwoord aanpassen is niet live geïmplementeerd'),
+                                              content: Text(
+                                                'Wachtwoord aanpassen is niet live geïmplementeerd',
+                                              ),
                                             ),
                                           );
                                         },
@@ -225,31 +247,36 @@ class _AccountScreenState extends State<AccountScreen> {
                                     ),
                                   ],
                                 ),
-                                                    const SizedBox(height: 28),
+                                const SizedBox(height: 28),
 
-                    const Text('Mijn afdelingen',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 10),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.all(12),
-                      child: Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: const [
-                          _DeptChip('Electromontage'),
-                          _DeptChip('Groendienst'),
-                          _DeptChip('Schilderwerken'),
-                          _DeptChip('Reversed Logistics'),
-                        ],
-                      ),
-                    ),
-
-
+                                const Text(
+                                  'Mijn afdelingen',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    border: Border.all(
+                                      color: Colors.grey.shade300,
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  padding: const EdgeInsets.all(12),
+                                  child: Wrap(
+                                    spacing: 10,
+                                    runSpacing: 10,
+                                    children: const [
+                                      _DeptChip('Electromontage'),
+                                      _DeptChip('Groendienst'),
+                                      _DeptChip('Schilderwerken'),
+                                      _DeptChip('Reversed Logistics'),
+                                    ],
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -257,7 +284,6 @@ class _AccountScreenState extends State<AccountScreen> {
                       ],
                     ),
 
-                    
                     const SizedBox(height: 28),
 
                     Row(
@@ -267,26 +293,37 @@ class _AccountScreenState extends State<AccountScreen> {
                             onPressed: () async {
                               if (!_formKey.currentState!.validate()) return;
 
-                              final firstName = _firstNameController.text.trim();
+                              final firstName = _firstNameController.text
+                                  .trim();
                               final lastName = _lastNameController.text.trim();
                               final eMail = _emailController.text.trim();
-                              final fullName = [firstName, lastName].where((s) => s.isNotEmpty).join(' ');
+                              final fullName = [
+                                firstName,
+                                lastName,
+                              ].where((s) => s.isNotEmpty).join(' ');
 
                               try {
-                                await Provider.of<AuthService>(context, listen: false).updateProfile(
-                                  name: fullName,
-                                  email: eMail,
-                                );
+                                await Provider.of<AuthService>(
+                                  context,
+                                  listen: false,
+                                ).updateProfile(name: fullName, email: eMail);
 
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Profiel succesvol opgeslagen')),
+                                    const SnackBar(
+                                      content: Text(
+                                        'Profiel succesvol opgeslagen',
+                                      ),
+                                    ),
                                   );
                                 }
                               } catch (e) {
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Opslaan mislukt: $e'), backgroundColor: Colors.red),
+                                    SnackBar(
+                                      content: Text('Opslaan mislukt: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
                                   );
                                 }
                               }
@@ -302,16 +339,24 @@ class _AccountScreenState extends State<AccountScreen> {
                         Expanded(
                           child: OutlinedButton.icon(
                             onPressed: () async {
-                              await Provider.of<AuthService>(context, listen: false).logout();
+                              await Provider.of<AuthService>(
+                                context,
+                                listen: false,
+                              ).logout();
                               if (context.mounted) {
                                 Navigator.of(context).pushAndRemoveUntil(
-                                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                                  MaterialPageRoute(
+                                    builder: (context) => const LoginScreen(),
+                                  ),
                                   (route) => false,
                                 );
                               }
                             },
                             icon: const Icon(Icons.logout, color: Colors.red),
-                            label: const Text('Uitloggen', style: TextStyle(color: Colors.red)),
+                            label: const Text(
+                              'Uitloggen',
+                              style: TextStyle(color: Colors.red),
+                            ),
                             style: OutlinedButton.styleFrom(
                               side: const BorderSide(color: Colors.red),
                             ),
@@ -375,7 +420,10 @@ class _LabeledTextField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+        ),
         const SizedBox(height: 6),
         TextFormField(
           controller: controller,
@@ -390,7 +438,10 @@ class _LabeledTextField extends StatelessWidget {
             focusedBorder: const OutlineInputBorder(
               borderSide: BorderSide(color: Color(0xFF7CB342), width: 2),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
+            ),
             filled: true,
             fillColor: Colors.white,
           ),
@@ -418,7 +469,10 @@ class _PasswordAdjustButton extends StatelessWidget {
               child: Text(
                 'Wachtwoord Aanpassen',
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: Colors.black87,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
             Icon(Icons.edit, color: Colors.grey.shade700, size: 18),
@@ -428,7 +482,9 @@ class _PasswordAdjustButton extends StatelessWidget {
           backgroundColor: Colors.grey.shade300,
           foregroundColor: Colors.black87,
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 12),
         ),
       ),

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../services/department_api_service.dart';
 import '../models/department.dart';
+import 'account_management_page.dart';
 import 'profile_screen.dart';
 
 class DepartmentsScreen extends StatefulWidget {
@@ -36,10 +37,7 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
 
         return FadeTransition(
           opacity: curved,
-          child: SlideTransition(
-            position: slide,
-            child: child,
-          ),
+          child: SlideTransition(position: slide, child: child),
         );
       },
     );
@@ -56,8 +54,7 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
     final auth = Provider.of<AuthService>(context, listen: false);
     try {
       final token = await auth.getValidAccessToken();
-      final departments =
-          await DepartmentApiService.getDepartments(token);
+      final departments = await DepartmentApiService.getDepartments(token);
       setState(() {
         _departments = departments;
         if (_departments.isNotEmpty) {
@@ -78,8 +75,7 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
       return;
     }
 
-    final currentLeaderIds =
-        _selected?.leaders.map((u) => u.id).toSet() ?? {};
+    final currentLeaderIds = _selected?.leaders.map((u) => u.id).toSet() ?? {};
 
     final result = await showDialog<Set<int>>(
       context: context,
@@ -199,10 +195,7 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF7CB342),
         foregroundColor: Colors.white,
-        title: const Text(
-          'vlotter',
-          style: TextStyle(color: Colors.white),
-        ),
+        title: const Text('vlotter', style: TextStyle(color: Colors.white)),
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
@@ -229,13 +222,22 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
                     _SidebarItem(
                       'Profiel',
                       onTap: () {
-                        Navigator.of(context).pushReplacement(_buildSmoothRoute(const AccountScreen()));
+                        Navigator.of(context).pushReplacement(
+                          _buildSmoothRoute(const AccountScreen()),
+                        );
                       },
                     ),
                     const SizedBox(height: 20),
                     const _SidebarItem('Meldingen'),
                     const SizedBox(height: 20),
-                    const _SidebarItem('Accountbeheer'),
+                    _SidebarItem(
+                      'Accountbeheer',
+                      onTap: () {
+                        Navigator.of(context).pushReplacement(
+                          _buildSmoothRoute(const AccountManagementPage()),
+                        );
+                      },
+                    ),
                     const SizedBox(height: 20),
                     const _SidebarItem('Afdelingen', selected: true),
                     const SizedBox(height: 20),
@@ -260,21 +262,22 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
                                 child: Card(
                                   child: Column(
                                     children: [
-                                      const ListTile(
-                                        title: Text('Afdelingen'),
-                                      ),
+                                      const ListTile(title: Text('Afdelingen')),
                                       const Divider(height: 1),
                                       Expanded(
                                         child: ListView.builder(
                                           itemCount: _departments.length,
                                           itemBuilder: (context, index) {
                                             final dept = _departments[index];
-                                            final selected = _selected?.id == dept.id;
+                                            final selected =
+                                                _selected?.id == dept.id;
                                             return ListTile(
                                               selected: selected,
                                               title: Text(dept.name),
                                               onTap: () {
-                                                setState(() => _selected = dept);
+                                                setState(
+                                                  () => _selected = dept,
+                                                );
                                               },
                                             );
                                           },
@@ -293,28 +296,46 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
                                         title: const Text('Leidinggevenden'),
                                         trailing: IconButton(
                                           icon: const Icon(Icons.add),
-                                          onPressed: _selected == null ? null : _openLeadersPopup,
+                                          onPressed: _selected == null
+                                              ? null
+                                              : _openLeadersPopup,
                                         ),
                                       ),
                                       const Divider(height: 1),
                                       Expanded(
                                         child: _selected == null
                                             ? const Center(
-                                                child: Text('Geen afdeling geselecteerd'),
+                                                child: Text(
+                                                  'Geen afdeling geselecteerd',
+                                                ),
                                               )
                                             : ListView.builder(
-                                                itemCount: _selected!.leaders.length,
+                                                itemCount:
+                                                    _selected!.leaders.length,
                                                 itemBuilder: (context, index) {
-                                                  final leader = _selected!.leaders[index];
+                                                  final leader =
+                                                      _selected!.leaders[index];
                                                   return ListTile(
-                                                    title: Text(leader.name ?? leader.email),
+                                                    title: Text(
+                                                      leader.name ??
+                                                          leader.email,
+                                                    ),
                                                     trailing: IconButton(
-                                                      icon: const Icon(Icons.delete_outline),
+                                                      icon: const Icon(
+                                                        Icons.delete_outline,
+                                                      ),
                                                       onPressed: () async {
-                                                        final remaining = _selected!.leaders
-                                                            .where((u) => u.id != leader.id)
-                                                            .map((u) => u.id)
-                                                            .toList();
+                                                        final remaining =
+                                                            _selected!.leaders
+                                                                .where(
+                                                                  (u) =>
+                                                                      u.id !=
+                                                                      leader.id,
+                                                                )
+                                                                .map(
+                                                                  (u) => u.id,
+                                                                )
+                                                                .toList();
                                                         await _saveDepartment(
                                                           id: _selected!.id,
                                                           name: _selected!.name,

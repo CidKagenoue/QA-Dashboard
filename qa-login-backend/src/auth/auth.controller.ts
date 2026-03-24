@@ -52,6 +52,20 @@ export class AuthController {
   }
 
   @Public()
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  async logout(@Body() refreshTokenDto: RefreshTokenDto) {
+    try {
+      return await this.authService.revokeRefreshToken(
+        refreshTokenDto.refreshToken,
+      );
+    } catch (error) {
+      console.error('Logout error:', error.message);
+      throw error;
+    }
+  }
+
+  @Public()
   @Post('verify-reset-token')
   @HttpCode(HttpStatus.OK)
   async verifyResetToken(@Body() verifyResetTokenDto: VerifyResetTokenDto) {

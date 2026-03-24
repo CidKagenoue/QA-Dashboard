@@ -1,37 +1,49 @@
 import {
+  BadRequestException,
   Injectable,
   OnModuleInit,
   UnauthorizedException,
-  BadRequestException,
 } from '@nestjs/common';
 import { UserService } from '../user/user.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import * as jwt from 'jsonwebtoken';
 import {
+  ForgotPasswordDto,
   LoginDto,
   RefreshTokenDto,
-  ForgotPasswordDto,
   ResetPasswordDto,
   VerifyResetTokenDto,
 } from './dto/auth.dto';
-import * as crypto from 'crypto';
 import {
   getJwtSecret,
   getJwtSignOptions,
+  getJwtVerifyOptions,
   getRefreshJwtSecret,
   getRefreshJwtSignOptions,
   getRefreshJwtVerifyOptions,
-  getJwtVerifyOptions,
 } from './jwt.config';
+
+type AuthUser = {
+  id: number;
+  email: string;
+  name: string | null;
+  isAdmin: boolean;
+  basisAccess: boolean;
+  whsToursAccess: boolean;
+  ovaAccess: boolean;
+  japGppAccess: boolean;
+  maintenanceInspectionsAccess: boolean;
+};
 
 @Injectable()
 export class AuthService implements OnModuleInit {
   constructor(
-    private userService: UserService,
-    private prismaService: PrismaService,
-    private emailService: EmailService,
+    private readonly userService: UserService,
+    private readonly prismaService: PrismaService,
+    private readonly emailService: EmailService,
   ) {}
 
   async onModuleInit() {
@@ -40,41 +52,20 @@ export class AuthService implements OnModuleInit {
   }
 
   async login(loginDto: LoginDto) {
-    const email = loginDto.email.trim();
+    const email = loginDto.email.trim().toLowerCase();
     const { password } = loginDto;
 
-    console.log('Login attempt for email:', email);
-
-    // Find user
     const user = await this.userService.findByEmail(email);
     if (!user) {
-      console.log('User not found for email:', email);
       throw new UnauthorizedException('Ongeldig e-mailadres of wachtwoord');
     }
 
-    console.log('User found, verifying password...');
-
-    // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      console.log('Invalid password for email:', email);
       throw new UnauthorizedException('Ongeldig e-mailadres of wachtwoord');
     }
 
-    console.log('Login successful for email:', email);
-
-    // Generate access + refresh token pair and store refresh session.
-    const tokens = await this.generateTokenPair(user.id, user.email);
-
-    return {
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-      },
-      token: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-    };
+    return this.buildAuthResponse(user);
   }
 
   async refresh(refreshTokenDto: RefreshTokenDto) {
@@ -119,7 +110,9 @@ export class AuthService implements OnModuleInit {
 
     const incomingHash = this.hashToken(refreshToken);
     if (session.tokenHash !== incomingHash) {
-      throw new UnauthorizedException('Refresh token komt niet overeen met sessie');
+      throw new UnauthorizedException(
+        'Refresh token komt niet overeen met sessie',
+      );
     }
 
     const user = await this.userService.findById(userId);
@@ -147,34 +140,76 @@ export class AuthService implements OnModuleInit {
       }),
     ]);
 
+    const accessToken = this.generateAccessToken(user.id, user.email);
+
     return {
-      token: this.generateAccessToken(user.id, user.email),
+      token: accessToken,
+      accessToken,
       refreshToken: nextRefreshToken,
     };
+  }
+
+  async revokeRefreshToken(refreshToken: string) {
+    if (!refreshToken) {
+      return { success: true };
+    }
+
+    try {
+      const verified = jwt.verify(
+        refreshToken,
+        getRefreshJwtSecret(),
+        getRefreshJwtVerifyOptions(),
+      );
+
+      if (typeof verified === 'string') {
+        return { success: true };
+      }
+
+      const payload = verified as jwt.JwtPayload;
+      if (payload.type !== 'refresh' || typeof payload.sid !== 'string') {
+        return { success: true };
+      }
+
+      const session = await this.prismaService.refreshTokenSession.findUnique({
+        where: { id: payload.sid },
+      });
+
+      if (
+        session &&
+        !session.revokedAt &&
+        session.tokenHash === this.hashToken(refreshToken)
+      ) {
+        await this.prismaService.refreshTokenSession.update({
+          where: { id: session.id },
+          data: { revokedAt: new Date() },
+        });
+      }
+    } catch {
+      return { success: true };
+    }
+
+    return { success: true };
   }
 
   async forgotPassword(
     forgotPasswordDto: ForgotPasswordDto,
     requestOrigin?: string,
   ) {
-    const { email } = forgotPasswordDto;
-
-    console.log('Forgot password request for email:', email);
-
-    // Find user
+    const email = forgotPasswordDto.email.trim().toLowerCase();
     const user = await this.userService.findByEmail(email);
     if (!user) {
-      console.log('User not found for email:', email);
-      throw new BadRequestException('Deze e-mail is niet gelinkt aan een gebruiker.');
+      throw new BadRequestException(
+        'Deze e-mail is niet gelinkt aan een gebruiker.',
+      );
     }
 
-    // Generate reset token
     const resetToken = crypto.randomBytes(32).toString('hex');
-    const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-    
-    // Create password reset token in database (expires in 1 hour)
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(resetToken)
+      .digest('hex');
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
-    
+
     await this.prismaService.passwordResetToken.create({
       data: {
         userId: user.id,
@@ -183,14 +218,16 @@ export class AuthService implements OnModuleInit {
       },
     });
 
-    // Build reset link (adjust the URL to your app's URL)
-    const frontendBaseUrl = requestOrigin || process.env.FRONTEND_URL || 'http://localhost:3000';
+    const frontendBaseUrl =
+      requestOrigin || process.env.FRONTEND_URL || 'http://localhost:3000';
     const resetLink = `${frontendBaseUrl}/reset-password?token=${resetToken}`;
 
-    // Send email
     try {
-      await this.emailService.sendPasswordResetEmail(email, resetToken, resetLink);
-      console.log('Password reset email sent to:', email);
+      await this.emailService.sendPasswordResetEmail(
+        email,
+        resetToken,
+        resetLink,
+      );
     } catch (error) {
       console.error('Verzenden van reset e-mail is mislukt:', error);
       throw new BadRequestException('Verzenden van reset e-mail is mislukt');
@@ -210,9 +247,10 @@ export class AuthService implements OnModuleInit {
 
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
 
-    const resetTokenRecord = await this.prismaService.passwordResetToken.findUnique({
-      where: { token: hashedToken },
-    });
+    const resetTokenRecord =
+      await this.prismaService.passwordResetToken.findUnique({
+        where: { token: hashedToken },
+      });
 
     if (!resetTokenRecord) {
       throw new BadRequestException('Ongeldige reset-token');
@@ -235,45 +273,38 @@ export class AuthService implements OnModuleInit {
   async resetPassword(resetPasswordDto: ResetPasswordDto) {
     const { token, password, confirmPassword } = resetPasswordDto;
 
-    console.log('Reset password request with token');
-
-    // Validate password match
     if (password !== confirmPassword) {
       throw new BadRequestException('Wachtwoorden komen niet overeen');
     }
 
-    // Validate password strength (at least 8 characters)
     if (password.length < 8) {
-      throw new BadRequestException('Wachtwoord moet minimaal 8 tekens lang zijn');
+      throw new BadRequestException(
+        'Wachtwoord moet minimaal 8 tekens lang zijn',
+      );
     }
 
-    // Hash the provided token to find it in database
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
 
-    // Find the reset token
-    const resetTokenRecord = await this.prismaService.passwordResetToken.findUnique({
-      where: { token: hashedToken },
-      include: { user: true },
-    });
+    const resetTokenRecord =
+      await this.prismaService.passwordResetToken.findUnique({
+        where: { token: hashedToken },
+        include: { user: true },
+      });
 
     if (!resetTokenRecord) {
       throw new BadRequestException('Ongeldige reset-token');
     }
 
-    // Check if token has expired
     if (new Date() > resetTokenRecord.expiresAt) {
       throw new BadRequestException('Reset-link is verlopen');
     }
 
-    // Check if token was already used
     if (resetTokenRecord.usedAt) {
       throw new BadRequestException('Reset-link is al gebruikt');
     }
 
-    // Hash the new password
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Update user password and mark token as used
     await this.prismaService.$transaction([
       this.prismaService.user.update({
         where: { id: resetTokenRecord.userId },
@@ -285,10 +316,39 @@ export class AuthService implements OnModuleInit {
       }),
     ]);
 
-    console.log('Password reset successful for user:', resetTokenRecord.user.email);
+    return {
+      message:
+        'Wachtwoord is succesvol gewijzigd. Je kunt nu inloggen met je nieuwe wachtwoord.',
+    };
+  }
+
+  private async buildAuthResponse(user: AuthUser) {
+    const tokens = await this.generateTokenPair(user.id, user.email);
 
     return {
-      message: 'Wachtwoord is succesvol gewijzigd. Je kunt nu inloggen met je nieuwe wachtwoord.',
+      user: this.serializeUser(user),
+      token: tokens.accessToken,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    };
+  }
+
+  private serializeUser(user: AuthUser) {
+    const access = {
+      basis: user.basisAccess,
+      whsTours: user.whsToursAccess,
+      ova: user.ovaAccess,
+      japGpp: user.japGppAccess,
+      maintenanceInspections: user.maintenanceInspectionsAccess,
+    };
+
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      isAdmin: user.isAdmin,
+      access,
+      hasAnyAccess: user.isAdmin || Object.values(access).some(Boolean),
     };
   }
 
@@ -363,11 +423,14 @@ export class AuthService implements OnModuleInit {
       email: 'admin',
       password: hashedPassword,
       name: 'Administrator',
+      isAdmin: true,
     });
   }
 
   private async ensureTestUser() {
-    const existingUser = await this.userService.findByEmail('Oualidkasmi5@gmail.com');
+    const existingUser = await this.userService.findByEmail(
+      'Oualidkasmi5@gmail.com',
+    );
     if (existingUser) {
       return;
     }
@@ -378,6 +441,5 @@ export class AuthService implements OnModuleInit {
       password: hashedPassword,
       name: 'Ouali Kasmi',
     });
-    console.log('Test user created: Oualidkasmi5@gmail.com');
   }
 }

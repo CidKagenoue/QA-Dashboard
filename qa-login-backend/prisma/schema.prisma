@@ -16,6 +16,12 @@ model User {
   email                String                @unique
   password             String
   name                 String?
+  isAdmin              Boolean               @default(false) @map("is_admin")
+  basisAccess          Boolean               @default(false) @map("basis_access")
+  whsToursAccess       Boolean               @default(false) @map("whs_tours_access")
+  ovaAccess            Boolean               @default(false) @map("ova_access")
+  japGppAccess         Boolean               @default(false) @map("jap_gpp_access")
+  maintenanceInspectionsAccess Boolean       @default(false) @map("maintenance_inspections_access")
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
   refreshTokenSessions RefreshTokenSession[]

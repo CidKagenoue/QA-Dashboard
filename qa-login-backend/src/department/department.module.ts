@@ -1,12 +1,12 @@
-// src/department/department.module.ts
+// src/departments/departments.module.ts
 import { Module } from '@nestjs/common';
-import { DepartmentService } from './department.service';
-import { DepartmentController } from './department.controller';
+import { DepartmentsController } from './department.controller';
+import { DepartmentsService } from './department.service';
 import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
   imports: [PrismaModule],
-  providers: [DepartmentService],
-  controllers: [DepartmentController],
+  controllers: [DepartmentsController],
+  providers: [DepartmentsService],
 })
-export class DepartmentModule {}
+export class DepartmentsModule {}

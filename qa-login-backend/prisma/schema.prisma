@@ -74,3 +74,19 @@ model PasswordResetToken {
   @@index([userId], map: "password_reset_tokens_user_id_idx")
   @@map("password_reset_tokens")
 }
+
+
+model Branch {
+  id        Int        @id @default(autoincrement())
+  name      String
+  createdAt DateTime   @default(now())
+  locations Location[]
+}
+
+model Location {
+  id        Int      @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now())
+  branchId  Int?
+  branch    Branch? @relation(fields: [branchId], references: [id])
+}

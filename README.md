@@ -163,7 +163,7 @@ npm run start:dev              # Start dev server with hot reload
 npx prisma migrate dev         # Run migrations with auto-generation
 npx prisma migrate deploy      # Run migrations (production)
 npx prisma generate            # Generate Prisma client
-npx prisma studio              # Open Prisma Studio GUI
+           # Open Prisma Studio GUI
 
 # Linting & Formatting
 npm run lint                   # Run ESLint

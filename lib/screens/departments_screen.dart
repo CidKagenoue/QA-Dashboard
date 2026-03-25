@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+import '../models/department.dart';
+import '../models/user.dart';
 import '../services/auth_service.dart';
 import '../services/department_api_service.dart';
-import '../models/department.dart';
 import 'account_management_page.dart';
+import 'locations_screen.dart';
 import 'profile_screen.dart';
 
 class DepartmentsScreen extends StatefulWidget {
@@ -18,26 +21,28 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
   Department? _selected;
   bool _isLoading = false;
 
+  static const _green = Color(0xFF7CB342);
+
   Route _buildSmoothRoute(Widget page) {
     return PageRouteBuilder(
       transitionDuration: const Duration(milliseconds: 280),
       reverseTransitionDuration: const Duration(milliseconds: 220),
-      pageBuilder: (context, animation, secondaryAnimation) => page,
-      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      pageBuilder: (_, animation, __) => page,
+      transitionsBuilder: (_, animation, __, child) {
         final curved = CurvedAnimation(
           parent: animation,
           curve: Curves.easeOutCubic,
           reverseCurve: Curves.easeInCubic,
         );
-
-        final slide = Tween<Offset>(
-          begin: const Offset(-0.04, 0),
-          end: Offset.zero,
-        ).animate(curved);
-
         return FadeTransition(
           opacity: curved,
-          child: SlideTransition(position: slide, child: child),
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(-0.04, 0),
+              end: Offset.zero,
+            ).animate(curved),
+            child: child,
+          ),
         );
       },
     );
@@ -55,9 +60,16 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
     try {
       final token = await auth.getValidAccessToken();
       final departments = await DepartmentApiService.getDepartments(token);
+      if (!mounted) return;
       setState(() {
         _departments = departments;
-        if (_departments.isNotEmpty) {
+        if (_selected != null) {
+          _selected = _departments.firstWhere(
+            (d) => d.id == _selected!.id,
+            orElse: () =>
+                _departments.isNotEmpty ? _departments.first : _selected!,
+          );
+        } else if (_departments.isNotEmpty) {
           _selected = _departments.first;
         }
       });
@@ -66,101 +78,218 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
     }
   }
 
+  Future<void> _openDepartmentDialog({Department? dept}) async {
+    final controller = TextEditingController(text: dept?.name ?? '');
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(dept == null ? 'Afdeling toevoegen' : 'Afdeling bewerken'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Naam afdeling',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Annuleren'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _green),
+            onPressed: () {
+              final name = controller.text.trim();
+              if (name.isNotEmpty) Navigator.of(ctx).pop(name);
+            },
+            child: const Text('Opslaan', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null) {
+      await _saveDepartment(
+        id: dept?.id,
+        name: result,
+        leaderIds: dept?.leaders.map((u) => u.id).toList() ?? [],
+      );
+    }
+  }
+
+  Future<void> _deleteDepartment(Department dept) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Afdeling verwijderen'),
+        content: Text('Wil je "${dept.name}" verwijderen?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Annuleren'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text(
+              'Verwijderen',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final auth = Provider.of<AuthService>(context, listen: false);
+      setState(() => _isLoading = true);
+      try {
+        final token = await auth.getValidAccessToken();
+        await DepartmentApiService.deleteDepartment(token: token, id: dept.id);
+        if (_selected?.id == dept.id) {
+          _selected = null;
+        }
+        await _loadData();
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
+      }
+    }
+  }
+
   Future<void> _openLeadersPopup() async {
+    if (_selected == null) return;
     final auth = Provider.of<AuthService>(context, listen: false);
     final token = await auth.getValidAccessToken();
-    final allUsers = await DepartmentApiService.getAllUsers(token);
 
-    if (!mounted) {
-      return;
-    }
+    List<User> allUsers = [];
+    try {
+      allUsers = await DepartmentApiService.getAllUsers(token);
+    } catch (_) {}
 
-    final currentLeaderIds = _selected?.leaders.map((u) => u.id).toSet() ?? {};
+    final selected = <int>{..._selected!.leaders.map((u) => u.id)};
+    final searchController = TextEditingController();
 
-    final result = await showDialog<Set<int>>(
+    final result = await showDialog<List<int>>(
       context: context,
-      builder: (context) {
-        final selectedIds = Set<int>.from(currentLeaderIds);
-        final searchController = TextEditingController();
-        return StatefulBuilder(
-          builder: (context, setState) {
-            final query = searchController.text.toLowerCase();
-            final filtered = allUsers.where((u) {
-              if (query.isEmpty) return true;
-              return (u.name ?? u.email).toLowerCase().contains(query);
-            }).toList();
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final query = searchController.text.toLowerCase();
+          final filtered = allUsers
+              .where((u) => (u.name ?? u.email).toLowerCase().contains(query))
+              .toList();
 
-            return AlertDialog(
-              title: const Text('Pop Up Leidinggevenden'),
-              content: SizedBox(
-                width: 300,
-                height: 400,
+          return Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: SizedBox(
+              width: 280,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     TextField(
                       controller: searchController,
-                      decoration: const InputDecoration(
-                        prefixIcon: Icon(Icons.search),
+                      decoration: InputDecoration(
                         hintText: 'Zoeken',
+                        prefixIcon: const Icon(Icons.search, size: 18),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                        isDense: true,
                       ),
-                      onChanged: (_) => setState(() {}),
+                      onChanged: (_) => setDialogState(() {}),
                     ),
                     const SizedBox(height: 8),
-                    Expanded(
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 300),
                       child: ListView.builder(
+                        shrinkWrap: true,
                         itemCount: filtered.length,
-                        itemBuilder: (context, index) {
-                          final user = filtered[index];
-                          final isSelected = selectedIds.contains(user.id);
+                        itemBuilder: (_, i) {
+                          final user = filtered[i];
+                          final isChecked = selected.contains(user.id);
                           return ListTile(
-                            title: Text(user.name ?? user.email),
-                            trailing: Icon(
-                              Icons.circle,
-                              size: 16,
-                              color: isSelected
-                                  ? const Color(0xFF7CB342)
-                                  : Colors.grey[300],
+                            dense: true,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 4,
                             ),
-                            onTap: () {
-                              setState(() {
-                                if (isSelected) {
-                                  selectedIds.remove(user.id);
+                            title: Text(
+                              user.name ?? user.email,
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                            trailing: GestureDetector(
+                              onTap: () => setDialogState(() {
+                                if (isChecked) {
+                                  selected.remove(user.id);
                                 } else {
-                                  selectedIds.add(user.id);
+                                  selected.add(user.id);
                                 }
-                              });
-                            },
+                              }),
+                              child: Container(
+                                width: 20,
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  color: isChecked ? _green : Colors.grey[300],
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: isChecked
+                                    ? const Icon(
+                                        Icons.check,
+                                        size: 14,
+                                        color: Colors.white,
+                                      )
+                                    : null,
+                              ),
+                            ),
+                            onTap: () => setDialogState(() {
+                              if (isChecked) {
+                                selected.remove(user.id);
+                              } else {
+                                selected.add(user.id);
+                              }
+                            }),
                           );
                         },
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _green,
+                          minimumSize: const Size(48, 32),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 6,
+                          ),
+                        ),
+                        onPressed: () =>
+                            Navigator.of(ctx).pop(selected.toList()),
+                        child: const Text(
+                          'OK',
+                          style: TextStyle(color: Colors.white),
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Annuleren'),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(selectedIds),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF7CB342),
-                  ),
-                  child: const Text('OK'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+            ),
+          );
+        },
+      ),
     );
 
     if (result != null && _selected != null) {
       await _saveDepartment(
         id: _selected!.id,
         name: _selected!.name,
-        leaderIds: result.toList(),
+        leaderIds: result,
       );
     }
   }
@@ -181,8 +310,12 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
         leaderIds: leaderIds,
       );
       await _loadData();
+      if (!mounted) return;
       setState(() {
-        _selected = _departments.firstWhere((d) => d.id == saved.id);
+        _selected = _departments.firstWhere(
+          (d) => d.id == saved.id,
+          orElse: () => _departments.isNotEmpty ? _departments.first : saved,
+        );
       });
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -193,9 +326,16 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFF7CB342),
+        backgroundColor: _green,
         foregroundColor: Colors.white,
-        title: const Text('vlotter', style: TextStyle(color: Colors.white)),
+        title: const Text(
+          'Vlotter',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 0.5,
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
@@ -211,154 +351,219 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
         child: Row(
           children: [
             Container(
-              width: 220,
+              width: 180,
               color: const Color(0xFFE6E6E6),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 30),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _SidebarItem(
-                      'Profiel',
-                      onTap: () {
-                        Navigator.of(context).pushReplacement(
-                          _buildSmoothRoute(const AccountScreen()),
-                        );
-                      },
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _SidebarItem(
+                    'Profiel',
+                    onTap: () => Navigator.of(
+                      context,
+                    ).pushReplacement(_buildSmoothRoute(const AccountScreen())),
+                  ),
+                  const SizedBox(height: 20),
+                  const _SidebarItem('Meldingen'),
+                  const SizedBox(height: 20),
+                  _SidebarItem(
+                    'Accountbeheer',
+                    onTap: () => Navigator.of(context).pushReplacement(
+                      _buildSmoothRoute(const AccountManagementPage()),
                     ),
-                    const SizedBox(height: 20),
-                    const _SidebarItem('Meldingen'),
-                    const SizedBox(height: 20),
-                    _SidebarItem(
-                      'Accountbeheer',
-                      onTap: () {
-                        Navigator.of(context).pushReplacement(
-                          _buildSmoothRoute(const AccountManagementPage()),
-                        );
-                      },
+                  ),
+                  const SizedBox(height: 20),
+                  const _SidebarItem('Afdelingen', selected: true),
+                  const SizedBox(height: 20),
+                  _SidebarItem(
+                    'Locaties',
+                    onTap: () => Navigator.of(context).pushReplacement(
+                      _buildSmoothRoute(const LocationsScreen()),
                     ),
-                    const SizedBox(height: 20),
-                    const _SidebarItem('Afdelingen', selected: true),
-                    const SizedBox(height: 20),
-                    const _SidebarItem('Locaties'),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-
             Expanded(
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1600),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: _isLoading
-                        ? const Center(child: CircularProgressIndicator())
-                        : Row(
-                            children: [
-                              Expanded(
-                                child: Card(
-                                  child: Column(
-                                    children: [
-                                      const ListTile(title: Text('Afdelingen')),
-                                      const Divider(height: 1),
-                                      Expanded(
-                                        child: ListView.builder(
-                                          itemCount: _departments.length,
-                                          itemBuilder: (context, index) {
-                                            final dept = _departments[index];
-                                            final selected =
-                                                _selected?.id == dept.id;
-                                            return ListTile(
-                                              selected: selected,
-                                              title: Text(dept.name),
-                                              onTap: () {
-                                                setState(
-                                                  () => _selected = dept,
-                                                );
-                                              },
-                                            );
-                                          },
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Card(
-                                  child: Column(
-                                    children: [
-                                      ListTile(
-                                        title: const Text('Leidinggevenden'),
-                                        trailing: IconButton(
-                                          icon: const Icon(Icons.add),
-                                          onPressed: _selected == null
-                                              ? null
-                                              : _openLeadersPopup,
-                                        ),
-                                      ),
-                                      const Divider(height: 1),
-                                      Expanded(
-                                        child: _selected == null
-                                            ? const Center(
-                                                child: Text(
-                                                  'Geen afdeling geselecteerd',
-                                                ),
-                                              )
-                                            : ListView.builder(
-                                                itemCount:
-                                                    _selected!.leaders.length,
-                                                itemBuilder: (context, index) {
-                                                  final leader =
-                                                      _selected!.leaders[index];
-                                                  return ListTile(
-                                                    title: Text(
-                                                      leader.name ??
-                                                          leader.email,
-                                                    ),
-                                                    trailing: IconButton(
-                                                      icon: const Icon(
-                                                        Icons.delete_outline,
-                                                      ),
-                                                      onPressed: () async {
-                                                        final remaining =
-                                                            _selected!.leaders
-                                                                .where(
-                                                                  (u) =>
-                                                                      u.id !=
-                                                                      leader.id,
-                                                                )
-                                                                .map(
-                                                                  (u) => u.id,
-                                                                )
-                                                                .toList();
-                                                        await _saveDepartment(
-                                                          id: _selected!.id,
-                                                          name: _selected!.name,
-                                                          leaderIds: remaining,
-                                                        );
-                                                      },
-                                                    ),
-                                                  );
-                                                },
-                                              ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                  ),
-                ),
-              ),
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: _buildDepartmentsCard()),
+                          const SizedBox(width: 16),
+                          Expanded(child: _buildLeadersCard()),
+                        ],
+                      ),
+                    ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildDepartmentsCard() {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: const [
+                Text(
+                  'Afdelingen',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+                Spacer(),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: ListView.builder(
+              itemCount: _departments.length,
+              itemBuilder: (context, index) {
+                final dept = _departments[index];
+                final isSelected = _selected?.id == dept.id;
+                return Container(
+                  color: isSelected ? const Color(0xFFE8F5E9) : null,
+                  child: ListTile(
+                    dense: true,
+                    title: Text(
+                      dept.name,
+                      style: TextStyle(
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            Icons.edit_outlined,
+                            size: 18,
+                            color: isSelected ? Colors.black87 : Colors.black38,
+                          ),
+                          onPressed: () => _openDepartmentDialog(dept: dept),
+                          tooltip: 'Bewerken',
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            Icons.delete_outline,
+                            size: 18,
+                            color: isSelected ? Colors.black87 : Colors.black38,
+                          ),
+                          onPressed: () => _deleteDepartment(dept),
+                          tooltip: 'Verwijderen',
+                        ),
+                      ],
+                    ),
+                    onTap: () => setState(() => _selected = dept),
+                  ),
+                );
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: FloatingActionButton.small(
+                heroTag: 'add_dept',
+                backgroundColor: _green,
+                onPressed: () => _openDepartmentDialog(),
+                child: const Icon(Icons.add, color: Colors.white),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLeadersCard() {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: const [
+                Text(
+                  'Leidinggevenden',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: _selected == null
+                ? const Center(
+                    child: Text(
+                      'Selecteer een afdeling',
+                      style: TextStyle(color: Colors.black45),
+                    ),
+                  )
+                : _selected!.leaders.isEmpty
+                ? const Center(
+                    child: Text(
+                      'Geen leidinggevenden',
+                      style: TextStyle(color: Colors.black45),
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: _selected!.leaders.length,
+                    itemBuilder: (context, index) {
+                      final leader = _selected!.leaders[index];
+                      return ListTile(
+                        dense: true,
+                        title: Text(leader.name ?? leader.email),
+                        trailing: IconButton(
+                          icon: const Icon(
+                            Icons.delete_outline,
+                            size: 18,
+                            color: Colors.black38,
+                          ),
+                          tooltip: 'Verwijderen',
+                          onPressed: () async {
+                            final remaining = _selected!.leaders
+                                .where((u) => u.id != leader.id)
+                                .map((u) => u.id)
+                                .toList();
+                            await _saveDepartment(
+                              id: _selected!.id,
+                              name: _selected!.name,
+                              leaderIds: remaining,
+                            );
+                          },
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: FloatingActionButton.small(
+                heroTag: 'add_leader',
+                backgroundColor: _green,
+                onPressed: _selected == null ? null : _openLeadersPopup,
+                child: const Icon(Icons.add, color: Colors.white),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -381,7 +586,7 @@ class _SidebarItem extends StatelessWidget {
         child: Text(
           title,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: 15,
             color: selected ? Colors.black : Colors.black54,
             fontWeight: selected ? FontWeight.bold : FontWeight.normal,
           ),

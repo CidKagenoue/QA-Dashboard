@@ -27,10 +27,7 @@ class ApiService {
       () => http.post(
         Uri.parse('$baseUrl/auth/login'),
         headers: _headers(),
-        body: jsonEncode({
-          'email': email.trim(),
-          'password': password,
-        }),
+        body: jsonEncode({'email': email.trim(), 'password': password}),
       ),
     );
   }

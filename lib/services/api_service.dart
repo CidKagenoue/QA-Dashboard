@@ -10,15 +10,9 @@ class ApiService {
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/auth/login'),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'email': email,
-        'password': password,
-      }),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email, 'password': password}),
     );
-
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     } else {
@@ -32,14 +26,9 @@ class ApiService {
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/auth/refresh'),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'refreshToken': refreshToken,
-      }),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'refreshToken': refreshToken}),
     );
-
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     } else {
@@ -51,14 +40,9 @@ class ApiService {
   static Future<Map<String, dynamic>> forgotPassword(String email) async {
     final response = await http.post(
       Uri.parse('$baseUrl/auth/forgot-password'),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'email': email,
-      }),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email}),
     );
-
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     } else {
@@ -74,16 +58,13 @@ class ApiService {
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/auth/reset-password'),
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'token': token,
         'password': password,
         'confirmPassword': confirmPassword,
       }),
     );
-
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     } else {
@@ -95,14 +76,9 @@ class ApiService {
   static Future<Map<String, dynamic>> verifyResetToken(String token) async {
     final response = await http.post(
       Uri.parse('$baseUrl/auth/verify-reset-token'),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'token': token,
-      }),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'token': token}),
     );
-
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     } else {
@@ -111,24 +87,25 @@ class ApiService {
     }
   }
 
+  /// Profiel updaten — alleen velden meesturen die niet null zijn
   static Future<Map<String, dynamic>> updateProfile({
     required int userId,
     required String token,
     String? name,
     String? email,
   }) async {
+    final body = <String, dynamic>{};
+    if (name != null) body['name'] = name;
+    if (email != null) body['email'] = email;
+
     final response = await http.patch(
       Uri.parse('$baseUrl/users/$userId'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
-      body: jsonEncode({
-        if (name != null) 'name': name,
-        if (email != null) 'email': email,
-      }),
+      body: jsonEncode(body),
     );
-
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     } else {

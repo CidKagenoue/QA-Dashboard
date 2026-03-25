@@ -1,22 +1,19 @@
-import { Controller, Post, Body, HttpStatus, HttpCode, HttpException } from '@nestjs/common';
+import { Controller, Post, Body, HttpStatus, HttpCode, Req } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { LoginDto, RegisterDto } from './dto/auth.dto';
+import {
+  LoginDto,
+  RefreshTokenDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
+  VerifyResetTokenDto,
+} from './dto/auth.dto';
+import { Public } from './public.decorator';
 
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
-  @Post('register')
-  async register(@Body() registerDto: RegisterDto) {
-    try {
-      console.log('Register request received:', { email: registerDto.email, hasName: !!registerDto.name });
-      return await this.authService.register(registerDto);
-    } catch (error) {
-      console.error('Registration error:', error.message);
-      throw error;
-    }
-  }
-
+  @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() loginDto: LoginDto) {
@@ -25,6 +22,57 @@ export class AuthController {
       return await this.authService.login(loginDto);
     } catch (error) {
       console.error('Login error:', error.message);
+      throw error;
+    }
+  }
+
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto, @Req() req: any) {
+    try {
+      console.log('Forgot password request received for email:', forgotPasswordDto.email);
+      return await this.authService.forgotPassword(forgotPasswordDto, req?.headers?.origin);
+    } catch (error) {
+      console.error('Forgot password error:', error.message);
+      throw error;
+    }
+  }
+
+  @Public()
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  async refresh(@Body() refreshTokenDto: RefreshTokenDto) {
+    try {
+      return await this.authService.refresh(refreshTokenDto);
+    } catch (error) {
+      console.error('Refresh error:', error.message);
+      throw error;
+    }
+  }
+
+  @Public()
+  @Post('verify-reset-token')
+  @HttpCode(HttpStatus.OK)
+  async verifyResetToken(@Body() verifyResetTokenDto: VerifyResetTokenDto) {
+    try {
+      console.log('Verify reset token request received');
+      return await this.authService.verifyResetToken(verifyResetTokenDto);
+    } catch (error) {
+      console.error('Verify reset token error:', error.message);
+      throw error;
+    }
+  }
+
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    try {
+      console.log('Reset password request received');
+      return await this.authService.resetPassword(resetPasswordDto);
+    } catch (error) {
+      console.error('Reset password error:', error.message);
       throw error;
     }
   }

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
-import 'register_screen.dart';
 import 'home_screen.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -44,7 +44,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Login failed: $e'),
+            content: Text('Inloggen mislukt: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -83,15 +83,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       fontSize: 24,
                       fontWeight: FontWeight.w500,
                     ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.notifications_outlined, color: Colors.white, size: 28),
-                    onPressed: () {},
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.settings_outlined, color: Colors.white, size: 28),
-                    onPressed: () {},
                   ),
                 ],
               ),
@@ -132,7 +123,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              'Email',
+                              'Gebruikersnaam',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w500,
@@ -144,7 +135,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               controller: _emailController,
                               keyboardType: TextInputType.emailAddress,
                               decoration: InputDecoration(
-                                hintText: 'OualidKasmi@gmail.com',
+                                hintText: 'admin',
                                 hintStyle: const TextStyle(color: Colors.grey),
                                 filled: true,
                                 fillColor: Colors.white,
@@ -164,10 +155,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return 'Please enter your email';
-                                }
-                                if (!value.contains('@')) {
-                                  return 'Please enter a valid email';
+                                  return 'Voer je gebruikersnaam in';
                                 }
                                 return null;
                               },
@@ -226,10 +214,10 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return 'Please enter your password';
+                                  return 'Voer je wachtwoord in';
                                 }
                                 if (value.length < 6) {
-                                  return 'Password must be at least 6 characters';
+                                  return 'Wachtwoord moet minstens 6 tekens zijn';
                                 }
                                 return null;
                               },
@@ -281,34 +269,16 @@ class _LoginScreenState extends State<LoginScreen> {
                         // Forgot Password Link
                         TextButton(
                           onPressed: () {
-                            // Handle forgot password
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Forgot password functionality not implemented yet')),
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => const ForgotPasswordScreen(),
+                              ),
                             );
                           },
                           child: const Text(
                             'Wachtwoord vergeten',
                             style: TextStyle(
                               color: Colors.grey,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 40),
-
-                        // Register Link
-                        TextButton(
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => const RegisterScreen(),
-                              ),
-                            );
-                          },
-                          child: const Text(
-                            "Don't have an account? Register",
-                            style: TextStyle(
-                              color: Color(0xFF7CB342),
                               fontSize: 14,
                             ),
                           ),

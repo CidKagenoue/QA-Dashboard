@@ -50,7 +50,9 @@ class _LocationsScreenState extends State<LocationsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadData();
+    if (_hasAdminAccess()) {
+      _loadData();
+    }
   }
 
   Future<void> _loadData() async {
@@ -80,6 +82,11 @@ class _LocationsScreenState extends State<LocationsScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  bool _hasAdminAccess() {
+    final auth = Provider.of<AuthService>(context, listen: false);
+    return auth.user?.isAdmin ?? false;
   }
 
   // ── Vestiging toevoegen / bewerken ────────────────────────────────────────
@@ -277,6 +284,8 @@ class _LocationsScreenState extends State<LocationsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final canManageLocations = context.watch<AuthService>().user?.isAdmin ?? false;
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: _green,
@@ -326,7 +335,13 @@ class _LocationsScreenState extends State<LocationsScreen> {
             ),
             // ── Main content ──────────────────────────────────────────────
             Expanded(
-              child: _isLoading
+              child: !canManageLocations
+                  ? _buildAccessDeniedState(
+                      title: 'Locaties beheren is alleen beschikbaar voor admins.',
+                      description:
+                          'Log in met een admin-account om vestigingen en locaties te bekijken en te wijzigen.',
+                    )
+                  : _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : Padding(
                       padding: const EdgeInsets.all(16),
@@ -498,6 +513,47 @@ class _LocationsScreenState extends State<LocationsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAccessDeniedState({
+    required String title,
+    required String description,
+  }) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.lock_outline_rounded,
+                    size: 48,
+                    color: Color(0xFF7C8A72),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    description,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -9,11 +9,12 @@ import {
   ParseIntPipe,
   UseGuards,
 } from '@nestjs/common';
+import { AdminGuard } from 'src/accounts/admin.guard';
 import { BranchesService } from './branches.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { CreateBranchDto } from './dto/create_branches.dto';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AdminGuard)
 @Controller('branches')
 export class BranchesController {
   constructor(private readonly branchesService: BranchesService) {}

@@ -67,7 +67,6 @@ qa-login-backend/.nyc_output/
 *.db
 *.sqlite
 *.sqlite3
-qa-login-backend/prisma/migrations/
 qa-login-backend/prisma/dev.db
 
 # Logs and diagnostics

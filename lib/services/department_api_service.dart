@@ -20,7 +20,7 @@ class DepartmentApiService {
       final List<dynamic> data = jsonDecode(response.body);
       return data.map((e) => Department.fromJson(e)).toList();
     } else {
-      throw Exception('Laden van afdelingen mislukt');
+      throw Exception(_extractErrorMessage(response));
     }
   }
 
@@ -37,7 +37,7 @@ class DepartmentApiService {
       final List<dynamic> data = jsonDecode(response.body);
       return data.map((e) => User.fromJson(e)).toList();
     } else {
-      throw Exception('Laden van gebruikers mislukt');
+      throw Exception(_extractErrorMessage(response));
     }
   }
 
@@ -73,7 +73,7 @@ class DepartmentApiService {
     if (response.statusCode == 200 || response.statusCode == 201) {
       return Department.fromJson(jsonDecode(response.body));
     } else {
-      throw Exception('Opslaan van afdeling mislukt');
+      throw Exception(_extractErrorMessage(response));
     }
   }
 
@@ -90,7 +90,29 @@ class DepartmentApiService {
     );
 
     if (response.statusCode != 200 && response.statusCode != 204) {
-      throw Exception('Verwijderen van afdeling mislukt');
+      throw Exception(_extractErrorMessage(response));
     }
+  }
+
+  static String _extractErrorMessage(http.Response response) {
+    final body = response.body.trim();
+    if (body.isNotEmpty) {
+      try {
+        final payload = jsonDecode(body);
+        if (payload is Map<String, dynamic>) {
+          final message = payload['message'];
+          if (message is List && message.isNotEmpty) {
+            return message.join(', ');
+          }
+          if (message is String && message.isNotEmpty) {
+            return message;
+          }
+        }
+      } catch (_) {
+        return 'Status ${response.statusCode}: $body';
+      }
+    }
+
+    return 'Request failed with status code ${response.statusCode}';
   }
 }

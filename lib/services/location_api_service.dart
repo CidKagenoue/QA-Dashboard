@@ -3,9 +3,10 @@ import 'package:http/http.dart' as http;
 import 'package:qa_dashboard/models/branch.dart';
 
 import '../models/location.dart';
+import 'api_service.dart';
 
 class LocationApiService {
-  static const String baseUrl = 'http://localhost:3001';
+  static String get baseUrl => ApiService.baseUrl;
 
   // ── Branches ───────────────────────────────────────────────────────────────
 
@@ -21,7 +22,7 @@ class LocationApiService {
       final List<dynamic> data = jsonDecode(response.body);
       return data.map((e) => Branch.fromJson(e)).toList();
     } else {
-      throw Exception('Laden van branches mislukt');
+      throw Exception(_extractErrorMessage(response));
     }
   }
 
@@ -52,8 +53,7 @@ class LocationApiService {
     if (response.statusCode == 200 || response.statusCode == 201) {
       return Branch.fromJson(jsonDecode(response.body));
     } else {
-      // Toon de echte fout van de backend
-      throw Exception('Status ${response.statusCode}: ${response.body}');
+      throw Exception(_extractErrorMessage(response));
     }
   }
 
@@ -69,7 +69,7 @@ class LocationApiService {
       },
     );
     if (response.statusCode != 200 && response.statusCode != 204) {
-      throw Exception('Verwijderen van branch mislukt');
+      throw Exception(_extractErrorMessage(response));
     }
   }
 
@@ -103,7 +103,7 @@ class LocationApiService {
     if (response.statusCode == 200 || response.statusCode == 201) {
       return Location.fromJson(jsonDecode(response.body));
     } else {
-      throw Exception('Opslaan van locatie mislukt');
+      throw Exception(_extractErrorMessage(response));
     }
   }
 
@@ -119,7 +119,29 @@ class LocationApiService {
       },
     );
     if (response.statusCode != 200 && response.statusCode != 204) {
-      throw Exception('Verwijderen van locatie mislukt');
+      throw Exception(_extractErrorMessage(response));
     }
+  }
+
+  static String _extractErrorMessage(http.Response response) {
+    final body = response.body.trim();
+    if (body.isNotEmpty) {
+      try {
+        final payload = jsonDecode(body);
+        if (payload is Map<String, dynamic>) {
+          final message = payload['message'];
+          if (message is List && message.isNotEmpty) {
+            return message.join(', ');
+          }
+          if (message is String && message.isNotEmpty) {
+            return message;
+          }
+        }
+      } catch (_) {
+        return 'Status ${response.statusCode}: $body';
+      }
+    }
+
+    return 'Request failed with status code ${response.statusCode}';
   }
 }

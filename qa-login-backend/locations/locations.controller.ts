@@ -9,11 +9,12 @@ import {
   ParseIntPipe,
   UseGuards,
 } from '@nestjs/common';
+import { AdminGuard } from 'src/accounts/admin.guard';
 import { LocationsService } from './locations.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { CreateLocationDto } from './dto/create_location.dto';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AdminGuard)
 @Controller('locations')
 export class LocationsController {
   constructor(private readonly locationsService: LocationsService) {}

@@ -51,7 +51,21 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadData();
+    if (_hasAdminAccess()) {
+      _loadData();
+    }
+  }
+
+  void _showError(String prefix, Object error) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$prefix: $error')),
+    );
+  }
+
+  bool _hasAdminAccess() {
+    final auth = Provider.of<AuthService>(context, listen: false);
+    return auth.user?.isAdmin ?? false;
   }
 
   Future<void> _loadData() async {
@@ -73,6 +87,8 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
           _selected = _departments.first;
         }
       });
+    } catch (e) {
+      _showError('Fout bij laden', e);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -151,6 +167,8 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
           _selected = null;
         }
         await _loadData();
+      } catch (e) {
+        _showError('Fout bij verwijderen', e);
       } finally {
         if (mounted) setState(() => _isLoading = false);
       }
@@ -165,7 +183,10 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
     List<User> allUsers = [];
     try {
       allUsers = await DepartmentApiService.getAllUsers(token);
-    } catch (_) {}
+    } catch (e) {
+      _showError('Fout bij laden van gebruikers', e);
+      return;
+    }
 
     final selected = <int>{..._selected!.leaders.map((u) => u.id)};
     final searchController = TextEditingController();
@@ -317,6 +338,8 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
           orElse: () => _departments.isNotEmpty ? _departments.first : saved,
         );
       });
+    } catch (e) {
+      _showError('Fout bij opslaan', e);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -324,6 +347,8 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final canManageDepartments = context.watch<AuthService>().user?.isAdmin ?? false;
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: _green,
@@ -385,7 +410,13 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
               ),
             ),
             Expanded(
-              child: _isLoading
+              child: !canManageDepartments
+                  ? _buildAccessDeniedState(
+                      title: 'Afdelingen beheren is alleen beschikbaar voor admins.',
+                      description:
+                          'Log in met een admin-account om afdelingen en leidinggevenden te bekijken en te wijzigen.',
+                    )
+                  : _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : Padding(
                       padding: const EdgeInsets.all(16),
@@ -484,6 +515,47 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAccessDeniedState({
+    required String title,
+    required String description,
+  }) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.lock_outline_rounded,
+                    size: 48,
+                    color: Color(0xFF7C8A72),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    description,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -10,12 +10,13 @@ import {
   Put,
   UseGuards,
 } from '@nestjs/common';
+import { AdminGuard } from '../accounts/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { DepartmentsService } from './department.service';
 import { UpdateDepartmentDto } from './dto/update_department.dto';
 import { CreateDepartmentDto } from './dto/create_department.dto';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, AdminGuard)
 @Controller('departments')
 export class DepartmentsController {
   constructor(private readonly departmentsService: DepartmentsService) {}

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/department.dart';
 import '../models/user.dart';
 import '../services/account_management_service.dart';
 import '../services/auth_service.dart';
+import '../services/department_api_service.dart';
 
 class AccountManagementScreen extends StatefulWidget {
   const AccountManagementScreen({super.key});
@@ -216,7 +218,9 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Account aangemaakt. Rechten zijn direct actief.'),
+        content: Text(
+          'Account aangemaakt. Afdelingen en rechten zijn opgeslagen.',
+        ),
       ),
     );
   }
@@ -306,7 +310,10 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
     }
 
     return account.displayName.toLowerCase().contains(query) ||
-        account.email.toLowerCase().contains(query);
+        account.email.toLowerCase().contains(query) ||
+        account.departments.any(
+          (department) => department.name.toLowerCase().contains(query),
+        );
   }
 
   String _errorMessage(Object error) {
@@ -529,6 +536,25 @@ class _AccountCard extends StatelessWidget {
                               color: Color(0xFF6A7266),
                             ),
                           ),
+                          const SizedBox(height: 12),
+                          Wrap(
+                            alignment: WrapAlignment.center,
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              if (account.isAdmin)
+                                const _InfoChip(
+                                  icon: Icons.admin_panel_settings_outlined,
+                                  label: 'Admin',
+                                ),
+                              ...account.departments.map(
+                                (department) => _InfoChip(
+                                  icon: Icons.apartment_rounded,
+                                  label: department.name,
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
@@ -721,6 +747,85 @@ class _EmptySectionState extends StatelessWidget {
   }
 }
 
+class _InfoChip extends StatelessWidget {
+  const _InfoChip({
+    required this.icon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F4EC),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: const Color(0xFF5C7A2F)),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF475145),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SelectionField extends StatelessWidget {
+  const _SelectionField({
+    required this.label,
+    required this.value,
+    required this.onTap,
+    required this.trailing,
+  });
+
+  final String label;
+  final String value;
+  final VoidCallback? onTap;
+  final Widget trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: label,
+          suffixIcon: Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: trailing,
+          ),
+          suffixIconConstraints: const BoxConstraints(
+            minWidth: 24,
+            minHeight: 24,
+          ),
+        ),
+        child: Text(
+          value,
+          style: TextStyle(
+            color: value == 'Selecteer afdelingen' || value == 'Afdelingen laden...'
+                ? const Color(0xFF667085)
+                : const Color(0xFF101828),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _CreateAccountDialog extends StatefulWidget {
   const _CreateAccountDialog();
 
@@ -730,29 +835,153 @@ class _CreateAccountDialog extends StatefulWidget {
 
 class _CreateAccountDialogState extends State<_CreateAccountDialog> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _firstNameController = TextEditingController();
+  final TextEditingController _lastNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
+  List<Department> _availableDepartments = const [];
+  Set<int> _selectedDepartmentIds = <int>{};
   bool _isAdmin = false;
   AccountAccess _access = const AccountAccess();
+  bool _loadingDepartments = false;
   bool _submitting = false;
   String? _error;
 
   @override
+  void initState() {
+    super.initState();
+    _loadDepartments();
+  }
+
+  @override
   void dispose() {
-    _nameController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
+  Future<void> _loadDepartments() async {
+    setState(() => _loadingDepartments = true);
+
+    try {
+      final token = await context.read<AuthService>().getValidAccessToken();
+      final departments = await DepartmentApiService.getDepartments(token);
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _availableDepartments = departments;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _error = error.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingDepartments = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _selectDepartments() async {
+    if (_loadingDepartments || _availableDepartments.isEmpty) {
+      return;
+    }
+
+    final result = await showDialog<Set<int>>(
+      context: context,
+      builder: (dialogContext) {
+        final selected = Set<int>.from(_selectedDepartmentIds);
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Afdelingen selecteren'),
+              content: SizedBox(
+                width: 420,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: _availableDepartments.map((department) {
+                      final isSelected = selected.contains(department.id);
+
+                      return CheckboxListTile(
+                        value: isSelected,
+                        onChanged: (value) {
+                          setDialogState(() {
+                            if (value == true) {
+                              selected.add(department.id);
+                            } else {
+                              selected.remove(department.id);
+                            }
+                          });
+                        },
+                        title: Text(department.name),
+                        controlAffinity: ListTileControlAffinity.leading,
+                        contentPadding: EdgeInsets.zero,
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Annuleren'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(selected),
+                  child: const Text('Opslaan'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (result == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _selectedDepartmentIds = result;
+    });
+  }
+
+  String _selectedDepartmentsLabel() {
+    if (_loadingDepartments) {
+      return 'Afdelingen laden...';
+    }
+
+    final selectedDepartments = _availableDepartments
+        .where((department) => _selectedDepartmentIds.contains(department.id))
+        .map((department) => department.name)
+        .toList();
+
+    if (selectedDepartments.isEmpty) {
+      return 'Selecteer afdelingen';
+    }
+
+    return selectedDepartments.join(', ');
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Nieuw account'),
+      title: const Text('Nieuwe gebruiker registreren'),
       content: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420),
+        constraints: const BoxConstraints(maxWidth: 540),
         child: SingleChildScrollView(
           child: Form(
             key: _formKey,
@@ -760,20 +989,55 @@ class _CreateAccountDialogState extends State<_CreateAccountDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TextFormField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Naam',
-                    hintText: 'Bijvoorbeeld Bram Verhoeven',
-                  ),
+                const Text(
+                  'Vul de onderstaande gegevens in om een nieuwe gebruiker toe te voegen.',
+                  style: TextStyle(color: Color(0xFF667085), height: 1.4),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _firstNameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Voornaam *',
+                          hintText: 'Milton',
+                        ),
+                        validator: (value) {
+                          if ((value ?? '').trim().isEmpty) {
+                            return 'Voornaam is verplicht';
+                          }
+
+                          return null;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _lastNameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Achternaam *',
+                          hintText: 'Boon',
+                        ),
+                        validator: (value) {
+                          if ((value ?? '').trim().isEmpty) {
+                            return 'Achternaam is verplicht';
+                          }
+
+                          return null;
+                        },
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 14),
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   decoration: const InputDecoration(
-                    labelText: 'E-mail',
-                    hintText: 'naam@bedrijf.com',
+                    labelText: 'E-mail *',
+                    hintText: 'voornaam.naam@vlotter.com',
                   ),
                   validator: (value) {
                     final email = value?.trim() ?? '';
@@ -791,7 +1055,7 @@ class _CreateAccountDialogState extends State<_CreateAccountDialog> {
                   controller: _passwordController,
                   obscureText: true,
                   decoration: const InputDecoration(
-                    labelText: 'Tijdelijk wachtwoord',
+                    labelText: 'Tijdelijk wachtwoord *',
                   ),
                   validator: (value) {
                     if ((value ?? '').trim().length < 6) {
@@ -800,9 +1064,43 @@ class _CreateAccountDialogState extends State<_CreateAccountDialog> {
                     return null;
                   },
                 ),
+                const SizedBox(height: 14),
+                _SelectionField(
+                  label: 'Afdelingen *',
+                  value: _selectedDepartmentsLabel(),
+                  onTap: _loadingDepartments ? null : _selectDepartments,
+                  trailing: _loadingDepartments
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.keyboard_arrow_down_rounded),
+                ),
+                if (!_loadingDepartments && _availableDepartments.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: Text(
+                      'Nog geen afdelingen beschikbaar om te koppelen.',
+                      style: TextStyle(color: Color(0xFF667085)),
+                    ),
+                  ),
+                const SizedBox(height: 14),
+                const SizedBox(height: 20),
+                const Divider(height: 1),
+                const SizedBox(height: 8),
+                _DialogToggle(
+                  label: 'Admin',
+                  value: _isAdmin,
+                  onChanged: (value) {
+                    setState(() {
+                      _isAdmin = value;
+                    });
+                  },
+                ),
                 const SizedBox(height: 20),
                 const Text(
-                  'Toegang',
+                  'Toegang (Permissions)',
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
                     color: Color(0xFF2C3525),
@@ -854,18 +1152,6 @@ class _CreateAccountDialogState extends State<_CreateAccountDialog> {
                     });
                   },
                 ),
-                const SizedBox(height: 8),
-                const Divider(height: 1),
-                const SizedBox(height: 8),
-                _DialogToggle(
-                  label: 'Admin',
-                  value: _isAdmin,
-                  onChanged: (value) {
-                    setState(() {
-                      _isAdmin = value;
-                    });
-                  },
-                ),
                 if (_error != null) ...[
                   const SizedBox(height: 12),
                   Text(
@@ -910,18 +1196,28 @@ class _CreateAccountDialogState extends State<_CreateAccountDialog> {
       return;
     }
 
+    if (_selectedDepartmentIds.isEmpty) {
+      setState(() {
+        _error = 'Selecteer minstens één afdeling';
+      });
+      return;
+    }
+
     setState(() {
       _submitting = true;
       _error = null;
     });
 
     try {
+      final fullName =
+          '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}'
+              .trim();
+
       await context.read<AccountManagementService>().createAccount(
         email: _emailController.text.trim(),
         password: _passwordController.text,
-        name: _nameController.text.trim().isEmpty
-            ? null
-            : _nameController.text.trim(),
+        name: fullName,
+        departmentIds: _selectedDepartmentIds.toList()..sort(),
         isAdmin: _isAdmin,
         access: _access,
       );

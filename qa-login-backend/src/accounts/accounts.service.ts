@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateAccountDto,
   UpdateAccountAccessDto,
@@ -24,6 +25,7 @@ type ManagedAccountResponse = {
   id: number;
   email: string;
   name: string | null;
+  departments: { id: number; name: string }[];
   isAdmin: boolean;
   access: AccountAccessResponse;
   hasAnyAccess: boolean;
@@ -31,7 +33,10 @@ type ManagedAccountResponse = {
 
 @Injectable()
 export class AccountsService {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   async listAccounts(search?: string) {
     const accounts = await this.userService.listManagedAccounts(search?.trim() || undefined);
@@ -45,18 +50,24 @@ export class AccountsService {
     const email = this.normalizeEmail(createAccountDto.email);
     const password = this.normalizePassword(createAccountDto.password);
     const name = this.normalizeName(createAccountDto.name);
+    const isAdmin = this.readBoolean(createAccountDto, 'isAdmin');
+    const departmentIds = this.normalizeDepartmentIds(
+      createAccountDto.departmentIds,
+    );
 
     const existingUser = await this.userService.findByEmail(email);
     if (existingUser) {
       throw new ConflictException('A user with that email already exists');
     }
 
+    await this.assertDepartmentsExist(departmentIds);
+
     const hashedPassword = await bcrypt.hash(password, 12);
     const account = await this.userService.createManagedAccount({
       email,
       password: hashedPassword,
       name,
-      isAdmin: this.readBoolean(createAccountDto, 'isAdmin'),
+      isAdmin,
       basisAccess: this.readBoolean(createAccountDto, 'basisAccess'),
       whsToursAccess: this.readBoolean(createAccountDto, 'whsToursAccess'),
       ovaAccess: this.readBoolean(createAccountDto, 'ovaAccess'),
@@ -65,6 +76,9 @@ export class AccountsService {
         createAccountDto,
         'maintenanceInspectionsAccess',
       ),
+      departments: {
+        create: departmentIds.map((departmentId) => ({ departmentId })),
+      },
     });
 
     return {
@@ -131,6 +145,8 @@ export class AccountsService {
       id: account.id,
       email: account.email,
       name: account.name,
+      departments: account.departments
+        .map((link) => link.department),
       isAdmin: account.isAdmin,
       access,
       hasAnyAccess: account.isAdmin || Object.values(access).some(Boolean),
@@ -204,6 +220,41 @@ export class AccountsService {
   private normalizeName(name?: string) {
     const normalizedName = name?.trim();
     return normalizedName ? normalizedName : null;
+  }
+
+  private normalizeDepartmentIds(departmentIds?: number[]) {
+    if (departmentIds === undefined) {
+      return [] as number[];
+    }
+
+    if (!Array.isArray(departmentIds)) {
+      throw new BadRequestException('departmentIds must be an array');
+    }
+
+    const uniqueDepartmentIds = Array.from(new Set(departmentIds));
+    if (uniqueDepartmentIds.some((id) => !Number.isInteger(id) || id <= 0)) {
+      throw new BadRequestException('departmentIds must contain positive integers');
+    }
+
+    return uniqueDepartmentIds;
+  }
+
+  private async assertDepartmentsExist(departmentIds: number[]) {
+    if (departmentIds.length === 0) {
+      return;
+    }
+
+    const count = await this.prisma.department.count({
+      where: {
+        id: {
+          in: departmentIds,
+        },
+      },
+    });
+
+    if (count !== departmentIds.length) {
+      throw new BadRequestException('One or more departments do not exist');
+    }
   }
 
   private async ensureAnotherAdminExists(excludedUserId: number) {

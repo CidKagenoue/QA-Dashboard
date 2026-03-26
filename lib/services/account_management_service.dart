@@ -81,6 +81,7 @@ class AccountManagementService extends ChangeNotifier {
     required String email,
     required String password,
     String? name,
+    required List<int> departmentIds,
     required bool isAdmin,
     required AccountAccess access,
   }) async {
@@ -95,6 +96,7 @@ class AccountManagementService extends ChangeNotifier {
         email: email,
         password: password,
         name: name,
+        departmentIds: departmentIds,
         isAdmin: isAdmin,
         access: access,
       );

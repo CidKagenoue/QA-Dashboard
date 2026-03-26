@@ -64,10 +64,35 @@ class AccountAccess {
   }
 }
 
+class UserDepartment {
+  final int id;
+  final String name;
+
+  const UserDepartment({
+    required this.id,
+    required this.name,
+  });
+
+  factory UserDepartment.fromJson(Map<String, dynamic> json) {
+    return UserDepartment(
+      id: (json['id'] as num).toInt(),
+      name: json['name'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+    };
+  }
+}
+
 class User {
   final int id;
   final String email;
   final String? name;
+  final List<UserDepartment> departments;
   final bool isAdmin;
   final AccountAccess access;
 
@@ -75,6 +100,7 @@ class User {
     required this.id,
     required this.email,
     this.name,
+    this.departments = const [],
     this.isAdmin = false,
     this.access = const AccountAccess(),
   });
@@ -94,6 +120,7 @@ class User {
     int? id,
     String? email,
     String? name,
+    List<UserDepartment>? departments,
     bool? isAdmin,
     AccountAccess? access,
   }) {
@@ -101,16 +128,28 @@ class User {
       id: id ?? this.id,
       email: email ?? this.email,
       name: name ?? this.name,
+      departments: departments ?? this.departments,
       isAdmin: isAdmin ?? this.isAdmin,
       access: access ?? this.access,
     );
   }
 
   factory User.fromJson(Map<String, dynamic> json) {
+    final departmentsJson = json['departments'];
+    final parsedDepartments = departmentsJson is List
+        ? departmentsJson
+            .whereType<Map>()
+            .map((department) => UserDepartment.fromJson(
+                  Map<String, dynamic>.from(department),
+                ))
+            .toList()
+        : <UserDepartment>[];
+
     return User(
       id: (json['id'] as num).toInt(),
       email: json['email'] as String,
       name: json['name'] as String?,
+      departments: parsedDepartments,
       isAdmin: _readBool(json['isAdmin']),
       access: AccountAccess.fromJson(json),
     );
@@ -121,6 +160,8 @@ class User {
       'id': id,
       'email': email,
       'name': name,
+      'departments':
+          departments.map((department) => department.toJson()).toList(),
       'isAdmin': isAdmin,
       'access': access.toJson(),
       'hasAnyAccess': hasAnyAccess,

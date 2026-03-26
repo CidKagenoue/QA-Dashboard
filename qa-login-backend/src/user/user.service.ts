@@ -12,6 +12,16 @@ export const managedAccountSelect = {
   ovaAccess: true,
   japGppAccess: true,
   maintenanceInspectionsAccess: true,
+  departments: {
+    select: {
+      department: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+  },
 } satisfies Prisma.UserSelect;
 
 export type ManagedAccount = Prisma.UserGetPayload<{

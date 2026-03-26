@@ -143,6 +143,7 @@ class ApiService {
     required String email,
     required String password,
     String? name,
+    required List<int> departmentIds,
     required bool isAdmin,
     required AccountAccess access,
   }) async {
@@ -154,6 +155,7 @@ class ApiService {
           'email': email.trim(),
           'password': password,
           'name': name,
+          'departmentIds': departmentIds,
           'isAdmin': isAdmin,
           'basisAccess': access.basis,
           'whsToursAccess': access.whsTours,

@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 
 import '../models/user.dart';
 import '../services/auth_service.dart';
+import 'ova_ticket_list_screen.dart';
+import 'ova_ticket_wizard_screen.dart';
 import 'profile_screen.dart';
 
 class OvaDashboardScreen extends StatelessWidget {
@@ -124,9 +126,7 @@ class OvaDashboardScreen extends StatelessWidget {
   }) {
     void showComingSoon(String label) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('$label wordt in een volgende stap gekoppeld.'),
-        ),
+        SnackBar(content: Text('$label wordt in een volgende stap gekoppeld.')),
       );
     }
 
@@ -136,7 +136,13 @@ class OvaDashboardScreen extends StatelessWidget {
           icon: Icons.description_outlined,
           title: 'Tickets',
           subtitle: 'Open drafts en lopende OVA-tickets.',
-          onTap: () => showComingSoon('Tickets'),
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => const OvaTicketListScreen(),
+              ),
+            );
+          },
         ),
       _OvaTileData(
         icon: Icons.format_list_bulleted_rounded,
@@ -149,7 +155,13 @@ class OvaDashboardScreen extends StatelessWidget {
           icon: Icons.add_rounded,
           title: 'Nieuwe Ticket',
           subtitle: 'Maak een nieuw OVA-ticket aan.',
-          onTap: () => showComingSoon('Nieuwe Ticket'),
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => const OvaTicketWizardScreen(),
+              ),
+            );
+          },
         ),
     ];
   }
@@ -251,7 +263,7 @@ class _OvaContent extends StatelessWidget {
                           const SizedBox(height: 8),
                           Text(
                             hasFullOvaAccess
-                                ? 'Kies snel tussen Tickets, Acties en Nieuwe Ticket. De onderliggende flows worden stapsgewijs verder gekoppeld.'
+                                ? 'Kies snel tussen Tickets, Acties en Nieuwe Ticket. Het ticket-aanmaken ondersteunt nu de eerste drie stappen: basisinformatie, aanleiding & identificatie en vaststelling.'
                                 : 'Je hebt Basis (OVA Acties) toegang. Daarom tonen we Tickets en Acties, maar Nieuwe Ticket blijft voorbehouden aan volledige OVA-toegang.',
                             style: Theme.of(context).textTheme.bodyLarge,
                           ),
@@ -275,7 +287,7 @@ class _OvaContent extends StatelessWidget {
                                   SizedBox(width: 12),
                                   Expanded(
                                     child: Text(
-                                      'Volledige OVA-rechten geven ook toegang tot Nieuwe Ticket. Bestaande onderdelen van de flow worden in volgende commits aangesloten.',
+                                      'Volledige OVA-rechten geven ook toegang tot Nieuwe Ticket. Verdere OVA-stappen en acties koppelen we later apart.',
                                     ),
                                   ),
                                 ],
@@ -387,10 +399,7 @@ class _OvaTileCard extends StatelessWidget {
             Text(
               data.subtitle,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Color(0xFF66705F),
-                height: 1.35,
-              ),
+              style: const TextStyle(color: Color(0xFF66705F), height: 1.35),
             ),
           ],
         ),

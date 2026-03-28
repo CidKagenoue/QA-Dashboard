@@ -26,6 +26,8 @@ model User {
   updatedAt            DateTime              @updatedAt
   refreshTokenSessions RefreshTokenSession[]
   passwordResetTokens  PasswordResetToken[]
+  createdOvaTickets    OvaTicket[]           @relation("OvaTicketCreatedBy")
+  editedOvaTickets     OvaTicket[]           @relation("OvaTicketLastEditedBy")
 
   departmentLeaders DepartmentLeader[]
   departments       UserDepartment[]
@@ -86,6 +88,26 @@ model PasswordResetToken {
   @@map("password_reset_tokens")
 }
 
+model OvaTicket {
+  id                  Int      @id @default(autoincrement())
+  status              String   @default("incomplete")
+  currentStep         Int      @default(1) @map("current_step")
+  findingDate         DateTime? @map("finding_date")
+  ovaType             String?  @map("ova_type")
+  reasons             String[] @default([])
+  otherReason         String?  @map("other_reason")
+  incidentDescription String?  @map("incident_description")
+  createdById         Int      @map("created_by_id")
+  lastEditedById      Int      @map("last_edited_by_id")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+  createdBy           User     @relation("OvaTicketCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  lastEditedBy        User     @relation("OvaTicketLastEditedBy", fields: [lastEditedById], references: [id], onDelete: Restrict)
+
+  @@index([createdById], map: "ova_tickets_created_by_id_idx")
+  @@index([lastEditedById], map: "ova_tickets_last_edited_by_id_idx")
+  @@map("ova_tickets")
+}
 
 model Branch {
   id        Int        @id @default(autoincrement())

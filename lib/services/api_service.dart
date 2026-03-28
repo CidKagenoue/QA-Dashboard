@@ -201,6 +201,87 @@ class ApiService {
     );
   }
 
+  static Future<List<Map<String, dynamic>>> fetchOvaTickets({
+    required String token,
+  }) async {
+    final response = await _requestObject(
+      () => http.get(
+        Uri.parse('$baseUrl/ova/tickets'),
+        headers: _headers(token: token),
+      ),
+    );
+
+    final tickets = response['tickets'];
+    if (tickets is! List) {
+      throw Exception('Invalid OVA ticket list received from the server');
+    }
+
+    return tickets
+        .whereType<Map>()
+        .map((ticket) => Map<String, dynamic>.from(ticket))
+        .toList();
+  }
+
+  static Future<Map<String, dynamic>> fetchOvaTicket({
+    required String token,
+    required int ticketId,
+  }) async {
+    final response = await _requestObject(
+      () => http.get(
+        Uri.parse('$baseUrl/ova/tickets/$ticketId'),
+        headers: _headers(token: token),
+      ),
+    );
+
+    final ticket = response['ticket'];
+    if (ticket is! Map) {
+      throw Exception('Invalid OVA ticket received from the server');
+    }
+
+    return Map<String, dynamic>.from(ticket);
+  }
+
+  static Future<Map<String, dynamic>> createOvaTicket({
+    required String token,
+    required Map<String, dynamic> payload,
+  }) async {
+    final response = await _requestObject(
+      () => http.post(
+        Uri.parse('$baseUrl/ova/tickets'),
+        headers: _headers(token: token),
+        body: jsonEncode(payload),
+      ),
+    );
+
+    final ticket = response['ticket'];
+    if (ticket is! Map) {
+      throw Exception('Invalid OVA ticket received from the server');
+    }
+
+    return Map<String, dynamic>.from(ticket);
+  }
+
+  static Future<Map<String, dynamic>> updateOvaTicket({
+    required String token,
+    required int ticketId,
+    required Map<String, dynamic> payload,
+  }) async {
+    final response = await _requestObject(
+      () => http.patch(
+        Uri.parse('$baseUrl/ova/tickets/$ticketId'),
+        headers: _headers(token: token),
+        body: jsonEncode(payload),
+      ),
+    );
+
+    final ticket = response['ticket'];
+    if (ticket is! Map) {
+      throw Exception('Invalid OVA ticket received from the server');
+    }
+
+    return Map<String, dynamic>.from(ticket);
+  }
+
   static Map<String, String> _headers({String? token}) {
     return {
       'Content-Type': 'application/json',

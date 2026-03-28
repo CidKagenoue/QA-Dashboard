@@ -74,10 +74,8 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
     final authService = context.watch<AuthService>();
     final user = authService.user;
     final canCreate = user != null && (user.isAdmin || user.access.ova);
-    final incompleteTickets = _tickets
-        .where((ticket) => !ticket.isOpen)
-        .toList();
-    final openTickets = _tickets.where((ticket) => ticket.isOpen).toList();
+    final activeTickets = _tickets.where((ticket) => !ticket.isClosed).toList();
+    final closedTickets = _tickets.where((ticket) => ticket.isClosed).toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F6F3),
@@ -121,7 +119,7 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
                             ),
                             const SizedBox(height: 8),
                             const Text(
-                              'Volg hier drafts en lopende OVA-tickets op. De wizard ondersteunt momenteel Basisinformatie, Aanleiding & Identificatie en Vaststelling.',
+                              'Onvolledige tickets blijven zichtbaar zolang ze in behandeling zijn. Afgesloten tickets tonen we apart zodat de formele afronding en historiek bewaard blijven.',
                             ),
                           ],
                         ),
@@ -149,11 +147,9 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (incompleteTickets.isNotEmpty) ...[
-                          const _TicketSectionHeading(
-                            title: 'Incompleet of in opbouw',
-                          ),
-                          ...incompleteTickets.map(
+                        if (activeTickets.isNotEmpty) ...[
+                          const _TicketSectionHeading(title: 'Lopende tickets'),
+                          ...activeTickets.map(
                             (ticket) => Padding(
                               padding: const EdgeInsets.only(bottom: 16),
                               child: _TicketCard(
@@ -163,11 +159,13 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
                             ),
                           ),
                         ],
-                        if (openTickets.isNotEmpty) ...[
-                          if (incompleteTickets.isNotEmpty)
+                        if (closedTickets.isNotEmpty) ...[
+                          if (activeTickets.isNotEmpty)
                             const SizedBox(height: 12),
-                          const _TicketSectionHeading(title: 'Open tickets'),
-                          ...openTickets.map(
+                          const _TicketSectionHeading(
+                            title: 'Gesloten tickets',
+                          ),
+                          ...closedTickets.map(
                             (ticket) => Padding(
                               padding: const EdgeInsets.only(bottom: 16),
                               child: _TicketCard(
@@ -198,7 +196,7 @@ class _TicketCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final stepLabel =
-        kOvaTicketStepLabels[(ticket.currentStep - 1).clamp(0, 2).toInt()];
+        kOvaTicketStepLabels[(ticket.currentStep - 1).clamp(0, 6).toInt()];
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -241,15 +239,19 @@ class _TicketCard extends StatelessWidget {
                     ),
                     _StatusChip(
                       label: ticket.statusLabel,
-                      color: ticket.isOpen
+                      color: ticket.isClosed
+                          ? const Color(0xFF3C7D3A)
+                          : ticket.isOpen
                           ? const Color(0xFF315D7A)
                           : const Color(0xFF6B8F2A),
-                      backgroundColor: ticket.isOpen
+                      backgroundColor: ticket.isClosed
+                          ? const Color(0xFFDFF0DE)
+                          : ticket.isOpen
                           ? const Color(0xFFE3F0FA)
                           : const Color(0xFFEAF3D7),
                     ),
                     _StatusChip(
-                      label: 'Stap ${ticket.currentStep}/3',
+                      label: 'Stap ${ticket.currentStep}/7',
                       color: const Color(0xFF56624A),
                       backgroundColor: const Color(0xFFEDEFE9),
                     ),
@@ -271,7 +273,7 @@ class _TicketCard extends StatelessWidget {
                 ],
                 const SizedBox(height: 4),
                 Text(
-                  'Huidige focus: $stepLabel',
+                  'Volgende focus: $stepLabel',
                   style: const TextStyle(
                     color: Color(0xFF3E4638),
                     fontWeight: FontWeight.w600,
@@ -286,7 +288,10 @@ class _TicketCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 18),
-          ElevatedButton(onPressed: onOpen, child: const Text('Openen')),
+          ElevatedButton(
+            onPressed: onOpen,
+            child: Text(ticket.isClosed ? 'Bekijken' : 'Openen'),
+          ),
         ],
       ),
     );
@@ -371,7 +376,7 @@ class _EmptyTicketState extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             canCreate
-                ? 'Maak een eerste ticket aan en sla het tussentijds op zodra stap 1, 2 of 3 klaar is.'
+                ? 'Maak een eerste ticket aan en sla het tussentijds op als draft zodra stap 1, 2 of 3 klaar is.'
                 : 'Zodra een ticket gestart is, verschijnt het hier zodat jij het verder kunt opvolgen.',
             textAlign: TextAlign.center,
           ),

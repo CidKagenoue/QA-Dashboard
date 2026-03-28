@@ -28,6 +28,16 @@ export type ManagedAccount = Prisma.UserGetPayload<{
   select: typeof managedAccountSelect;
 }>;
 
+export const assignableOvaUserSelect = {
+  id: true,
+  email: true,
+  name: true,
+} satisfies Prisma.UserSelect;
+
+export type AssignableOvaUser = Prisma.UserGetPayload<{
+  select: typeof assignableOvaUserSelect;
+}>;
+
 @Injectable()
 export class UserService {
   constructor(private readonly prisma: PrismaService) {}
@@ -127,6 +137,24 @@ export class UserService {
     const users = await this.prisma.user.findMany({
       where,
       select: managedAccountSelect,
+    });
+
+    return users.sort((left, right) => {
+      const leftLabel =
+        left.name?.trim().toLowerCase() || left.email.toLowerCase();
+      const rightLabel =
+        right.name?.trim().toLowerCase() || right.email.toLowerCase();
+
+      return (
+        leftLabel.localeCompare(rightLabel) ||
+        left.email.localeCompare(right.email)
+      );
+    });
+  }
+
+  async listAssignableOvaUsers() {
+    const users = await this.prisma.user.findMany({
+      select: assignableOvaUserSelect,
     });
 
     return users.sort((left, right) => {

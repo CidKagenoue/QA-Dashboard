@@ -6,11 +6,16 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   Req,
   UnauthorizedException,
 } from '@nestjs/common';
 import { AuthenticatedRequest } from '../auth/jwt-auth.guard';
-import { CreateOvaTicketDto, UpdateOvaTicketDto } from './dto/ova-ticket.dto';
+import {
+  CreateOvaTicketDto,
+  UpdateOvaFollowUpActionDto,
+  UpdateOvaTicketDto,
+} from './dto/ova-ticket.dto';
 import { OvaService } from './ova.service';
 
 @Controller('ova')
@@ -33,6 +38,19 @@ export class OvaController {
     );
   }
 
+  @Get('tickets/assignable-users')
+  async listAssignableUsers(@Req() req: AuthenticatedRequest) {
+    return this.ovaService.listAssignableUsers(this.readActorId(req));
+  }
+
+  @Get('tickets/external-contacts')
+  async listExternalContacts(
+    @Req() req: AuthenticatedRequest,
+    @Query('query') query?: string,
+  ) {
+    return this.ovaService.listExternalContacts(this.readActorId(req), query);
+  }
+
   @Get('tickets/:id')
   async getTicket(
     @Param('id', ParseIntPipe) ticketId: number,
@@ -51,6 +69,24 @@ export class OvaController {
       ticketId,
       this.readActorId(req),
       updateOvaTicketDto,
+    );
+  }
+
+  @Get('actions/my')
+  async listMyActions(@Req() req: AuthenticatedRequest) {
+    return this.ovaService.listMyActions(this.readActorId(req));
+  }
+
+  @Patch('actions/:id')
+  async updateAction(
+    @Param('id', ParseIntPipe) actionId: number,
+    @Body() updateOvaFollowUpActionDto: UpdateOvaFollowUpActionDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.ovaService.updateAction(
+      actionId,
+      this.readActorId(req),
+      updateOvaFollowUpActionDto,
     );
   }
 

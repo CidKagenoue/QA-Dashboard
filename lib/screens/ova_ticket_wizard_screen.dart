@@ -170,7 +170,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
         .map(EditableOvaFollowUpAction.fromAction)
         .toList();
     _currentStep = ticket.isClosed
-        ? 6
+        ? 0
         : (ticket.currentStep - 1).clamp(0, 6).toInt();
   }
 
@@ -605,6 +605,9 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
 
   void _jumpToStep(int index) {
     if (_ticket?.isClosed == true) {
+      setState(() {
+        _currentStep = index;
+      });
       return;
     }
 
@@ -736,8 +739,32 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
                                   height: 1.45,
                                 ),
                               ),
+                              if (isClosed) ...[
+                                const SizedBox(height: 14),
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF7F8F4),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: const Color(0xFFE1E5D9),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Dit gesloten ticket staat in alleen-lezen modus. Gebruik de stappen bovenaan of Vorige/Volgende om alle details te bekijken.',
+                                    style: TextStyle(
+                                      color: Color(0xFF566051),
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                ),
+                              ],
                               const SizedBox(height: 28),
-                              _buildCurrentStep(),
+                              IgnorePointer(
+                                ignoring: isClosed,
+                                child: _buildCurrentStep(),
+                              ),
                               if (_error != null) ...[
                                 const SizedBox(height: 16),
                                 Text(
@@ -765,13 +792,35 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
   Widget _buildActionBar() {
     final isClosed = _ticket?.isClosed ?? false;
 
-    if (isClosed && _currentStep == 6) {
+    if (isClosed) {
       return Row(
         children: [
+          if (_currentStep > 0)
+            OutlinedButton.icon(
+              onPressed: () {
+                setState(() {
+                  _currentStep -= 1;
+                });
+              },
+              icon: const Icon(Icons.arrow_back_rounded),
+              label: const Text('Vorige'),
+            ),
           const Spacer(),
+          if (_currentStep < 6) ...[
+            OutlinedButton.icon(
+              onPressed: () {
+                setState(() {
+                  _currentStep += 1;
+                });
+              },
+              icon: const Icon(Icons.arrow_forward_rounded),
+              label: const Text('Volgende'),
+            ),
+            const SizedBox(width: 12),
+          ],
           ElevatedButton.icon(
             onPressed: _closeWizard,
-            icon: const Icon(Icons.arrow_back_rounded),
+            icon: const Icon(Icons.list_alt_rounded),
             label: const Text('Terug naar tickets'),
           ),
         ],
@@ -1376,7 +1425,7 @@ class _ClosedTicketBanner extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Dit ticket is afgesloten op ${ticket.closedAt == null ? '-' : formatOvaDateTime(ticket.closedAt!)} door ${ticket.closedBy?.displayName ?? 'onbekend'}.',
+              'Dit ticket is afgesloten op ${ticket.closedAt == null ? '-' : formatOvaDateTime(ticket.closedAt!)} door ${ticket.closedBy?.displayName ?? 'onbekend'}. Alle stappen blijven hieronder raadpleegbaar in alleen-lezen modus.',
             ),
           ),
         ],
@@ -1445,11 +1494,11 @@ class _WizardStepper extends StatelessWidget {
         children: List.generate(kOvaTicketStepLabels.length, (index) {
           final isCompleted = index < storedStep - 1;
           final isCurrent = index == currentStep;
-          final isReachable = !locked && index <= accessibleStep;
+          final isReachable = locked || index <= accessibleStep;
           final circleColor = isCurrent || isCompleted
               ? const Color(0xFF8CC63F)
               : Colors.white;
-          final borderColor = isReachable || locked
+          final borderColor = isReachable
               ? const Color(0xFF8CC63F)
               : const Color(0xFFD4D8CF);
 
@@ -1472,7 +1521,7 @@ class _WizardStepper extends StatelessWidget {
                           fontWeight: isCurrent
                               ? FontWeight.w700
                               : FontWeight.w500,
-                          color: locked || isReachable
+                          color: isReachable
                               ? const Color(0xFF2B3424)
                               : const Color(0xFF98A095),
                         ),

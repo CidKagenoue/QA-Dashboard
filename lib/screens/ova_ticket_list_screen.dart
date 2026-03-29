@@ -357,9 +357,10 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
     final authService = context.watch<AuthService>();
     final user = authService.user;
     final canCreate = user != null && (user.isAdmin || user.access.ova);
+    final pageBackground = Theme.of(context).scaffoldBackgroundColor;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF4B4B4B),
+      backgroundColor: pageBackground,
       appBar: AppBar(
         backgroundColor: const Color(0xFF8CC63F),
         foregroundColor: Colors.white,
@@ -389,18 +390,39 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: _loadTickets,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(20),
-          children: [
-            Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1240),
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(28, 24, 28, 28),
+        child: LayoutBuilder(
+          builder: (context, viewportConstraints) {
+            final isNarrowPage = viewportConstraints.maxWidth < 760;
+            final outerPadding = isNarrowPage
+                ? const EdgeInsets.all(16)
+                : const EdgeInsets.fromLTRB(24, 20, 24, 24);
+            final contentPadding = isNarrowPage
+                ? const EdgeInsets.fromLTRB(20, 20, 20, 24)
+                : const EdgeInsets.fromLTRB(32, 28, 32, 32);
+            final minContentHeight = math.max(
+              0.0,
+              viewportConstraints.maxHeight - outerPadding.vertical,
+            );
+
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: outerPadding,
+              children: [
+                Container(
+                  width: double.infinity,
+                  constraints: BoxConstraints(minHeight: minContentHeight),
+                  padding: contentPadding,
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(isNarrowPage ? 18 : 24),
+                    border: Border.all(color: const Color(0xFFE2E6DD)),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x12000000),
+                        blurRadius: 18,
+                        offset: Offset(0, 8),
+                      ),
+                    ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -525,9 +547,9 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
                     ],
                   ),
                 ),
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         ),
       ),
     );

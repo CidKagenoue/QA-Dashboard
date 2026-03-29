@@ -83,15 +83,28 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
   }
 
   Future<void> _openTicket({int? ticketId}) async {
-    final changed = await Navigator.of(context).push<bool>(
+    final resultingSection = await Navigator.of(context).push<String?>(
       MaterialPageRoute(
         builder: (context) => OvaTicketWizardScreen(ticketId: ticketId),
       ),
     );
 
-    if (changed == true && mounted) {
-      await _loadTickets();
+    if (resultingSection == null || !mounted) {
+      return;
     }
+
+    final targetSection = _sectionForResult(resultingSection);
+    await _loadTickets();
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _selectedSection = targetSection;
+      if (targetSection != _TicketSection.open) {
+        _selectedOvaType = null;
+      }
+    });
   }
 
   void _selectSection(_TicketSection section) {
@@ -146,6 +159,18 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
         content: Text('Meldingen zijn hier nog niet beschikbaar.'),
       ),
     );
+  }
+
+  _TicketSection _sectionForResult(String value) {
+    switch (_normalizeValue(value)) {
+      case 'closed':
+      case 'completed':
+        return _TicketSection.closed;
+      case 'open':
+        return _TicketSection.open;
+      default:
+        return _TicketSection.incomplete;
+    }
   }
 
   bool _hasCauseAnalysis(OvaTicket ticket) {

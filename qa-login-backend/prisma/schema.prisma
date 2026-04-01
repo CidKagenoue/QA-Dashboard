@@ -26,6 +26,10 @@ model User {
   updatedAt            DateTime              @updatedAt
   refreshTokenSessions RefreshTokenSession[]
   passwordResetTokens  PasswordResetToken[]
+  createdOvaTickets    OvaTicket[]           @relation("OvaTicketCreatedBy")
+  editedOvaTickets     OvaTicket[]           @relation("OvaTicketLastEditedBy")
+  closedOvaTickets     OvaTicket[]           @relation("OvaTicketClosedBy")
+  assignedOvaActions   OvaFollowUpAction[]   @relation("OvaFollowUpActionInternalAssignee")
 
   departmentLeaders DepartmentLeader[]
   departments       UserDepartment[]
@@ -84,6 +88,74 @@ model PasswordResetToken {
 
   @@index([userId], map: "password_reset_tokens_user_id_idx")
   @@map("password_reset_tokens")
+}
+
+model OvaTicket {
+  id                  Int      @id @default(autoincrement())
+  status              String   @default("incomplete")
+  currentStep         Int      @default(1) @map("current_step")
+  findingDate         DateTime? @map("finding_date")
+  ovaType             String?  @map("ova_type")
+  reasons             String[] @default([])
+  otherReason         String?  @map("other_reason")
+  incidentDescription String?  @map("incident_description")
+  causeAnalysisMethod String?  @map("cause_analysis_method")
+  causeAnalysisNotes  String?  @map("cause_analysis_notes")
+  followUpActions     String?  @map("follow_up_actions")
+  effectivenessDate   DateTime? @map("effectiveness_date")
+  effectivenessNotes  String?  @map("effectiveness_notes")
+  closureNotes        String?  @map("closure_notes")
+  closedAt            DateTime? @map("closed_at")
+  closedById          Int?      @map("closed_by_id")
+  createdById         Int      @map("created_by_id")
+  lastEditedById      Int      @map("last_edited_by_id")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+  createdBy           User     @relation("OvaTicketCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  lastEditedBy        User     @relation("OvaTicketLastEditedBy", fields: [lastEditedById], references: [id], onDelete: Restrict)
+  closedBy            User?    @relation("OvaTicketClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
+  actions             OvaFollowUpAction[]
+
+  @@index([createdById], map: "ova_tickets_created_by_id_idx")
+  @@index([lastEditedById], map: "ova_tickets_last_edited_by_id_idx")
+  @@index([closedById], map: "ova_tickets_closed_by_id_idx")
+  @@map("ova_tickets")
+}
+
+model OvaExternalContact {
+  id        Int                 @id @default(autoincrement())
+  firstName String              @map("first_name")
+  lastName  String              @map("last_name")
+  email     String?
+  createdAt DateTime            @default(now()) @map("created_at")
+  updatedAt DateTime            @updatedAt @map("updated_at")
+  actions   OvaFollowUpAction[]
+
+  @@index([lastName, firstName], map: "ova_external_contacts_name_idx")
+  @@index([email], map: "ova_external_contacts_email_idx")
+  @@map("ova_external_contacts")
+}
+
+model OvaFollowUpAction {
+  id                Int                 @id @default(autoincrement())
+  ticketId          Int                 @map("ticket_id")
+  type              String
+  description       String
+  dueDate           DateTime            @map("due_date")
+  status            String              @default("nok")
+  assigneeType      String              @map("assignee_type")
+  internalAssigneeId Int?               @map("internal_assignee_id")
+  externalContactId Int?                @map("external_contact_id")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+  ticket            OvaTicket           @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  internalAssignee  User?               @relation("OvaFollowUpActionInternalAssignee", fields: [internalAssigneeId], references: [id], onDelete: SetNull)
+  externalContact   OvaExternalContact? @relation(fields: [externalContactId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId], map: "ova_follow_up_actions_ticket_id_idx")
+  @@index([internalAssigneeId], map: "ova_follow_up_actions_internal_assignee_id_idx")
+  @@index([externalContactId], map: "ova_follow_up_actions_external_contact_id_idx")
+  @@map("ova_follow_up_actions")
 }
 
 

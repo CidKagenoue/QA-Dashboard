@@ -98,14 +98,19 @@ class ApiService {
     String? name,
     String? email,
   }) async {
+    final payload = <String, dynamic>{};
+    if (name != null) {
+      payload['name'] = name;
+    }
+    if (email != null) {
+      payload['email'] = email;
+    }
+
     return _requestObject(
       () => http.patch(
         Uri.parse('$baseUrl/users/$userId'),
         headers: _headers(token: token),
-        body: jsonEncode({
-          if (name != null) 'name': name,
-          if (email != null) 'email': email,
-        }),
+        body: jsonEncode(payload),
       ),
     );
   }
@@ -199,6 +204,179 @@ class ApiService {
         headers: _headers(token: token),
       ),
     );
+  }
+
+  static Future<List<Map<String, dynamic>>> fetchOvaTickets({
+    required String token,
+  }) async {
+    final response = await _requestObject(
+      () => http.get(
+        Uri.parse('$baseUrl/ova/tickets'),
+        headers: _headers(token: token),
+      ),
+    );
+
+    final tickets = response['tickets'];
+    if (tickets is! List) {
+      throw Exception('Invalid OVA ticket list received from the server');
+    }
+
+    return tickets
+        .whereType<Map>()
+        .map((ticket) => Map<String, dynamic>.from(ticket))
+        .toList();
+  }
+
+  static Future<Map<String, dynamic>> fetchOvaTicket({
+    required String token,
+    required int ticketId,
+  }) async {
+    final response = await _requestObject(
+      () => http.get(
+        Uri.parse('$baseUrl/ova/tickets/$ticketId'),
+        headers: _headers(token: token),
+      ),
+    );
+
+    final ticket = response['ticket'];
+    if (ticket is! Map) {
+      throw Exception('Invalid OVA ticket received from the server');
+    }
+
+    return Map<String, dynamic>.from(ticket);
+  }
+
+  static Future<List<Map<String, dynamic>>> fetchOvaAssignableUsers({
+    required String token,
+  }) async {
+    final response = await _requestObject(
+      () => http.get(
+        Uri.parse('$baseUrl/ova/tickets/assignable-users'),
+        headers: _headers(token: token),
+      ),
+    );
+
+    final users = response['users'];
+    if (users is! List) {
+      throw Exception(
+        'Invalid OVA assignable user list received from the server',
+      );
+    }
+
+    return users
+        .whereType<Map>()
+        .map((user) => Map<String, dynamic>.from(user))
+        .toList();
+  }
+
+  static Future<List<Map<String, dynamic>>> fetchOvaExternalContacts({
+    required String token,
+    String? query,
+  }) async {
+    final uri = Uri.parse('$baseUrl/ova/tickets/external-contacts').replace(
+      queryParameters: query != null && query.trim().isNotEmpty
+          ? {'query': query.trim()}
+          : null,
+    );
+
+    final response = await _requestObject(
+      () => http.get(uri, headers: _headers(token: token)),
+    );
+
+    final contacts = response['contacts'];
+    if (contacts is! List) {
+      throw Exception(
+        'Invalid OVA external contact list received from the server',
+      );
+    }
+
+    return contacts
+        .whereType<Map>()
+        .map((contact) => Map<String, dynamic>.from(contact))
+        .toList();
+  }
+
+  static Future<Map<String, dynamic>> createOvaTicket({
+    required String token,
+    required Map<String, dynamic> payload,
+  }) async {
+    final response = await _requestObject(
+      () => http.post(
+        Uri.parse('$baseUrl/ova/tickets'),
+        headers: _headers(token: token),
+        body: jsonEncode(payload),
+      ),
+    );
+
+    final ticket = response['ticket'];
+    if (ticket is! Map) {
+      throw Exception('Invalid OVA ticket received from the server');
+    }
+
+    return Map<String, dynamic>.from(ticket);
+  }
+
+  static Future<Map<String, dynamic>> updateOvaTicket({
+    required String token,
+    required int ticketId,
+    required Map<String, dynamic> payload,
+  }) async {
+    final response = await _requestObject(
+      () => http.patch(
+        Uri.parse('$baseUrl/ova/tickets/$ticketId'),
+        headers: _headers(token: token),
+        body: jsonEncode(payload),
+      ),
+    );
+
+    final ticket = response['ticket'];
+    if (ticket is! Map) {
+      throw Exception('Invalid OVA ticket received from the server');
+    }
+
+    return Map<String, dynamic>.from(ticket);
+  }
+
+  static Future<List<Map<String, dynamic>>> fetchMyOvaActions({
+    required String token,
+  }) async {
+    final response = await _requestObject(
+      () => http.get(
+        Uri.parse('$baseUrl/ova/actions/my'),
+        headers: _headers(token: token),
+      ),
+    );
+
+    final actions = response['actions'];
+    if (actions is! List) {
+      throw Exception('Invalid OVA action list received from the server');
+    }
+
+    return actions
+        .whereType<Map>()
+        .map((action) => Map<String, dynamic>.from(action))
+        .toList();
+  }
+
+  static Future<Map<String, dynamic>> updateOvaAction({
+    required String token,
+    required int actionId,
+    required Map<String, dynamic> payload,
+  }) async {
+    final response = await _requestObject(
+      () => http.patch(
+        Uri.parse('$baseUrl/ova/actions/$actionId'),
+        headers: _headers(token: token),
+        body: jsonEncode(payload),
+      ),
+    );
+
+    final action = response['action'];
+    if (action is! Map) {
+      throw Exception('Invalid OVA action received from the server');
+    }
+
+    return Map<String, dynamic>.from(action);
   }
 
   static Map<String, String> _headers({String? token}) {

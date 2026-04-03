@@ -46,7 +46,7 @@ npm install
 ```
 
 ### Step 2: Configure Environment Variables
-
+EXAMPLE!!!!!
 Create or update `.env` file in the `qa-login-backend` directory:
 
 ```env

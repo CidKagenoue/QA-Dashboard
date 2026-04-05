@@ -1,12 +1,14 @@
-// src/department/department.module.ts
+// src/departments/departments.module.ts
 import { Module } from '@nestjs/common';
-import { DepartmentService } from './department.service';
-import { DepartmentController } from './department.controller';
+import { AdminGuard } from '../accounts/admin.guard';
+import { DepartmentsController } from './department.controller';
+import { DepartmentsService } from './department.service';
 import { PrismaModule } from '../prisma/prisma.module';
+import { UserModule } from '../user/user.module';
 
 @Module({
-  imports: [PrismaModule],
-  providers: [DepartmentService],
-  controllers: [DepartmentController],
+  imports: [PrismaModule, UserModule],
+  controllers: [DepartmentsController],
+  providers: [DepartmentsService, AdminGuard],
 })
-export class DepartmentModule {}
+export class DepartmentsModule {}

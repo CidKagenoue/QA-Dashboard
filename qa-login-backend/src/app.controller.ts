@@ -11,6 +11,16 @@ export class AppController {
       version: '1.0.0',
       endpoints: {
         'POST /auth/login': 'Gebruiker inloggen',
+        'POST /auth/refresh': 'Access token vernieuwen',
+        'POST /auth/logout': 'Refresh token ongeldig maken',
+        'POST /auth/forgot-password': 'Resetlink versturen',
+        'POST /auth/verify-reset-token': 'Reset-token valideren',
+        'POST /auth/reset-password': 'Wachtwoord resetten',
+        'GET /accounts': 'Accounts opvragen voor accountbeheer',
+        'POST /accounts': 'Beheerd account aanmaken',
+        'PATCH /accounts/:id/access': 'Toegangsrechten van account aanpassen',
+        'DELETE /accounts/:id': 'Account verwijderen',
+        'GET /departments': 'Afdelingen opvragen',
       },
       timestamp: new Date().toISOString(),
     };

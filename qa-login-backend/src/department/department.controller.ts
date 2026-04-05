@@ -1,29 +1,39 @@
-// src/department/department.controller.ts
+// src/departments/departments.controller.ts
 import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
   Body,
+  Controller,
+  Delete,
+  Get,
   Param,
   ParseIntPipe,
+  Post,
+  Put,
+  UseGuards,
 } from '@nestjs/common';
-import { DepartmentService } from './department.service';
-import { CreateDepartmentDto, UpdateDepartmentDto } from './department.dto';
+import { AdminGuard } from '../accounts/admin.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { DepartmentsService } from './department.service';
+import { UpdateDepartmentDto } from './dto/update_department.dto';
+import { CreateDepartmentDto } from './dto/create_department.dto';
 
+@UseGuards(JwtAuthGuard, AdminGuard)
 @Controller('departments')
-export class DepartmentController {
-  constructor(private readonly departmentService: DepartmentService) {}
+export class DepartmentsController {
+  constructor(private readonly departmentsService: DepartmentsService) {}
 
   @Get()
   findAll() {
-    return this.departmentService.findAll();
+    return this.departmentsService.findAll();
+  }
+
+  @Get(':id')
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.departmentsService.findOne(id);
   }
 
   @Post()
   create(@Body() dto: CreateDepartmentDto) {
-    return this.departmentService.create(dto);
+    return this.departmentsService.create(dto);
   }
 
   @Put(':id')
@@ -31,11 +41,11 @@ export class DepartmentController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateDepartmentDto,
   ) {
-    return this.departmentService.update(id, dto);
+    return this.departmentsService.update(id, dto);
   }
 
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
-    return this.departmentService.remove(id);
+    return this.departmentsService.remove(id);
   }
 }

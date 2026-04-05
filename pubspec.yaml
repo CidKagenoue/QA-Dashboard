@@ -13,6 +13,9 @@ dependencies:
   shared_preferences: ^2.2.2
   provider: ^6.1.1
 
+  # Add file_picker for web-compatible file/image picking
+  file_picker: ^6.1.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -4,13 +4,12 @@ import 'package:http/http.dart' as http;
 
 import '../models/department.dart';
 import '../models/user.dart';
+import 'api_service.dart';
 
 class DepartmentApiService {
-  static const String baseUrl = 'http://localhost:3001';
-
   static Future<List<Department>> getDepartments(String token) async {
     final response = await http.get(
-      Uri.parse('$baseUrl/departments'),
+      Uri.parse('${ApiService.baseUrl}/departments'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -21,13 +20,13 @@ class DepartmentApiService {
       final List<dynamic> data = jsonDecode(response.body);
       return data.map((e) => Department.fromJson(e)).toList();
     } else {
-      throw Exception('Laden van afdelingen mislukt');
+      throw Exception(_extractErrorMessage(response));
     }
   }
 
   static Future<List<User>> getAllUsers(String token) async {
     final response = await http.get(
-      Uri.parse('$baseUrl/users'),
+      Uri.parse('${ApiService.baseUrl}/users'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -38,7 +37,7 @@ class DepartmentApiService {
       final List<dynamic> data = jsonDecode(response.body);
       return data.map((e) => User.fromJson(e)).toList();
     } else {
-      throw Exception('Laden van gebruikers mislukt');
+      throw Exception(_extractErrorMessage(response));
     }
   }
 
@@ -54,8 +53,8 @@ class DepartmentApiService {
     });
 
     final uri = id == null
-        ? Uri.parse('$baseUrl/departments')
-        : Uri.parse('$baseUrl/departments/$id');
+        ? Uri.parse('${ApiService.baseUrl}/departments')
+        : Uri.parse('${ApiService.baseUrl}/departments/$id');
 
     final response = await (id == null
         ? http.post(uri,
@@ -74,7 +73,7 @@ class DepartmentApiService {
     if (response.statusCode == 200 || response.statusCode == 201) {
       return Department.fromJson(jsonDecode(response.body));
     } else {
-      throw Exception('Opslaan van afdeling mislukt');
+      throw Exception(_extractErrorMessage(response));
     }
   }
 
@@ -83,7 +82,7 @@ class DepartmentApiService {
     required int id,
   }) async {
     final response = await http.delete(
-      Uri.parse('$baseUrl/departments/$id'),
+      Uri.parse('${ApiService.baseUrl}/departments/$id'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -91,7 +90,29 @@ class DepartmentApiService {
     );
 
     if (response.statusCode != 200 && response.statusCode != 204) {
-      throw Exception('Verwijderen van afdeling mislukt');
+      throw Exception(_extractErrorMessage(response));
     }
+  }
+
+  static String _extractErrorMessage(http.Response response) {
+    final body = response.body.trim();
+    if (body.isNotEmpty) {
+      try {
+        final payload = jsonDecode(body);
+        if (payload is Map<String, dynamic>) {
+          final message = payload['message'];
+          if (message is List && message.isNotEmpty) {
+            return message.join(', ');
+          }
+          if (message is String && message.isNotEmpty) {
+            return message;
+          }
+        }
+      } catch (_) {
+        return 'Status ${response.statusCode}: $body';
+      }
+    }
+
+    return 'Request failed with status code ${response.statusCode}';
   }
 }

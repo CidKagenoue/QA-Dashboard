@@ -1,8 +1,16 @@
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:typed_data';
+import 'package:file_picker/file_picker.dart';
+
+import '../models/department.dart';
+import '../services/department_api_service.dart';
 import '../services/auth_service.dart';
+import 'account_management_page.dart';
 import 'departments_screen.dart';
 import 'login_screen.dart';
+import 'locations_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -12,10 +20,78 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+    Uint8List? _avatarImageBytes;
+
+    Future<void> _pickAvatarImage() async {
+      final result = await FilePicker.platform.pickFiles(type: FileType.image);
+      if (result != null && result.files.single.bytes != null) {
+        setState(() {
+          _avatarImageBytes = result.files.single.bytes;
+        });
+      }
+    }
   final _formKey = GlobalKey<FormState>();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
+
+  List<Department> _allDepartments = [];
+  Set<int> _selectedDepartmentIds = {};
+  bool _departmentsLoading = false;
+
+  void _showAddDepartmentDialog() async {
+    final availableDepartments = _allDepartments.where((d) => !_selectedDepartmentIds.contains(d.id)).toList();
+    if (availableDepartments.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Alle afdelingen zijn al toegevoegd.')),
+      );
+      return;
+    }
+    Department? selected;
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Afdeling toevoegen'),
+          content: SizedBox(
+            width: 320,
+            child: DropdownButtonFormField<Department>(
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Kies een afdeling',
+                border: OutlineInputBorder(),
+              ),
+              items: availableDepartments.map((dept) => DropdownMenuItem(
+                value: dept,
+                child: Text(dept.name),
+              )).toList(),
+              onChanged: (val) => selected = val,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Annuleren'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (selected != null) {
+                  setState(() {
+                    _selectedDepartmentIds.add(selected!.id);
+                  });
+                  Navigator.of(ctx).pop();
+                }
+              },
+              child: const Text('Toevoegen'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF7CB342),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   Route _buildSmoothRoute(Widget page) {
     return PageRouteBuilder(
@@ -36,10 +112,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         return FadeTransition(
           opacity: curved,
-          child: SlideTransition(
-            position: slide,
-            child: child,
-          ),
+          child: SlideTransition(position: slide, child: child),
         );
       },
     );
@@ -50,7 +123,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.initState();
     final user = Provider.of<AuthService>(context, listen: false).user;
     if (user != null) {
-        final effectiveName = user.name ?? '';
+      final effectiveName = user.name ?? '';
       _firstNameController.text = effectiveName;
       _emailController.text = user.email;
       final split = effectiveName.split(' ');
@@ -58,6 +131,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _firstNameController.text = split.first;
         _lastNameController.text = split.sublist(1).join(' ');
       }
+      _selectedDepartmentIds = user.departments.map((d) => d.id).toSet();
+    }
+    _loadDepartments();
+  }
+
+  Future<void> _loadDepartments() async {
+    final auth = Provider.of<AuthService>(context, listen: false);
+    if (!(auth.user?.isAdmin ?? false)) return;
+    setState(() => _departmentsLoading = true);
+    try {
+      final token = await auth.getValidAccessToken();
+      final departments = await DepartmentApiService.getDepartments(token);
+      setState(() {
+        _allDepartments = departments;
+      });
+    } catch (e) {
+    } finally {
+      setState(() => _departmentsLoading = false);
     }
   }
 
@@ -71,14 +162,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = Provider.of<AuthService>(context, listen: false);
+    final user = auth.user;
+    final isAdmin = user?.isAdmin ?? false;
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF7CB342),
         foregroundColor: Colors.white,
-        title: const Text(
-          'vlotter',
-          style: TextStyle(color: Colors.white),
-        ),
+        title: const Text('Vlotter', style: TextStyle(color: Colors.white)),
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
@@ -107,16 +198,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(height: 20),
                     const _SidebarItem('Meldingen'),
                     const SizedBox(height: 20),
-                    const _SidebarItem('Accountbeheer'),
+                    _SidebarItem(
+                      'Accountbeheer',
+                      onTap: () {
+                        Navigator.of(context).push(
+                          _buildSmoothRoute(const AccountManagementPage()),
+                        );
+                      },
+                    ),
                     const SizedBox(height: 20),
                     _SidebarItem(
                       'Afdelingen',
                       onTap: () {
-                        Navigator.of(context).push(_buildSmoothRoute(const DepartmentsScreen()));
+                        Navigator.of(
+                          context,
+                        ).push(_buildSmoothRoute(const DepartmentsScreen()));
                       },
                     ),
                     const SizedBox(height: 20),
-                    const _SidebarItem('Locaties'),
+                    _SidebarItem(
+                      'Locaties',
+                      onTap: () {
+                        Navigator.of(context).push(
+                          _buildSmoothRoute(const LocationsScreen()),
+                        );
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -145,17 +252,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   width: 2,
                                 ),
                               ),
-                              child: const Icon(Icons.person, size: 70, color: Colors.black54),
+                              child: _avatarImageBytes != null
+                                  ? ClipOval(
+                                      child: Image.memory(
+                                        _avatarImageBytes!,
+                                        width: 130,
+                                        height: 130,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    )
+                                  : const Icon(
+                                      Icons.person,
+                                      size: 70,
+                                      color: Colors.black54,
+                                    ),
                             ),
-                            Container(
-                              margin: const EdgeInsets.only(bottom: 6, right: 6),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.grey.shade400, width: 1),
+                            MouseRegion(
+                              cursor: SystemMouseCursors.click,
+                              child: GestureDetector(
+                                onTap: _pickAvatarImage,
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 150),
+                                  margin: const EdgeInsets.only(
+                                    bottom: 6,
+                                    right: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.grey.shade400,
+                                      width: 1,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.08),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  padding: const EdgeInsets.all(3),
+                                  child: const Icon(Icons.edit, size: 16, color: Color(0xFF7CB342)),
+                                ),
                               ),
-                              padding: const EdgeInsets.all(3),
-                              child: const Icon(Icons.edit, size: 14),
                             ),
                           ],
                         ),
@@ -175,7 +315,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         label: 'Voornaam',
                                         controller: _firstNameController,
                                         validator: (v) =>
-                                            v == null || v.trim().isEmpty ? 'Voornaam is verplicht' : null,
+                                            v == null || v.trim().isEmpty
+                                            ? 'Voornaam is verplicht'
+                                            : null,
                                       ),
                                     ),
                                     const SizedBox(width: 20),
@@ -198,9 +340,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       child: _LabeledTextField(
                                         label: 'E‑Mail',
                                         controller: _emailController,
-                                        keyboardType: TextInputType.emailAddress,
+                                        keyboardType:
+                                            TextInputType.emailAddress,
                                         validator: (value) {
-                                          if (value == null || value.trim().isEmpty) {
+                                          if (value == null ||
+                                              value.trim().isEmpty) {
                                             return 'E-mail is verplicht';
                                           }
                                           if (!value.contains('@')) {
@@ -219,31 +363,128 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     ),
                                   ],
                                 ),
-                                                    const SizedBox(height: 28),
+                                const SizedBox(height: 28),
 
-                    const Text('Mijn afdelingen',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 10),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.all(12),
-                      child: Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: const [
-                          _DeptChip('Electromontage'),
-                          _DeptChip('Groendienst'),
-                          _DeptChip('Schilderwerken'),
-                          _DeptChip('Reversed Logistics'),
-                        ],
-                      ),
-                    ),
-
-
+                                const Text(
+                                  'Mijn afdelingen',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Builder(
+                                  builder: (context) {
+                                    if (isAdmin) {
+                                      if (_departmentsLoading) {
+                                        return const Padding(
+                                          padding: EdgeInsets.all(16),
+                                          child: CircularProgressIndicator(),
+                                        );
+                                      }
+                                      return Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Container(
+                                            constraints: const BoxConstraints(
+                                              minHeight: 150,
+                                            ),
+                                            width: double.infinity,
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              border: Border.all(
+                                                color: Colors.grey.shade300,
+                                              ),
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                            padding: const EdgeInsets.all(12),
+                                            child: Wrap(
+                                              spacing: 10,
+                                              runSpacing: 10,
+                                              children: [
+                                                ..._allDepartments
+                                                    .where((dept) => _selectedDepartmentIds.contains(dept.id))
+                                                    .map((dept) => Padding(
+                                                          padding: const EdgeInsets.only(right: 6, bottom: 6),
+                                                          child: Chip(
+                                                            label: SizedBox(
+                                                              width: 80,
+                                                              child: Text(
+                                                                dept.name,
+                                                                style: const TextStyle(fontSize: 14),
+                                                                overflow: TextOverflow.ellipsis,
+                                                                maxLines: 1,
+                                                              ),
+                                                            ),
+                                                            deleteIcon: const Icon(Icons.close, size: 18),
+                                                            onDeleted: () {
+                                                              setState(() {
+                                                                _selectedDepartmentIds.remove(dept.id);
+                                                              });
+                                                            },
+                                                            shape: RoundedRectangleBorder(
+                                                              borderRadius: BorderRadius.circular(20),
+                                                              side: BorderSide(color: Colors.grey.shade400),
+                                                            ),
+                                                            backgroundColor: Colors.white,
+                                                          ),
+                                                        )),
+                                                Padding(
+                                                  padding: const EdgeInsets.only(right: 6, bottom: 6),
+                                                  child: ActionChip(
+                                                    label: const Icon(Icons.add, color: Color(0xFF7CB342)),
+                                                    onPressed: _showAddDepartmentDialog,
+                                                    backgroundColor: Colors.white,
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius: BorderRadius.circular(20),
+                                                      side: BorderSide(color: Colors.grey.shade400),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    } else {
+                                      return Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          border: Border.all(
+                                            color: Colors.grey.shade300,
+                                          ),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        padding: const EdgeInsets.all(12),
+                                        child: Wrap(
+                                          spacing: 10,
+                                          runSpacing: 10,
+                                          children: user?.departments.map((d) =>
+                                            Padding(
+                                              padding: const EdgeInsets.only(right: 6, bottom: 6),
+                                              child: Chip(
+                                                label: SizedBox(
+                                                  width: 80,
+                                                  child: Text(
+                                                    d.name,
+                                                    style: const TextStyle(fontSize: 14),
+                                                    overflow: TextOverflow.ellipsis,
+                                                    maxLines: 1,
+                                                  ),
+                                                ),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius: BorderRadius.circular(20),
+                                                  side: BorderSide(color: Colors.grey.shade400),
+                                                ),
+                                                backgroundColor: Colors.white,
+                                              ),
+                                            ),
+                                          ).toList() ?? [],
+                                        ),
+                                      );
+                                    }
+                                  },
+                                ),
                               ],
                             ),
                           ),
@@ -251,7 +492,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
                     ),
 
-                    
                     const SizedBox(height: 28),
 
                     Row(
@@ -261,26 +501,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             onPressed: () async {
                               if (!_formKey.currentState!.validate()) return;
 
-                              final firstName = _firstNameController.text.trim();
+                              final firstName = _firstNameController.text
+                                  .trim();
                               final lastName = _lastNameController.text.trim();
                               final eMail = _emailController.text.trim();
-                              final fullName = [firstName, lastName].where((s) => s.isNotEmpty).join(' ');
+                              final fullName = [
+                                firstName,
+                                lastName,
+                              ].where((s) => s.isNotEmpty).join(' ');
 
                               try {
-                                await Provider.of<AuthService>(context, listen: false).updateProfile(
+                                final auth = Provider.of<AuthService>(context, listen: false);
+                                final isAdmin = auth.user?.isAdmin ?? false;
+                                await auth.updateProfile(
                                   name: fullName,
                                   email: eMail,
+                                  departmentIds: isAdmin ? _selectedDepartmentIds.toList() : null,
                                 );
-
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Profiel succesvol opgeslagen')),
+                                    const SnackBar(
+                                      content: Text('Profiel succesvol opgeslagen'),
+                                    ),
                                   );
                                 }
                               } catch (e) {
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Opslaan mislukt: $e'), backgroundColor: Colors.red),
+                                    SnackBar(
+                                      content: Text('Opslaan mislukt: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
                                   );
                                 }
                               }
@@ -296,16 +547,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Expanded(
                           child: OutlinedButton.icon(
                             onPressed: () async {
-                              await Provider.of<AuthService>(context, listen: false).logout();
+                              await Provider.of<AuthService>(
+                                context,
+                                listen: false,
+                              ).logout();
                               if (context.mounted) {
                                 Navigator.of(context).pushAndRemoveUntil(
-                                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                                  MaterialPageRoute(
+                                    builder: (context) => const LoginScreen(),
+                                  ),
                                   (route) => false,
                                 );
                               }
                             },
                             icon: const Icon(Icons.logout, color: Colors.red),
-                            label: const Text('Uitloggen', style: TextStyle(color: Colors.red)),
+                            label: const Text(
+                              'Uitloggen',
+                              style: TextStyle(color: Colors.red),
+                            ),
                             style: OutlinedButton.styleFrom(
                               side: const BorderSide(color: Colors.red),
                             ),
@@ -322,7 +581,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
- void _openPasswordChangeSheet() {
+  void _openPasswordChangeSheet() {
   final currentCtl = TextEditingController();
   final newCtl = TextEditingController();
   final confirmCtl = TextEditingController();
@@ -388,8 +647,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           if (v == null || v.isEmpty) {
                             return 'Voer je huidige wachtwoord in';
                           }
-                          if (v.length < 6) {
-                            return 'Minimaal 6 tekens';
+                          if (v.length < 8) {
+                            return 'Minimaal 8 tekens';
                           }
                           return null;
                         },
@@ -416,8 +675,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           if (v == null || v.isEmpty) {
                             return 'Voer een nieuw wachtwoord in';
                           }
-                          if (v.length < 7) {
-                            return 'Minimaal 7 tekens';
+                          if (v.length < 8) {
+                            return 'Minimaal 8 tekens';
                           }
                           return null;
                         },
@@ -568,7 +827,10 @@ class _LabeledTextField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+        ),
         const SizedBox(height: 6),
         TextFormField(
           controller: controller,
@@ -583,7 +845,10 @@ class _LabeledTextField extends StatelessWidget {
             focusedBorder: const OutlineInputBorder(
               borderSide: BorderSide(color: Color(0xFF7CB342), width: 2),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
+            ),
             filled: true,
             fillColor: Colors.white,
           ),
@@ -611,7 +876,10 @@ class _PasswordAdjustButton extends StatelessWidget {
               child: Text(
                 'Wachtwoord Aanpassen',
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: Colors.black87,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
             Icon(Icons.edit, color: Colors.grey.shade700, size: 18),
@@ -621,7 +889,9 @@ class _PasswordAdjustButton extends StatelessWidget {
           backgroundColor: Colors.grey.shade300,
           foregroundColor: Colors.black87,
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 12),
         ),
       ),
@@ -629,21 +899,6 @@ class _PasswordAdjustButton extends StatelessWidget {
   }
 }
 
-class _DeptChip extends StatelessWidget {
-  final String text;
-  const _DeptChip(this.text);
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: Colors.grey.shade400),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(text, style: const TextStyle(fontSize: 13.5)),
-    );
-  }
-}
+
 

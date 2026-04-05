@@ -16,12 +16,23 @@ model User {
   email                String                @unique
   password             String
   name                 String?
+  isAdmin              Boolean               @default(false) @map("is_admin")
+  basisAccess          Boolean               @default(false) @map("basis_access")
+  whsToursAccess       Boolean               @default(false) @map("whs_tours_access")
+  ovaAccess            Boolean               @default(false) @map("ova_access")
+  japGppAccess         Boolean               @default(false) @map("jap_gpp_access")
+  maintenanceInspectionsAccess Boolean       @default(false) @map("maintenance_inspections_access")
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
   refreshTokenSessions RefreshTokenSession[]
   passwordResetTokens  PasswordResetToken[]
+  createdOvaTickets    OvaTicket[]           @relation("OvaTicketCreatedBy")
+  editedOvaTickets     OvaTicket[]           @relation("OvaTicketLastEditedBy")
+  closedOvaTickets     OvaTicket[]           @relation("OvaTicketClosedBy")
+  assignedOvaActions   OvaFollowUpAction[]   @relation("OvaFollowUpActionInternalAssignee")
 
   departmentLeaders DepartmentLeader[]
+  departments       UserDepartment[]
 
   @@map("users")
 }
@@ -46,6 +57,7 @@ model Department {
   updatedAt DateTime @updatedAt
 
   leaders   DepartmentLeader[]
+  members   UserDepartment[]
 }
 
 model DepartmentLeader {
@@ -54,6 +66,15 @@ model DepartmentLeader {
   departmentId Int
   user         User       @relation(fields: [userId], references: [id])
   userId       Int
+}
+
+model UserDepartment {
+  userId       Int
+  departmentId Int
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@id([userId, departmentId])
 }
 
 model PasswordResetToken {
@@ -67,4 +88,88 @@ model PasswordResetToken {
 
   @@index([userId], map: "password_reset_tokens_user_id_idx")
   @@map("password_reset_tokens")
+}
+
+model OvaTicket {
+  id                  Int      @id @default(autoincrement())
+  status              String   @default("incomplete")
+  currentStep         Int      @default(1) @map("current_step")
+  findingDate         DateTime? @map("finding_date")
+  ovaType             String?  @map("ova_type")
+  reasons             String[] @default([])
+  otherReason         String?  @map("other_reason")
+  incidentDescription String?  @map("incident_description")
+  causeAnalysisMethod String?  @map("cause_analysis_method")
+  causeAnalysisNotes  String?  @map("cause_analysis_notes")
+  followUpActions     String?  @map("follow_up_actions")
+  effectivenessDate   DateTime? @map("effectiveness_date")
+  effectivenessNotes  String?  @map("effectiveness_notes")
+  closureNotes        String?  @map("closure_notes")
+  closedAt            DateTime? @map("closed_at")
+  closedById          Int?      @map("closed_by_id")
+  createdById         Int      @map("created_by_id")
+  lastEditedById      Int      @map("last_edited_by_id")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+  createdBy           User     @relation("OvaTicketCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  lastEditedBy        User     @relation("OvaTicketLastEditedBy", fields: [lastEditedById], references: [id], onDelete: Restrict)
+  closedBy            User?    @relation("OvaTicketClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
+  actions             OvaFollowUpAction[]
+
+  @@index([createdById], map: "ova_tickets_created_by_id_idx")
+  @@index([lastEditedById], map: "ova_tickets_last_edited_by_id_idx")
+  @@index([closedById], map: "ova_tickets_closed_by_id_idx")
+  @@map("ova_tickets")
+}
+
+model OvaExternalContact {
+  id        Int                 @id @default(autoincrement())
+  firstName String              @map("first_name")
+  lastName  String              @map("last_name")
+  email     String?
+  createdAt DateTime            @default(now()) @map("created_at")
+  updatedAt DateTime            @updatedAt @map("updated_at")
+  actions   OvaFollowUpAction[]
+
+  @@index([lastName, firstName], map: "ova_external_contacts_name_idx")
+  @@index([email], map: "ova_external_contacts_email_idx")
+  @@map("ova_external_contacts")
+}
+
+model OvaFollowUpAction {
+  id                Int                 @id @default(autoincrement())
+  ticketId          Int                 @map("ticket_id")
+  type              String
+  description       String
+  dueDate           DateTime            @map("due_date")
+  status            String              @default("nok")
+  assigneeType      String              @map("assignee_type")
+  internalAssigneeId Int?               @map("internal_assignee_id")
+  externalContactId Int?                @map("external_contact_id")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+  ticket            OvaTicket           @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  internalAssignee  User?               @relation("OvaFollowUpActionInternalAssignee", fields: [internalAssigneeId], references: [id], onDelete: SetNull)
+  externalContact   OvaExternalContact? @relation(fields: [externalContactId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId], map: "ova_follow_up_actions_ticket_id_idx")
+  @@index([internalAssigneeId], map: "ova_follow_up_actions_internal_assignee_id_idx")
+  @@index([externalContactId], map: "ova_follow_up_actions_external_contact_id_idx")
+  @@map("ova_follow_up_actions")
+}
+
+
+model Branch {
+  id        Int        @id @default(autoincrement())
+  name      String
+  createdAt DateTime   @default(now())
+  locations Location[]
+}
+
+model Location {
+  id        Int      @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now())
+  branchId  Int?
+  branch    Branch? @relation(fields: [branchId], references: [id])
 }

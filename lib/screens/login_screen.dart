@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../services/auth_service.dart';
-import 'home_screen.dart';
 import 'forgot_password_screen.dart';
+import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -58,7 +59,6 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: Colors.grey[50],
       body: Column(
         children: [
-          // Green Header
           Container(
             width: double.infinity,
             height: 80,
@@ -73,7 +73,8 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.menu, color: Colors.white, size: 28),
+                    icon:
+                        const Icon(Icons.menu, color: Colors.white, size: 28),
                     onPressed: () {},
                   ),
                   const Text(
@@ -88,8 +89,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
-          
-          // Main Content
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(32.0),
@@ -101,8 +100,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Column(
                       children: [
                         const SizedBox(height: 40),
-                        
-                        // User Avatar
                         Container(
                           width: 120,
                           height: 120,
@@ -117,8 +114,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         const SizedBox(height: 60),
-
-                        // Email Field
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -141,17 +136,24 @@ class _LoginScreenState extends State<LoginScreen> {
                                 fillColor: Colors.white,
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(color: Colors.grey[300]!),
+                                  borderSide:
+                                      BorderSide(color: Colors.grey[300]!),
                                 ),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(color: Colors.grey[300]!),
+                                  borderSide:
+                                      BorderSide(color: Colors.grey[300]!),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(color: Color(0xFF7CB342)),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFF7CB342),
+                                  ),
                                 ),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 16,
+                                ),
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
@@ -163,8 +165,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ],
                         ),
                         const SizedBox(height: 24),
-
-                        // Password Field
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -187,15 +187,19 @@ class _LoginScreenState extends State<LoginScreen> {
                                 fillColor: Colors.white,
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(color: Colors.grey[300]!),
+                                  borderSide:
+                                      BorderSide(color: Colors.grey[300]!),
                                 ),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(color: Colors.grey[300]!),
+                                  borderSide:
+                                      BorderSide(color: Colors.grey[300]!),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(color: Color(0xFF7CB342)),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFF7CB342),
+                                  ),
                                 ),
                                 suffixIcon: IconButton(
                                   icon: Icon(
@@ -210,7 +214,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                     });
                                   },
                                 ),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 16,
+                                ),
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
@@ -225,8 +232,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ],
                         ),
                         const SizedBox(height: 40),
-
-                        // Login Button
                         Consumer<AuthService>(
                           builder: (context, authService, child) {
                             return Center(
@@ -234,7 +239,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                 width: 350,
                                 height: 50,
                                 child: ElevatedButton(
-                                  onPressed: authService.isLoading ? null : _handleLogin,
+                                  onPressed:
+                                      authService.isLoading ? null : _handleLogin,
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFF7CB342),
                                     foregroundColor: Colors.white,
@@ -265,13 +271,12 @@ class _LoginScreenState extends State<LoginScreen> {
                           },
                         ),
                         const SizedBox(height: 20),
-
-                        // Forgot Password Link
                         TextButton(
                           onPressed: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (context) => const ForgotPasswordScreen(),
+                                builder: (context) =>
+                                    const ForgotPasswordScreen(),
                               ),
                             );
                           },

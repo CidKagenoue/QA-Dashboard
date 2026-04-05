@@ -40,45 +40,7 @@ export class AuthController {
     }
   }
 
-  @Public()
-  @Post('refresh')
-  @HttpCode(HttpStatus.OK)
-  async refresh(@Body() refreshTokenDto: RefreshTokenDto) {
-    try {
-      return await this.authService.refresh(refreshTokenDto);
-    } catch (error) {
-      console.error('Refresh error:', error.message);
-      throw error;
-    }
-  }
-
-  @Public()
-  @Post('verify-reset-token')
-  @HttpCode(HttpStatus.OK)
-  async verifyResetToken(@Body() verifyResetTokenDto: VerifyResetTokenDto) {
-    try {
-      console.log('Verify reset token request received');
-      return await this.authService.verifyResetToken(verifyResetTokenDto);
-    } catch (error) {
-      console.error('Verify reset token error:', error.message);
-      throw error;
-    }
-  }
-
-  @Public()
-  @Post('reset-password')
-  @HttpCode(HttpStatus.OK)
-  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
-    try {
-      console.log('Reset password request received');
-      return await this.authService.resetPassword(resetPasswordDto);
-    } catch (error) {
-      console.error('Reset password error:', error.message);
-      throw error;
-    }
-  }
-  
-  @Post('change-password')
+   @Post('change-password')
   @HttpCode(HttpStatus.OK)
   async changePassword(
     @Req() req: any,
@@ -119,5 +81,57 @@ export class AuthController {
       body.newPassword,
       body.confirmNewPassword,
     );
+  }
+
+  @Public()
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  async refresh(@Body() refreshTokenDto: RefreshTokenDto) {
+    try {
+      return await this.authService.refresh(refreshTokenDto);
+    } catch (error) {
+      console.error('Refresh error:', error.message);
+      throw error;
+    }
+  }
+
+  @Public()
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  async logout(@Body() refreshTokenDto: RefreshTokenDto) {
+    try {
+      return await this.authService.revokeRefreshToken(
+        refreshTokenDto.refreshToken,
+      );
+    } catch (error) {
+      console.error('Logout error:', error.message);
+      throw error;
+    }
+  }
+
+  @Public()
+  @Post('verify-reset-token')
+  @HttpCode(HttpStatus.OK)
+  async verifyResetToken(@Body() verifyResetTokenDto: VerifyResetTokenDto) {
+    try {
+      console.log('Verify reset token request received');
+      return await this.authService.verifyResetToken(verifyResetTokenDto);
+    } catch (error) {
+      console.error('Verify reset token error:', error.message);
+      throw error;
+    }
+  }
+
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    try {
+      console.log('Reset password request received');
+      return await this.authService.resetPassword(resetPasswordDto);
+    } catch (error) {
+      console.error('Reset password error:', error.message);
+      throw error;
+    }
   }
 }

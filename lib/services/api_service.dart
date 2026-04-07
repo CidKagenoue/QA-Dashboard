@@ -125,6 +125,7 @@ class ApiService {
     String? name,
     String? email,
     List<int>? departmentIds,
+    String? profileImage,
   }) async {
     final payload = <String, dynamic>{};
     if (name != null) {
@@ -135,6 +136,9 @@ class ApiService {
     }
     if (departmentIds != null) {
       payload['departmentIds'] = departmentIds;
+    }
+    if (profileImage != null) {
+      payload['profileImage'] = profileImage;
     }
 
     return _requestObject(

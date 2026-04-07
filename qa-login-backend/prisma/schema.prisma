@@ -33,6 +33,7 @@ model User {
 
   departmentLeaders DepartmentLeader[]
   departments       UserDepartment[]
+  profileImage      String? // base64 string van profielfoto
 
   @@map("users")
 }

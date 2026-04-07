@@ -368,6 +368,7 @@ export class AuthService implements OnModuleInit {
         departments: mappedDepartments,
         access,
         hasAnyAccess: user.isAdmin || Object.values(access).some(Boolean),
+        profileImage: user.profileImage,
       },
       token: tokens.accessToken,
       accessToken: tokens.accessToken,

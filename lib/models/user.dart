@@ -88,6 +88,7 @@ class UserDepartment {
   }
 }
 
+
 class User {
   final int id;
   final String email;
@@ -95,6 +96,7 @@ class User {
   final List<UserDepartment> departments;
   final bool isAdmin;
   final AccountAccess access;
+  final String? profileImage;
 
   const User({
     required this.id,
@@ -103,6 +105,7 @@ class User {
     this.departments = const [],
     this.isAdmin = false,
     this.access = const AccountAccess(),
+    this.profileImage,
   });
 
   String get displayName {
@@ -152,6 +155,7 @@ class User {
       departments: parsedDepartments,
       isAdmin: _readBool(json['isAdmin']),
       access: AccountAccess.fromJson(json),
+      profileImage: json['profileImage'] as String?,
     );
   }
 
@@ -165,6 +169,7 @@ class User {
       'isAdmin': isAdmin,
       'access': access.toJson(),
       'hasAnyAccess': hasAnyAccess,
+      if (profileImage != null) 'profileImage': profileImage,
     };
   }
 }

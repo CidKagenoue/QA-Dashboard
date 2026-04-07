@@ -1,4 +1,4 @@
-
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:typed_data';
@@ -21,12 +21,14 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
     Uint8List? _avatarImageBytes;
+    String? _avatarImageBase64;
 
     Future<void> _pickAvatarImage() async {
       final result = await FilePicker.platform.pickFiles(type: FileType.image);
       if (result != null && result.files.single.bytes != null) {
         setState(() {
           _avatarImageBytes = result.files.single.bytes;
+          _avatarImageBase64 = base64Encode(_avatarImageBytes!);
         });
       }
     }
@@ -132,6 +134,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _lastNameController.text = split.sublist(1).join(' ');
       }
       _selectedDepartmentIds = user.departments.map((d) => d.id).toSet();
+      // Profielfoto laden uit backend
+      if (user.profileImage != null && user.profileImage!.isNotEmpty) {
+        try {
+          _avatarImageBase64 = user.profileImage;
+          _avatarImageBytes = base64Decode(user.profileImage!);
+        } catch (_) {}
+      }
     }
     _loadDepartments();
   }
@@ -261,11 +270,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         fit: BoxFit.cover,
                                       ),
                                     )
-                                  : const Icon(
-                                      Icons.person,
-                                      size: 70,
-                                      color: Colors.black54,
-                                    ),
+                                  : (user?.profileImage != null && user!.profileImage!.isNotEmpty
+                                      ? ClipOval(
+                                          child: Image.memory(
+                                            base64Decode(user.profileImage!),
+                                            width: 130,
+                                            height: 130,
+                                            fit: BoxFit.cover,
+                                          ),
+                                        )
+                                      : const Icon(
+                                          Icons.person,
+                                          size: 70,
+                                          color: Colors.black54,
+                                        )),
                             ),
                             MouseRegion(
                               cursor: SystemMouseCursors.click,
@@ -517,6 +535,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   name: fullName,
                                   email: eMail,
                                   departmentIds: isAdmin ? _selectedDepartmentIds.toList() : null,
+                                  profileImage: _avatarImageBase64,
                                 );
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(

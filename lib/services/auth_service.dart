@@ -214,6 +214,7 @@ class AuthService extends ChangeNotifier {
     required String email,
     required String name,
     List<int>? departmentIds,
+    String? profileImage,
   }) async {
     if (_user == null || _token == null) {
       throw Exception('Not authenticated');
@@ -230,6 +231,7 @@ class AuthService extends ChangeNotifier {
         email: email,
         name: name,
         departmentIds: departmentIds,
+        profileImage: profileImage,
       );
 
       _user = User.fromJson(response);

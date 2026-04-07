@@ -13,6 +13,7 @@ export const managedAccountSelect = {
   ovaAccess: true,
   japGppAccess: true,
   maintenanceInspectionsAccess: true,
+  profileImage: true, // <-- profielfoto wordt nu meegegeven
   departments: {
     select: {
       department: {
@@ -70,14 +71,15 @@ export class UserService {
   async update(id: number, data: Prisma.UserUpdateInput | UpdateUserDto) {
     // Check of departmentIds is meegegeven (voor PATCH vanuit frontend)
     let departmentIds: number[] | undefined = undefined;
-    if ('departmentIds' in data && Array.isArray(data.departmentIds)) {
-      departmentIds = data.departmentIds;
+    let dataCopy: any = { ...data };
+    if ('departmentIds' in dataCopy && Array.isArray(dataCopy.departmentIds)) {
+      departmentIds = dataCopy.departmentIds;
+      delete dataCopy.departmentIds;
     }
 
-    // Update user basisgegevens
     const updatedUser = await this.prisma.user.update({
       where: { id },
-      data: this.normalizeUserUpdateInput(data),
+      data: this.normalizeUserUpdateInput(dataCopy),
       select: managedAccountSelect,
     });
 

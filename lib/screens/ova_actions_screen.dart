@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:qa_dashboard/widgets/app_bars/main_app_bar.dart';
 
 import '../models/ova_assigned_action.dart';
 import '../models/ova_ticket.dart';
@@ -112,11 +113,7 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F6F3),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF8CC63F),
-        foregroundColor: Colors.white,
-        title: const Text('Mijn OVA-acties'),
-      ),
+      appBar: const MainAppBar(title: 'Mijn OVA-acties',),
       body: RefreshIndicator(
         onRefresh: _loadActions,
         child: ListView(

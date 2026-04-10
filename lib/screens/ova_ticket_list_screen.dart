@@ -2,12 +2,12 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:qa_dashboard/widgets/app_bars/main_app_bar.dart';
 
 import '../models/ova_ticket.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import 'ova_ticket_wizard_screen.dart';
-import 'profile_screen.dart';
 
 enum _TicketSection { open, incomplete, closed }
 
@@ -142,24 +142,6 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
     });
   }
 
-  void _handleMenuAction() {
-    if (Navigator.of(context).canPop()) {
-      Navigator.of(context).pop();
-      return;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Het hoofdmenu opent hier later.')),
-    );
-  }
-
-  void _showNotificationsMessage() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Meldingen zijn hier nog niet beschikbaar.'),
-      ),
-    );
-  }
 
   _TicketSection _sectionForResult(String value) {
     switch (_normalizeValue(value)) {
@@ -386,33 +368,7 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
 
     return Scaffold(
       backgroundColor: pageBackground,
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF8CC63F),
-        foregroundColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.menu_rounded),
-          onPressed: _handleMenuAction,
-        ),
-        titleSpacing: 0,
-        title: const Text(
-          'Vlotter',
-          style: TextStyle(fontWeight: FontWeight.w800),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none_rounded),
-            onPressed: _showNotificationsMessage,
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => const ProfileScreen()),
-              );
-            },
-          ),
-        ],
-      ),
+      appBar: const MainAppBar(title: 'Vlotter',),
       body: RefreshIndicator(
         onRefresh: _loadTickets,
         child: LayoutBuilder(

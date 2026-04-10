@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:qa_dashboard/widgets/app_bars/main_app_bar.dart';
 
 import '../models/ova_ticket.dart';
 import '../services/api_service.dart';
@@ -641,11 +642,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
       },
       child: Scaffold(
         backgroundColor: const Color(0xFFF6F6F3),
-        appBar: AppBar(
-          backgroundColor: const Color(0xFF8CC63F),
-          foregroundColor: Colors.white,
-          title: Text(title),
-        ),
+        appBar: MainAppBar(title: title),
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _error != null && _ticket == null && widget.ticketId != null
@@ -702,7 +699,8 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
                               _WizardStepper(
                                 currentStep: _currentStep,
                                 storedStep:
-                                    (_ticket?.currentStep ?? (_currentStep + 1)),
+                                    (_ticket?.currentStep ??
+                                    (_currentStep + 1)),
                                 onTap: _jumpToStep,
                                 locked: isClosed,
                               ),

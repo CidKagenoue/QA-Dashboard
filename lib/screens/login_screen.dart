@@ -73,7 +73,8 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.menu, color: Colors.white, size: 28),
+                    icon:
+                        const Icon(Icons.menu, color: Colors.white, size: 28),
                     onPressed: () {},
                   ),
                   const Text(

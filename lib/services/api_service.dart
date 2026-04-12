@@ -25,6 +25,7 @@ class ApiService {
         'confirmNewPassword': confirmNewPassword,
       }),
     );
+  }
 
     if (response.statusCode == 204 || response.statusCode == 200) {
       return;

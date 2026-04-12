@@ -7,11 +7,11 @@ import 'package:http/http.dart' as http;
 import '../models/user.dart';
 
 class ApiService {
-    static Future<void> changePassword({
-  required String token,
-  required String currentPassword,
-  required String newPassword,
-  required String confirmNewPassword,
+  static Future<void> changePassword({
+    required String token,
+    required String currentPassword,
+    required String newPassword,
+    required String confirmNewPassword,
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/auth/change-password'),
@@ -25,15 +25,15 @@ class ApiService {
         'confirmNewPassword': confirmNewPassword,
       }),
     );
-  }
 
     if (response.statusCode == 204 || response.statusCode == 200) {
       return;
-    } else {
-      final error = jsonDecode(response.body);
-      throw Exception(error['message'] ?? 'Wachtwoord wijzigen mislukt');
     }
+
+    final error = jsonDecode(response.body);
+    throw Exception(error['message'] ?? 'Wachtwoord wijzigen mislukt');
   }
+
   static String get baseUrl {
     if (kIsWeb) {
       // Use same origin (no hostname), Nginx will proxy to backend

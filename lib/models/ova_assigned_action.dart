@@ -54,6 +54,10 @@ class OvaAssignedAction {
       ),
     );
   }
+
+  String? get actionTitle => null;
+
+  String? get assignedBy => null;
 }
 
 DateTime? _readDateValue(Object? value) {

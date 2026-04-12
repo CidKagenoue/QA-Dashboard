@@ -1,208 +1,125 @@
+// lib/screens/ova_dashboard_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
-import '../models/user.dart';
 import '../services/auth_service.dart';
 import 'ova_actions_screen.dart';
 import 'ova_ticket_list_screen.dart';
 import 'ova_ticket_wizard_screen.dart';
-import 'profile_screen.dart';
 
-class OvaDashboardScreen extends StatelessWidget {
+// ---------------------------------------------------------------------------
+// OvaDashboardScreen
+//
+// Geen eigen Scaffold of AppBar — HomeScreen levert die al via zijn shell.
+// Interne navigatie tussen OVA-subschermen verloopt via _OvaView state,
+// zodat de zijbalk en topbar van HomeScreen altijd zichtbaar blijven.
+// ---------------------------------------------------------------------------
+
+enum _OvaView { home, tickets, actions, newTicket }
+
+class OvaDashboardScreen extends StatefulWidget {
   const OvaDashboardScreen({super.key});
+
+  @override
+  State<OvaDashboardScreen> createState() => _OvaDashboardScreenState();
+}
+
+class _OvaDashboardScreenState extends State<OvaDashboardScreen> {
+  _OvaView _currentView = _OvaView.home;
+
+  void _navigateTo(_OvaView view) {
+    setState(() => _currentView = view);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<AuthService>(
-      builder: (context, authService, child) {
+      builder: (context, authService, _) {
         final user = authService.user;
 
         if (user == null) {
-          return const Scaffold(
-            body: Center(
-              child: Text('Geen gebruiker gevonden. Meld je opnieuw aan.'),
-            ),
+          return const Center(
+            child: Text('Geen gebruiker gevonden. Meld je opnieuw aan.'),
           );
         }
 
         final hasFullOvaAccess = user.isAdmin || user.access.ova;
         final hasOvaAccess = hasFullOvaAccess || user.access.basis;
-        final tiles = <_OvaTileData>[
-          if (hasOvaAccess)
-            _OvaTileData(
-              icon: Icons.description_outlined,
-              title: 'Tickets',
-              subtitle: 'Open drafts en lopende OVA-tickets.',
-              pageBuilder: (_) => const OvaTicketListScreen(),
-            ),
-          _OvaTileData(
-            icon: Icons.format_list_bulleted_rounded,
-            title: 'Acties',
-            subtitle: 'Open jouw OVA-acties.',
-            pageBuilder: (_) => const OvaActionsScreen(),
-          ),
-          if (hasFullOvaAccess)
-            _OvaTileData(
-              icon: Icons.add_rounded,
-              title: 'Nieuwe Ticket',
-              subtitle: 'Maak een nieuw OVA-ticket aan.',
-              pageBuilder: (_) => const OvaTicketWizardScreen(),
-            ),
-        ];
 
-        return Scaffold(
-          backgroundColor: const Color(0xFF4B4B4B),
-          appBar: AppBar(
-            backgroundColor: const Color(0xFF8CC63F),
-            foregroundColor: Colors.white,
-            leading: IconButton(
-              icon: const Icon(Icons.menu_rounded),
-              onPressed: () {
-                if (Navigator.of(context).canPop()) {
-                  Navigator.of(context).pop();
-                  return;
-                }
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Het hoofdmenu opent hier later.'),
-                  ),
-                );
-              },
-            ),
-            titleSpacing: 0,
-            title: const Text(
-              'Vlotter',
-              style: TextStyle(fontWeight: FontWeight.w800),
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.notifications_none_rounded),
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Meldingen zijn hier nog niet beschikbaar.',
-                      ),
-                    ),
-                  );
-                },
-              ),
-              IconButton(
-                icon: const Icon(Icons.settings_outlined),
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const AccountScreen(),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-          body: LayoutBuilder(
-            builder: (context, constraints) {
-              final isCompact = constraints.maxWidth < 900;
-              final navItems = _buildModuleItems(context, user, hasOvaAccess);
-
-              return isCompact
-                  ? Column(
-                      children: [
-                        _CompactModuleBar(items: navItems),
-                        Expanded(
-                          child: _OvaContent(
-                            hasOvaAccess: hasOvaAccess,
-                            hasFullOvaAccess: hasFullOvaAccess,
-                            tiles: tiles,
-                          ),
-                        ),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        _ModuleRail(items: navItems),
-                        Expanded(
-                          child: _OvaContent(
-                            hasOvaAccess: hasOvaAccess,
-                            hasFullOvaAccess: hasFullOvaAccess,
-                            tiles: tiles,
-                          ),
-                        ),
-                      ],
-                    );
-            },
+        // Geen Scaffold — gewoon een Container als body
+        return ColoredBox(
+          color: const Color(0xFFF6F6F3),
+          child: _buildView(
+            hasOvaAccess: hasOvaAccess,
+            hasFullOvaAccess: hasFullOvaAccess,
           ),
         );
       },
     );
   }
 
-  List<_ModuleItemData> _buildModuleItems(
-    BuildContext context,
-    User user,
-    bool hasOvaAccess,
-  ) {
-    return [
-      _ModuleItemData(
-        icon: Icons.grid_view_rounded,
-        label: 'Dashboard',
-        onTap: () {
-          if (Navigator.of(context).canPop()) {
-            Navigator.of(context).pop();
-          }
-        },
-      ),
-      if (user.isAdmin || user.access.whsTours)
-        _ModuleItemData(
-          icon: Icons.apartment_outlined,
-          label: 'WHS-Tours',
-          onTap: () => _showModuleMessage(context, 'WHS-Tours'),
-        ),
-      if (hasOvaAccess)
-        _ModuleItemData(
-          icon: Icons.radio_button_checked_rounded,
-          label: 'OVA',
-          selected: true,
-        ),
-      if (user.isAdmin || user.access.maintenanceInspections)
-        _ModuleItemData(
-          icon: Icons.build_outlined,
-          label: 'Onderhoud\nKeuringen',
-          onTap: () => _showModuleMessage(context, 'Onderhoud & Keuringen'),
-        ),
-      if (user.isAdmin || user.access.japGpp)
-        _ModuleItemData(
-          icon: Icons.folder_open_outlined,
-          label: 'SDS Fiches',
-          onTap: () => _showModuleMessage(context, 'SDS Fiches'),
-        ),
-    ];
-  }
-
-  static void _showModuleMessage(BuildContext context, String moduleName) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$moduleName is nog niet gekoppeld in dit startscherm.'),
-      ),
-    );
+  Widget _buildView({
+    required bool hasOvaAccess,
+    required bool hasFullOvaAccess,
+  }) {
+    switch (_currentView) {
+      case _OvaView.home:
+        return _OvaHomeContent(
+          hasOvaAccess: hasOvaAccess,
+          hasFullOvaAccess: hasFullOvaAccess,
+          onNavigate: _navigateTo,
+        );
+      case _OvaView.tickets:
+        return OvaTicketListScreen(
+          onNavigateBack: () => _navigateTo(_OvaView.home),
+        );
+      case _OvaView.actions:
+        return const OvaActionsScreen();
+      case _OvaView.newTicket:
+        return OvaTicketWizardScreen(
+          onClose: () => _navigateTo(_OvaView.home),
+        );
+    }
   }
 }
 
-class _OvaContent extends StatelessWidget {
-  final bool hasOvaAccess;
-  final bool hasFullOvaAccess;
-  final List<_OvaTileData> tiles;
+// ---------------------------------------------------------------------------
+// OVA home — tegelpagina
+// ---------------------------------------------------------------------------
 
-  const _OvaContent({
+class _OvaHomeContent extends StatelessWidget {
+  const _OvaHomeContent({
     required this.hasOvaAccess,
     required this.hasFullOvaAccess,
-    required this.tiles,
+    required this.onNavigate,
   });
+
+  final bool hasOvaAccess;
+  final bool hasFullOvaAccess;
+  final ValueChanged<_OvaView> onNavigate;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFFF6F6F3),
+    final tiles = <_OvaTileData>[
+      if (hasOvaAccess)
+        _OvaTileData(
+          icon: Icons.description_outlined,
+          title: 'Tickets',
+          onTap: () => onNavigate(_OvaView.tickets),
+        ),
+      _OvaTileData(
+        icon: Icons.format_list_bulleted_rounded,
+        title: 'Acties',
+        onTap: () => onNavigate(_OvaView.actions),
+      ),
+      if (hasFullOvaAccess)
+        _OvaTileData(
+          icon: Icons.add_rounded,
+          title: 'Nieuwe\nTicket',
+          onTap: () => onNavigate(_OvaView.newTicket),
+        ),
+    ];
+
+    return Padding(
       padding: const EdgeInsets.all(20),
       child: Container(
         decoration: BoxDecoration(
@@ -228,14 +145,16 @@ class _OvaContent extends StatelessWidget {
                         children: [
                           Text(
                             'OVA',
-                            style: Theme.of(context).textTheme.headlineMedium
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineMedium
                                 ?.copyWith(fontWeight: FontWeight.w700),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             hasFullOvaAccess
                                 ? 'Kies snel tussen Tickets, Acties en Nieuwe Ticket. Drafts kunnen per stap opgeslagen worden zodat iemand anders later kan verderwerken.'
-                                : 'Je hebt Basis (OVA Acties) toegang. Daarom tonen we Tickets en Acties, maar Nieuwe Ticket blijft voorbehouden aan volledige OVA-toegang.',
+                                : 'Je hebt Basis (OVA Acties) toegang. Tickets en Acties zijn beschikbaar; Nieuwe Ticket vereist volledige OVA-toegang.',
                             style: Theme.of(context).textTheme.bodyLarge,
                           ),
                           if (!hasFullOvaAccess) ...[
@@ -258,7 +177,7 @@ class _OvaContent extends StatelessWidget {
                                   SizedBox(width: 12),
                                   Expanded(
                                     child: Text(
-                                      'Volledige OVA-rechten geven ook toegang tot Nieuwe Ticket. Bestaande drafts kun je hier wel al raadplegen en verder invullen.',
+                                      'Volledige OVA-rechten geven ook toegang tot Nieuwe Ticket. Bestaande drafts kun je hier wel al raadplegen.',
                                     ),
                                   ),
                                 ],
@@ -272,7 +191,7 @@ class _OvaContent extends StatelessWidget {
                               spacing: 28,
                               runSpacing: 28,
                               children: tiles
-                                  .map((tile) => _OvaTileCard(data: tile))
+                                  .map((t) => _OvaTileCard(data: t))
                                   .toList(),
                             ),
                           ),
@@ -327,19 +246,18 @@ class _OvaContent extends StatelessWidget {
   }
 }
 
-class _OvaTileCard extends StatelessWidget {
-  final _OvaTileData data;
+// ---------------------------------------------------------------------------
+// Tegel kaart
+// ---------------------------------------------------------------------------
 
+class _OvaTileCard extends StatelessWidget {
   const _OvaTileCard({required this.data});
+  final _OvaTileData data;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () {
-        Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: data.pageBuilder));
-      },
+      onTap: data.onTap,
       borderRadius: BorderRadius.circular(28),
       child: Ink(
         width: 220,
@@ -377,122 +295,14 @@ class _OvaTileCard extends StatelessWidget {
   }
 }
 
-class _ModuleRail extends StatelessWidget {
-  final List<_ModuleItemData> items;
-
-  const _ModuleRail({required this.items});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 132,
-      color: const Color(0xFF8CC63F),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        child: Column(
-          children: items
-              .map((item) => _ModuleRailButton(item: item, compact: false))
-              .toList(),
-        ),
-      ),
-    );
-  }
-}
-
-class _CompactModuleBar extends StatelessWidget {
-  final List<_ModuleItemData> items;
-
-  const _CompactModuleBar({required this.items});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFF8CC63F),
-      height: 92,
-      child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        scrollDirection: Axis.horizontal,
-        itemCount: items.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 10),
-        itemBuilder: (context, index) {
-          return _ModuleRailButton(item: items[index], compact: true);
-        },
-      ),
-    );
-  }
-}
-
-class _ModuleRailButton extends StatelessWidget {
-  final _ModuleItemData item;
-  final bool compact;
-
-  const _ModuleRailButton({required this.item, required this.compact});
-
-  @override
-  Widget build(BuildContext context) {
-    final button = InkWell(
-      onTap: item.onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Ink(
-        width: compact ? 110 : 100,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-        decoration: BoxDecoration(
-          color: item.selected ? const Color(0xFF789F3A) : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(item.icon, size: 20, color: Colors.white),
-            const SizedBox(height: 8),
-            Text(
-              item.label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: item.selected ? FontWeight.w700 : FontWeight.w600,
-                fontSize: compact ? 11 : 12,
-                height: 1.2,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    return compact
-        ? button
-        : Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: button,
-          );
-  }
-}
-
-class _ModuleItemData {
-  final IconData icon;
-  final String label;
-  final VoidCallback? onTap;
-  final bool selected;
-
-  const _ModuleItemData({
-    required this.icon,
-    required this.label,
-    this.onTap,
-    this.selected = false,
-  });
-}
-
 class _OvaTileData {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final WidgetBuilder pageBuilder;
-
-  _OvaTileData({
+  const _OvaTileData({
     required this.icon,
     required this.title,
-    required this.subtitle,
-    required this.pageBuilder,
+    required this.onTap,
   });
+
+  final IconData icon;
+  final String title;
+  final VoidCallback onTap;
 }

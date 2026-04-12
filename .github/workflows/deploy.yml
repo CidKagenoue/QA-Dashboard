@@ -22,6 +22,6 @@ jobs:
           port: ${{ secrets.VPS_PORT || 22 }}
           script: |
             set -e
-            cd /srv/QA-Dashboard
+            cd ~/QA-Dashboard
             git pull --ff-only origin main
             docker compose up -d --build --remove-orphans

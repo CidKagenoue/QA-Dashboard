@@ -6,11 +6,7 @@ class ResetPasswordScreen extends StatefulWidget {
   final String email;
   final String? initialToken;
 
-  const ResetPasswordScreen({
-    super.key,
-    this.email = '',
-    this.initialToken,
-  });
+  const ResetPasswordScreen({super.key, this.email = '', this.initialToken});
 
   @override
   State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
@@ -93,7 +89,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Wachtwoord succesvol gewijzigd. Log nu in met je nieuwe wachtwoord.'),
+            content: Text(
+              'Wachtwoord succesvol gewijzigd. Log nu in met je nieuwe wachtwoord.',
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -140,7 +138,11 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
+                    icon: const Icon(
+                      Icons.arrow_back,
+                      color: Colors.white,
+                      size: 28,
+                    ),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                   const Text(
@@ -171,7 +173,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                           const Padding(
                             padding: EdgeInsets.symmetric(vertical: 32),
                             child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF7CB342)),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Color(0xFF7CB342),
+                              ),
                             ),
                           ),
                         if (!_isCheckingToken && !_isTokenValid)
@@ -181,10 +185,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                             decoration: BoxDecoration(
                               color: const Color(0xFFFFEBEE),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFFEF9A9A)),
+                              border: Border.all(
+                                color: const Color(0xFFEF9A9A),
+                              ),
                             ),
                             child: Text(
-                              _tokenError ?? 'Deze resetlink is ongeldig of verlopen.',
+                              _tokenError ??
+                                  'Deze resetlink is ongeldig of verlopen.',
                               textAlign: TextAlign.center,
                               style: const TextStyle(color: Color(0xFFB71C1C)),
                             ),
@@ -193,215 +200,249 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                           const SizedBox(height: 16),
                         if (!_isCheckingToken && !_isTokenValid)
                           TextButton(
-                            onPressed: () => Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(builder: (context) => const LoginScreen()),
-                            ),
+                            onPressed: () =>
+                                Navigator.of(context).pushReplacement(
+                                  MaterialPageRoute(
+                                    builder: (context) => const LoginScreen(),
+                                  ),
+                                ),
                             child: const Text('Terug naar inloggen'),
                           ),
-                        if (_isCheckingToken || !_isTokenValid) const SizedBox.shrink(),
+                        if (_isCheckingToken || !_isTokenValid)
+                          const SizedBox.shrink(),
                         if (!_isCheckingToken && _isTokenValid) ...[
-                        Center(
-                          child: Icon(
-                            Icons.verified_user,
-                            size: 80,
-                            color: const Color(0xFF7CB342),
-                          ),
-                        ),
-                        const SizedBox(height: 30),
-                        const Text(
-                          'Nieuw Wachtwoord Maken',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        if (widget.email.isNotEmpty)
-                          Text(
-                            'Resetcode is verzonden naar:\n${widget.email}',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey,
+                          Center(
+                            child: Icon(
+                              Icons.verified_user,
+                              size: 80,
+                              color: const Color(0xFF7CB342),
                             ),
-                          )
-                        else
+                          ),
+                          const SizedBox(height: 30),
                           const Text(
-                            'Resetlink gevalideerd. Stel hieronder je nieuwe wachtwoord in.',
+                            'Nieuw Wachtwoord Maken',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
                             ),
                           ),
-                        const SizedBox(height: 40),
-                        // New Password field
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
+                          const SizedBox(height: 12),
+                          if (widget.email.isNotEmpty)
+                            Text(
+                              'Resetcode is verzonden naar:\n${widget.email}',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey,
+                              ),
+                            )
+                          else
                             const Text(
-                              'Wachtwoord',
+                              'Resetlink gevalideerd. Stel hieronder je nieuwe wachtwoord in.',
+                              textAlign: TextAlign.center,
                               style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.black87,
+                                fontSize: 14,
+                                color: Colors.grey,
                               ),
                             ),
-                            const SizedBox(height: 8),
-                            TextFormField(
-                              controller: _passwordController,
-                              enabled: !_isLoading,
-                              obscureText: !_isPasswordVisible,
-                              decoration: InputDecoration(
-                                hintText: '••••••••••••••••',
-                                prefixIcon: const Icon(Icons.lock),
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
-                                  ),
-                                  onPressed: () {
-                                    setState(() => _isPasswordVisible = !_isPasswordVisible);
-                                  },
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(color: Colors.grey[300]!),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(color: Colors.grey[300]!),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(color: Color(0xFF7CB342)),
-                                ),
-                                filled: true,
-                                fillColor: Colors.white,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 14,
+                          const SizedBox(height: 40),
+                          // New Password field
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Wachtwoord',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.black87,
                                 ),
                               ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Voer een nieuw wachtwoord in';
-                                }
-                                if (value.length < 8) {
-                                  return 'Wachtwoord moet minstens 8 tekens zijn';
-                                }
-                                return null;
-                              },
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        // Confirm Password field
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Bevestig Wachtwoord',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.black87,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextFormField(
-                              controller: _confirmPasswordController,
-                              enabled: !_isLoading,
-                              obscureText: !_isConfirmPasswordVisible,
-                              decoration: InputDecoration(
-                                hintText: '••••••••••••••••',
-                                prefixIcon: const Icon(Icons.lock),
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _isConfirmPasswordVisible ? Icons.visibility : Icons.visibility_off,
-                                  ),
-                                  onPressed: () {
-                                    setState(() => _isConfirmPasswordVisible = !_isConfirmPasswordVisible);
-                                  },
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(color: Colors.grey[300]!),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(color: Colors.grey[300]!),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(color: Color(0xFF7CB342)),
-                                ),
-                                filled: true,
-                                fillColor: Colors.white,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 14,
-                                ),
-                              ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Bevestig je wachtwoord';
-                                }
-                                if (value != _passwordController.text) {
-                                  return 'Wachtwoorden komen niet overeen';
-                                }
-                                return null;
-                              },
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                        SizedBox(
-                          width: 350,
-                          height: 50,
-                          child: ElevatedButton(
-                            onPressed: _isLoading ? null : _handleResetPassword,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF7CB342),
-                              disabledBackgroundColor: Colors.grey[400],
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              elevation: 0,
-                            ),
-                            child: _isLoading
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              const SizedBox(height: 8),
+                              TextFormField(
+                                controller: _passwordController,
+                                enabled: !_isLoading,
+                                obscureText: !_isPasswordVisible,
+                                decoration: InputDecoration(
+                                  hintText: '••••••••••••••••',
+                                  prefixIcon: const Icon(Icons.lock),
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      _isPasswordVisible
+                                          ? Icons.visibility
+                                          : Icons.visibility_off,
                                     ),
-                                  )
-                                : const Text(
-                                    'Wachtwoord Opnieuw Instellen',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w500,
-                                      color: Colors.white,
+                                    onPressed: () {
+                                      setState(
+                                        () => _isPasswordVisible =
+                                            !_isPasswordVisible,
+                                      );
+                                    },
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide(
+                                      color: Colors.grey[300]!,
                                     ),
                                   ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide(
+                                      color: Colors.grey[300]!,
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFF7CB342),
+                                    ),
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.white,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 14,
+                                  ),
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Voer een nieuw wachtwoord in';
+                                  }
+                                  if (value.length < 8) {
+                                    return 'Wachtwoord moet minstens 8 tekens zijn';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ],
                           ),
-                        ),
-                        const SizedBox(height: 16),
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(builder: (context) => const LoginScreen()),
+                          const SizedBox(height: 16),
+                          // Confirm Password field
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Bevestig Wachtwoord',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              TextFormField(
+                                controller: _confirmPasswordController,
+                                enabled: !_isLoading,
+                                obscureText: !_isConfirmPasswordVisible,
+                                decoration: InputDecoration(
+                                  hintText: '••••••••••••••••',
+                                  prefixIcon: const Icon(Icons.lock),
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      _isConfirmPasswordVisible
+                                          ? Icons.visibility
+                                          : Icons.visibility_off,
+                                    ),
+                                    onPressed: () {
+                                      setState(
+                                        () => _isConfirmPasswordVisible =
+                                            !_isConfirmPasswordVisible,
+                                      );
+                                    },
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide(
+                                      color: Colors.grey[300]!,
+                                    ),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide(
+                                      color: Colors.grey[300]!,
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFF7CB342),
+                                    ),
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.white,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 14,
+                                  ),
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Bevestig je wachtwoord';
+                                  }
+                                  if (value != _passwordController.text) {
+                                    return 'Wachtwoorden komen niet overeen';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ],
                           ),
-                          child: const Text(
-                            'Terug naar inloggen',
-                            style: TextStyle(
-                              color: Colors.grey,
-                              fontSize: 14,
+                          const SizedBox(height: 24),
+                          SizedBox(
+                            width: 350,
+                            height: 50,
+                            child: ElevatedButton(
+                              onPressed: _isLoading
+                                  ? null
+                                  : _handleResetPassword,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF7CB342),
+                                disabledBackgroundColor: Colors.grey[400],
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                elevation: 0,
+                              ),
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              Colors.white,
+                                            ),
+                                      ),
+                                    )
+                                  : const Text(
+                                      'Wachtwoord Opnieuw Instellen',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.white,
+                                      ),
+                                    ),
                             ),
                           ),
-                        ),
+                          const SizedBox(height: 16),
+                          TextButton(
+                            onPressed: () =>
+                                Navigator.of(context).pushReplacement(
+                                  MaterialPageRoute(
+                                    builder: (context) => const LoginScreen(),
+                                  ),
+                                ),
+                            child: const Text(
+                              'Terug naar inloggen',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
                         ],
                       ],
                     ),

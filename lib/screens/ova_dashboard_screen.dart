@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../models/user.dart';
 import '../services/auth_service.dart';
 import 'ova_actions_screen.dart';
 import 'ova_ticket_list_screen.dart';
 import 'ova_ticket_wizard_screen.dart';
-import 'profile_screen.dart';
 
 class OvaDashboardScreen extends StatelessWidget {
   const OvaDashboardScreen({super.key});
@@ -50,140 +48,13 @@ class OvaDashboardScreen extends StatelessWidget {
             ),
         ];
 
-        return Scaffold(
-          backgroundColor: const Color(0xFF4B4B4B),
-          appBar: AppBar(
-            backgroundColor: const Color(0xFF8CC63F),
-            foregroundColor: Colors.white,
-            leading: IconButton(
-              icon: const Icon(Icons.menu_rounded),
-              onPressed: () {
-                if (Navigator.of(context).canPop()) {
-                  Navigator.of(context).pop();
-                  return;
-                }
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Het hoofdmenu opent hier later.'),
-                  ),
-                );
-              },
-            ),
-            titleSpacing: 0,
-            title: const Text(
-              'Vlotter',
-              style: TextStyle(fontWeight: FontWeight.w800),
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.notifications_none_rounded),
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Meldingen zijn hier nog niet beschikbaar.',
-                      ),
-                    ),
-                  );
-                },
-              ),
-              IconButton(
-                icon: const Icon(Icons.settings_outlined),
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const AccountScreen(),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-          body: LayoutBuilder(
-            builder: (context, constraints) {
-              final isCompact = constraints.maxWidth < 900;
-              final navItems = _buildModuleItems(context, user, hasOvaAccess);
-
-              return isCompact
-                  ? Column(
-                      children: [
-                        _CompactModuleBar(items: navItems),
-                        Expanded(
-                          child: _OvaContent(
-                            hasOvaAccess: hasOvaAccess,
-                            hasFullOvaAccess: hasFullOvaAccess,
-                            tiles: tiles,
-                          ),
-                        ),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        _ModuleRail(items: navItems),
-                        Expanded(
-                          child: _OvaContent(
-                            hasOvaAccess: hasOvaAccess,
-                            hasFullOvaAccess: hasFullOvaAccess,
-                            tiles: tiles,
-                          ),
-                        ),
-                      ],
-                    );
-            },
-          ),
+        // Alleen de OVA content, geen eigen Scaffold/AppBar/navbars
+        return _OvaContent(
+          hasOvaAccess: hasOvaAccess,
+          hasFullOvaAccess: hasFullOvaAccess,
+          tiles: tiles,
         );
       },
-    );
-  }
-
-  List<_ModuleItemData> _buildModuleItems(
-    BuildContext context,
-    User user,
-    bool hasOvaAccess,
-  ) {
-    return [
-      _ModuleItemData(
-        icon: Icons.grid_view_rounded,
-        label: 'Dashboard',
-        onTap: () {
-          if (Navigator.of(context).canPop()) {
-            Navigator.of(context).pop();
-          }
-        },
-      ),
-      if (user.isAdmin || user.access.whsTours)
-        _ModuleItemData(
-          icon: Icons.apartment_outlined,
-          label: 'WHS-Tours',
-          onTap: () => _showModuleMessage(context, 'WHS-Tours'),
-        ),
-      if (hasOvaAccess)
-        _ModuleItemData(
-          icon: Icons.radio_button_checked_rounded,
-          label: 'OVA',
-          selected: true,
-        ),
-      if (user.isAdmin || user.access.maintenanceInspections)
-        _ModuleItemData(
-          icon: Icons.build_outlined,
-          label: 'Onderhoud\nKeuringen',
-          onTap: () => _showModuleMessage(context, 'Onderhoud & Keuringen'),
-        ),
-      if (user.isAdmin || user.access.japGpp)
-        _ModuleItemData(
-          icon: Icons.folder_open_outlined,
-          label: 'SDS Fiches',
-          onTap: () => _showModuleMessage(context, 'SDS Fiches'),
-        ),
-    ];
-  }
-
-  static void _showModuleMessage(BuildContext context, String moduleName) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$moduleName is nog niet gekoppeld in dit startscherm.'),
-      ),
     );
   }
 }
@@ -377,111 +248,12 @@ class _OvaTileCard extends StatelessWidget {
   }
 }
 
-class _ModuleRail extends StatelessWidget {
-  final List<_ModuleItemData> items;
 
-  const _ModuleRail({required this.items});
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 132,
-      color: const Color(0xFF8CC63F),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        child: Column(
-          children: items
-              .map((item) => _ModuleRailButton(item: item, compact: false))
-              .toList(),
-        ),
-      ),
-    );
-  }
-}
 
-class _CompactModuleBar extends StatelessWidget {
-  final List<_ModuleItemData> items;
 
-  const _CompactModuleBar({required this.items});
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFF8CC63F),
-      height: 92,
-      child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        scrollDirection: Axis.horizontal,
-        itemCount: items.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 10),
-        itemBuilder: (context, index) {
-          return _ModuleRailButton(item: items[index], compact: true);
-        },
-      ),
-    );
-  }
-}
 
-class _ModuleRailButton extends StatelessWidget {
-  final _ModuleItemData item;
-  final bool compact;
-
-  const _ModuleRailButton({required this.item, required this.compact});
-
-  @override
-  Widget build(BuildContext context) {
-    final button = InkWell(
-      onTap: item.onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Ink(
-        width: compact ? 110 : 100,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-        decoration: BoxDecoration(
-          color: item.selected ? const Color(0xFF789F3A) : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(item.icon, size: 20, color: Colors.white),
-            const SizedBox(height: 8),
-            Text(
-              item.label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: item.selected ? FontWeight.w700 : FontWeight.w600,
-                fontSize: compact ? 11 : 12,
-                height: 1.2,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    return compact
-        ? button
-        : Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: button,
-          );
-  }
-}
-
-class _ModuleItemData {
-  final IconData icon;
-  final String label;
-  final VoidCallback? onTap;
-  final bool selected;
-
-  const _ModuleItemData({
-    required this.icon,
-    required this.label,
-    this.onTap,
-    this.selected = false,
-  });
-}
 
 class _OvaTileData {
   final IconData icon;

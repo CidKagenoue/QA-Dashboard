@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+const kAppGreen = Color(0xFF7CB342);
+
 ThemeData buildAppTheme() {
   const primaryGreen = Color(0xFF8CC63F);
   const background = Color(0xFFF3F4EE);

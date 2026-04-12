@@ -1,3 +1,4 @@
+
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -6,6 +7,33 @@ import 'package:http/http.dart' as http;
 import '../models/user.dart';
 
 class ApiService {
+    static Future<void> changePassword({
+  required String token,
+  required String currentPassword,
+  required String newPassword,
+  required String confirmNewPassword,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/change-password'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+        'confirmNewPassword': confirmNewPassword,
+      }),
+    );
+  }
+
+    if (response.statusCode == 204 || response.statusCode == 200) {
+      return;
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['message'] ?? 'Wachtwoord wijzigen mislukt');
+    }
+  }
   static String get baseUrl {
     if (kIsWeb) {
       return 'http://localhost:3001';
@@ -97,6 +125,8 @@ class ApiService {
     required String token,
     String? name,
     String? email,
+    List<int>? departmentIds,
+    String? profileImage,
   }) async {
     final payload = <String, dynamic>{};
     if (name != null) {
@@ -104,6 +134,12 @@ class ApiService {
     }
     if (email != null) {
       payload['email'] = email;
+    }
+    if (departmentIds != null) {
+      payload['departmentIds'] = departmentIds;
+    }
+    if (profileImage != null) {
+      payload['profileImage'] = profileImage;
     }
 
     return _requestObject(

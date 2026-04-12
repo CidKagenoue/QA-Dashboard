@@ -5,9 +5,7 @@ import '../models/department.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
 import '../services/department_api_service.dart';
-import 'account_management_page.dart';
-import 'locations_screen.dart';
-import 'profile_screen.dart';
+import '../theme/app_theme.dart';
 
 class DepartmentsScreen extends StatefulWidget {
   const DepartmentsScreen({super.key});
@@ -21,32 +19,7 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
   Department? _selected;
   bool _isLoading = false;
 
-  static const _green = Color(0xFF7CB342);
-
-  Route _buildSmoothRoute(Widget page) {
-    return PageRouteBuilder(
-      transitionDuration: const Duration(milliseconds: 280),
-      reverseTransitionDuration: const Duration(milliseconds: 220),
-      pageBuilder: (_, animation, __) => page,
-      transitionsBuilder: (_, animation, __, child) {
-        final curved = CurvedAnimation(
-          parent: animation,
-          curve: Curves.easeOutCubic,
-          reverseCurve: Curves.easeInCubic,
-        );
-        return FadeTransition(
-          opacity: curved,
-          child: SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(-0.04, 0),
-              end: Offset.zero,
-            ).animate(curved),
-            child: child,
-          ),
-        );
-      },
-    );
-  }
+  // Use shared green from app_theme.dart
 
   @override
   void initState() {
@@ -58,9 +31,9 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
 
   void _showError(String prefix, Object error) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$prefix: $error')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$prefix: $error')));
   }
 
   bool _hasAdminAccess() {
@@ -114,7 +87,7 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
             child: const Text('Annuleren'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: _green),
+            style: ElevatedButton.styleFrom(backgroundColor: kAppGreen),
             onPressed: () {
               final name = controller.text.trim();
               if (name.isNotEmpty) Navigator.of(ctx).pop(name);
@@ -254,7 +227,7 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
                                 width: 20,
                                 height: 20,
                                 decoration: BoxDecoration(
-                                  color: isChecked ? _green : Colors.grey[300],
+                                  color: isChecked ? kAppGreen : Colors.grey[300],
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: isChecked
@@ -282,7 +255,7 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
                       alignment: Alignment.centerRight,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: _green,
+                          backgroundColor: kAppGreen,
                           minimumSize: const Size(48, 32),
                           padding: const EdgeInsets.symmetric(
                             horizontal: 16,
@@ -347,93 +320,30 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final canManageDepartments = context.watch<AuthService>().user?.isAdmin ?? false;
+    final canManageDepartments =
+        context.watch<AuthService>().user?.isAdmin ?? false;
 
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: _green,
-        foregroundColor: Colors.white,
-        title: const Text(
-          'Vlotter',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 0.5,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () {},
-          ),
-        ],
-      ),
-      body: SafeArea(
+    if (!canManageDepartments) {
+      return _buildAccessDeniedState(
+        title: 'Afdelingen beheren is alleen beschikbaar voor admins.',
+        description:
+            'Log in met een admin-account om afdelingen en leidinggevenden te bekijken en te wijzigen.',
+      );
+    } else if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    } else {
+      return Padding(
+        padding: const EdgeInsets.all(16),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 180,
-              color: const Color(0xFFE6E6E6),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _SidebarItem(
-                    'Profiel',
-                    onTap: () => Navigator.of(
-                      context,
-                    ).pushReplacement(_buildSmoothRoute(const AccountScreen())),
-                  ),
-                  const SizedBox(height: 20),
-                  const _SidebarItem('Meldingen'),
-                  const SizedBox(height: 20),
-                  _SidebarItem(
-                    'Accountbeheer',
-                    onTap: () => Navigator.of(context).pushReplacement(
-                      _buildSmoothRoute(const AccountManagementPage()),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  const _SidebarItem('Afdelingen', selected: true),
-                  const SizedBox(height: 20),
-                  _SidebarItem(
-                    'Locaties',
-                    onTap: () => Navigator.of(context).pushReplacement(
-                      _buildSmoothRoute(const LocationsScreen()),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: !canManageDepartments
-                  ? _buildAccessDeniedState(
-                      title: 'Afdelingen beheren is alleen beschikbaar voor admins.',
-                      description:
-                          'Log in met een admin-account om afdelingen en leidinggevenden te bekijken en te wijzigen.',
-                    )
-                  : _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(child: _buildDepartmentsCard()),
-                          const SizedBox(width: 16),
-                          Expanded(child: _buildLeadersCard()),
-                        ],
-                      ),
-                    ),
-            ),
+            Expanded(child: _buildDepartmentsCard()),
+            const SizedBox(width: 16),
+            Expanded(child: _buildLeadersCard()),
           ],
         ),
-      ),
-    );
+      );
+    }
   }
 
   Widget _buildDepartmentsCard() {
@@ -508,7 +418,7 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
               alignment: Alignment.centerRight,
               child: FloatingActionButton.small(
                 heroTag: 'add_dept',
-                backgroundColor: _green,
+                backgroundColor: kAppGreen,
                 onPressed: () => _openDepartmentDialog(),
                 child: const Icon(Icons.add, color: Colors.white),
               ),
@@ -629,40 +539,13 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
               alignment: Alignment.centerRight,
               child: FloatingActionButton.small(
                 heroTag: 'add_leader',
-                backgroundColor: _green,
+                backgroundColor: kAppGreen,
                 onPressed: _selected == null ? null : _openLeadersPopup,
                 child: const Icon(Icons.add, color: Colors.white),
               ),
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _SidebarItem extends StatelessWidget {
-  final String title;
-  final bool selected;
-  final VoidCallback? onTap;
-
-  const _SidebarItem(this.title, {this.selected = false, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(4),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Text(
-          title,
-          style: TextStyle(
-            fontSize: 15,
-            color: selected ? Colors.black : Colors.black54,
-            fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
       ),
     );
   }

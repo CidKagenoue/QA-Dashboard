@@ -90,39 +90,4 @@ export class UserController {
 
     return actorId;
   }
-
-  private async assertSelfOrAdmin(
-    req: AuthenticatedRequest,
-    requestedUserId: number,
-  ) {
-    const actorId = this.readActorId(req);
-    if (actorId == requestedUserId) {
-      return;
-    }
-
-    const actor = await this.userService.findById(actorId);
-    if (!actor) {
-      throw new UnauthorizedException('User does not exist');
-    }
-
-    if (!actor.isAdmin) {
-      throw new ForbiddenException('Admin access is required');
-    }
-  }
-
-  private readActorId(req: AuthenticatedRequest) {
-    if (!req.user || typeof req.user === 'string') {
-      throw new UnauthorizedException('Invalid token payload');
-    }
-
-    const actorId = typeof req.user.sub === 'number'
-        ? req.user.sub
-        : Number(req.user.sub);
-
-    if (!Number.isInteger(actorId) || actorId <= 0) {
-      throw new UnauthorizedException('Invalid token subject');
-    }
-
-    return actorId;
-  }
 }

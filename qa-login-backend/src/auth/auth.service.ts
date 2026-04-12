@@ -181,48 +181,6 @@ export class AuthService implements OnModuleInit {
     return { success: true };
   }
 
-  async revokeRefreshToken(refreshToken: string) {
-    if (!refreshToken) {
-      return { success: true };
-    }
-
-    try {
-      const verified = jwt.verify(
-        refreshToken,
-        getRefreshJwtSecret(),
-        getRefreshJwtVerifyOptions(),
-      );
-
-      if (typeof verified === 'string') {
-        return { success: true };
-      }
-
-      const payload = verified as jwt.JwtPayload;
-      if (payload.type !== 'refresh' || typeof payload.sid !== 'string') {
-        return { success: true };
-      }
-
-      const session = await this.prismaService.refreshTokenSession.findUnique({
-        where: { id: payload.sid },
-      });
-
-      if (
-        session &&
-        !session.revokedAt &&
-        session.tokenHash === this.hashToken(refreshToken)
-      ) {
-        await this.prismaService.refreshTokenSession.update({
-          where: { id: session.id },
-          data: { revokedAt: new Date() },
-        });
-      }
-    } catch {
-      return { success: true };
-    }
-
-    return { success: true };
-  }
-
   async forgotPassword(
     forgotPasswordDto: ForgotPasswordDto,
     requestOrigin?: string,

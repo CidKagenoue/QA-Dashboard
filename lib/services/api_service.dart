@@ -36,7 +36,8 @@ class ApiService {
   }
   static String get baseUrl {
     if (kIsWeb) {
-      return 'http://localhost:3001';
+      // Use same origin (no hostname), Nginx will proxy to backend
+      return '';
     }
 
     switch (defaultTargetPlatform) {

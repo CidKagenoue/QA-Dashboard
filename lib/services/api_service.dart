@@ -7,6 +7,11 @@ import 'package:http/http.dart' as http;
 import '../models/user.dart';
 
 class ApiService {
+  static const String _webApiBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://localhost:3001',
+  );
+
   static Future<void> changePassword({
     required String token,
     required String currentPassword,
@@ -36,8 +41,7 @@ class ApiService {
 
   static String get baseUrl {
     if (kIsWeb) {
-      // Use same origin (no hostname), Nginx will proxy to backend
-      return '';
+      return _webApiBaseUrl;
     }
 
     switch (defaultTargetPlatform) {
@@ -414,6 +418,70 @@ class ApiService {
     }
 
     return Map<String, dynamic>.from(action);
+  }
+
+  static Future<List<Map<String, dynamic>>> fetchNotifications({
+    required String token,
+    int limit = 50,
+  }) async {
+    final response = await _requestObject(
+      () => http.get(
+        Uri.parse('$baseUrl/notifications?limit=$limit'),
+        headers: _headers(token: token),
+      ),
+    );
+
+    final notifications = response['notifications'];
+    if (notifications is! List) {
+      throw Exception('Invalid notification list received from the server');
+    }
+
+    return notifications
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
+  }
+
+  static Future<int> fetchUnreadNotificationCount({
+    required String token,
+  }) async {
+    final response = await _requestObject(
+      () => http.get(
+        Uri.parse('$baseUrl/notifications/unread-count'),
+        headers: _headers(token: token),
+      ),
+    );
+
+    final unreadCount = response['unreadCount'];
+    if (unreadCount is! num) {
+      return 0;
+    }
+
+    return unreadCount.toInt();
+  }
+
+  static Future<void> markNotificationsRead({
+    required String token,
+    required List<int> notificationIds,
+  }) async {
+    await _requestObject(
+      () => http.patch(
+        Uri.parse('$baseUrl/notifications/mark-read'),
+        headers: _headers(token: token),
+        body: jsonEncode({'notificationIds': notificationIds}),
+      ),
+    );
+  }
+
+  static Future<void> markAllNotificationsRead({
+    required String token,
+  }) async {
+    await _requestObject(
+      () => http.patch(
+        Uri.parse('$baseUrl/notifications/mark-all-read'),
+        headers: _headers(token: token),
+      ),
+    );
   }
 
   static Map<String, String> _headers({String? token}) {

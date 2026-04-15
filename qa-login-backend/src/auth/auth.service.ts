@@ -26,6 +26,8 @@ import {
   getRefreshJwtSignOptions,
   getRefreshJwtVerifyOptions,
 } from './jwt.config';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '@prisma/client';
 
 import type { ManagedAccount } from '../user/user.service';
 
@@ -35,6 +37,7 @@ export class AuthService implements OnModuleInit {
     private readonly userService: UserService,
     private readonly prismaService: PrismaService,
     private readonly emailService: EmailService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async onModuleInit() {
@@ -306,6 +309,16 @@ export class AuthService implements OnModuleInit {
       }),
     ]);
 
+    await this.notificationsService.notifyUser({
+      recipientUserId: resetTokenRecord.userId,
+      type: NotificationType.PASSWORD_CHANGED,
+      title: 'Wachtwoord gewijzigd',
+      body: 'Je wachtwoord werd gewijzigd via de reset-flow.',
+      metadata: {
+        source: 'reset-password',
+      },
+    });
+
     return {
       message:
         'Wachtwoord is succesvol gewijzigd. Je kunt nu inloggen met je nieuwe wachtwoord.',
@@ -338,6 +351,16 @@ export class AuthService implements OnModuleInit {
       await this.prismaService.user.update({
         where: { id: userId },
         data: { password: hashed },
+      });
+
+      await this.notificationsService.notifyUser({
+        recipientUserId: userId,
+        type: NotificationType.PASSWORD_CHANGED,
+        title: 'Wachtwoord gewijzigd',
+        body: 'Je wachtwoord werd gewijzigd via accountinstellingen.',
+        metadata: {
+          source: 'change-password',
+        },
       });
 
       return { message: 'Wachtwoord succesvol gewijzigd' };

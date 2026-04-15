@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { NotificationType, Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -12,6 +12,7 @@ import {
   UpdateAccountAccessDto,
 } from './dto/account-management.dto';
 import { ManagedAccount, UserService } from '../user/user.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 type AccountAccessResponse = {
   basis: boolean;
@@ -31,11 +32,21 @@ type ManagedAccountResponse = {
   hasAnyAccess: boolean;
 };
 
+type AccessState = {
+  isAdmin: boolean;
+  basisAccess: boolean;
+  whsToursAccess: boolean;
+  ovaAccess: boolean;
+  japGppAccess: boolean;
+  maintenanceInspectionsAccess: boolean;
+};
+
 @Injectable()
 export class AccountsService {
   constructor(
     private readonly userService: UserService,
     private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async listAccounts(search?: string) {
@@ -81,6 +92,20 @@ export class AccountsService {
       },
     });
 
+    await this.notificationsService.notifyUser({
+      recipientUserId: account.id,
+      type: NotificationType.ACCOUNT_CREATED,
+      title: 'Account aangemaakt',
+      body: this.buildAccountCreatedMessage(account),
+      metadata: {
+        accountId: account.id,
+        email: account.email,
+        name: account.name,
+        access: this.serializeAccessState(account),
+        departments: account.departments.map((link) => link.department.name),
+      },
+    });
+
     return {
       account: this.serializeAccount(account),
     };
@@ -105,6 +130,20 @@ export class AccountsService {
     }
 
     const updatedAccount = await this.userService.updateManagedAccount(accountId, updateData);
+    const accessChanges = this.describeAccessChanges(existingAccount, updatedAccount);
+
+    await this.notificationsService.notifyUser({
+      recipientUserId: updatedAccount.id,
+      type: NotificationType.ACCOUNT_ACCESS_CHANGED,
+      title: 'Toegangsrechten aangepast',
+      body: accessChanges
+        ? `Je accountrechten zijn aangepast: ${accessChanges}.`
+        : 'Je accountrechten zijn bijgewerkt door een administrator.',
+      metadata: {
+        accountId: updatedAccount.id,
+        access: this.serializeAccessState(updatedAccount),
+      },
+    });
 
     return {
       account: this.serializeAccount(updatedAccount),
@@ -262,5 +301,69 @@ export class AccountsService {
     if (remainingAdminCount === 0) {
       throw new BadRequestException('At least one admin account must remain');
     }
+  }
+
+  private buildAccountCreatedMessage(account: ManagedAccount) {
+    const displayName = account.name?.trim() || account.email;
+    const accessLabel = this.describeAccessState(this.serializeAccessState(account));
+    const departments = account.departments.map((link) => link.department.name);
+    const departmentLabel = departments.length > 0
+      ? ` Afdelingen: ${departments.join(', ')}.`
+      : '';
+
+    return `Je account voor ${displayName} (${account.email}) is aangemaakt. Rechten: ${accessLabel}.${departmentLabel}`;
+  }
+
+  private serializeAccessState(account: ManagedAccount): AccessState {
+    return {
+      isAdmin: account.isAdmin,
+      basisAccess: account.basisAccess,
+      whsToursAccess: account.whsToursAccess,
+      ovaAccess: account.ovaAccess,
+      japGppAccess: account.japGppAccess,
+      maintenanceInspectionsAccess: account.maintenanceInspectionsAccess,
+    };
+  }
+
+  private describeAccessState(access: AccessState) {
+    const labels = [
+      access.isAdmin ? 'Admin' : null,
+      access.basisAccess ? 'Basis' : null,
+      access.whsToursAccess ? 'WHS-Tours' : null,
+      access.ovaAccess ? 'OVA' : null,
+      access.japGppAccess ? 'JAP & GPP' : null,
+      access.maintenanceInspectionsAccess ? 'Onderhoud & Keuringen' : null,
+    ].filter((value): value is string => Boolean(value));
+
+    return labels.length > 0 ? labels.join(', ') : 'geen modules';
+  }
+
+  private describeAccessChanges(previous: ManagedAccount, next: ManagedAccount) {
+    const previousState = this.serializeAccessState(previous);
+    const nextState = this.serializeAccessState(next);
+    const changes: string[] = [];
+
+    if (previousState.isAdmin !== nextState.isAdmin) {
+      changes.push(`admin ${nextState.isAdmin ? 'aan' : 'uit'}`);
+    }
+    if (previousState.basisAccess !== nextState.basisAccess) {
+      changes.push(`basis ${nextState.basisAccess ? 'aan' : 'uit'}`);
+    }
+    if (previousState.whsToursAccess !== nextState.whsToursAccess) {
+      changes.push(`whs-tours ${nextState.whsToursAccess ? 'aan' : 'uit'}`);
+    }
+    if (previousState.ovaAccess !== nextState.ovaAccess) {
+      changes.push(`ova ${nextState.ovaAccess ? 'aan' : 'uit'}`);
+    }
+    if (previousState.japGppAccess !== nextState.japGppAccess) {
+      changes.push(`jap & gpp ${nextState.japGppAccess ? 'aan' : 'uit'}`);
+    }
+    if (previousState.maintenanceInspectionsAccess !== nextState.maintenanceInspectionsAccess) {
+      changes.push(
+        `onderhoud & keuringen ${nextState.maintenanceInspectionsAccess ? 'aan' : 'uit'}`,
+      );
+    }
+
+    return changes.join(', ');
   }
 }

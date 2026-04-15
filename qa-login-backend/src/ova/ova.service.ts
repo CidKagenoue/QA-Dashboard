@@ -5,7 +5,8 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { NotificationType, Prisma } from '@prisma/client';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   AssignableOvaUser,
@@ -142,6 +143,11 @@ type OvaFollowUpActionWriteData = Omit<
   'ticketId'
 >;
 
+type InternalAssignmentSnapshot = {
+  actionId: number;
+  internalAssigneeId: number;
+};
+
 type TicketMutation<TTicketData> = {
   ticketData: TTicketData;
   actions?: NormalizedFollowUpActionInput[];
@@ -153,6 +159,7 @@ export class OvaService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly userService: UserService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async listTickets(actorId: number) {
@@ -279,6 +286,13 @@ export class OvaService {
       return ticketRecord;
     });
 
+    await this.notifyInternalAssignmentChanges({
+      actorId,
+      ticketId: ticket.id,
+      before: [],
+      after: ticket.actions,
+    });
+
     return {
       ticket: this.serializeTicket(ticket),
     };
@@ -297,7 +311,10 @@ export class OvaService {
         id: true,
         status: true,
         actions: {
-          select: { id: true },
+          select: {
+            id: true,
+            internalAssigneeId: true,
+          },
         },
       },
     });
@@ -307,6 +324,17 @@ export class OvaService {
     }
 
     const mutation = this.normalizeUpdateInput(dto, actorId);
+    const beforeAssignments: InternalAssignmentSnapshot[] =
+      existingTicket.actions
+        .filter(
+          (action) =>
+            Number.isInteger(action.internalAssigneeId) &&
+            Number(action.internalAssigneeId) > 0,
+        )
+        .map((action) => ({
+          actionId: action.id,
+          internalAssigneeId: Number(action.internalAssigneeId),
+        }));
 
     const ticket = await this.prisma.$transaction(async (tx) => {
       if (mutation.actions !== undefined) {
@@ -336,6 +364,41 @@ export class OvaService {
 
       return ticketRecord;
     });
+
+    await this.notifyInternalAssignmentChanges({
+      actorId,
+      ticketId: ticket.id,
+      before: beforeAssignments,
+      after: ticket.actions,
+    });
+
+    const previousStatus = existingTicket.status.trim().toLowerCase();
+    const nextStatus = ticket.status.trim().toLowerCase();
+    if (previousStatus !== nextStatus) {
+      const recipientIds = Array.from(
+        new Set(
+          [
+            ticket.createdBy.id,
+            ticket.lastEditedBy.id,
+            ...ticket.actions
+              .map((action) => action.internalAssignee?.id)
+              .filter((id): id is number => Number.isInteger(id) && id > 0),
+          ].filter((id) => id !== actorId),
+        ),
+      );
+
+      await this.notificationsService.notifyUsers({
+        recipientUserIds: recipientIds,
+        type: NotificationType.OVA_TICKET_STATUS_CHANGED,
+        title: `OVA ticket #${ticket.id} status gewijzigd`,
+        body: `Status veranderde van ${existingTicket.status} naar ${ticket.status}.`,
+        metadata: {
+          ticketId: ticket.id,
+          previousStatus: existingTicket.status,
+          nextStatus: ticket.status,
+        },
+      });
+    }
 
     return {
       ticket: this.serializeTicket(ticket),
@@ -1006,6 +1069,111 @@ export class OvaService {
     }
 
     return Number(value);
+  }
+
+  private async notifyInternalAssignmentChanges(params: {
+    actorId: number;
+    ticketId: number;
+    before: InternalAssignmentSnapshot[];
+    after: Array<{
+      id: number;
+      type: string;
+      description: string;
+      dueDate: string;
+      internalAssignee: { id: number } | null;
+    }>;
+  }) {
+    const beforeMap = new Map<number, number>();
+    for (const item of params.before) {
+      beforeMap.set(item.actionId, item.internalAssigneeId);
+    }
+
+    const newlyAssignedUserIds = new Set<number>();
+    const reassignedUserIds = new Set<number>();
+
+    for (const action of params.after) {
+      const nextAssigneeId = action.internalAssignee?.id;
+      if (!nextAssigneeId || nextAssigneeId === params.actorId) {
+        continue;
+      }
+
+      const previousAssigneeId = beforeMap.get(action.id);
+      if (!previousAssigneeId) {
+        newlyAssignedUserIds.add(nextAssigneeId);
+        continue;
+      }
+
+      if (previousAssigneeId !== nextAssigneeId) {
+        reassignedUserIds.add(nextAssigneeId);
+      }
+    }
+
+    if (newlyAssignedUserIds.size > 0) {
+      const sampleAction = params.after.find(
+        (action) =>
+          action.internalAssignee?.id !== undefined &&
+          action.internalAssignee?.id !== params.actorId,
+      );
+
+      await this.notificationsService.notifyUsers({
+        recipientUserIds: Array.from(newlyAssignedUserIds),
+        type: NotificationType.OVA_ACTION_ASSIGNED,
+        title: `Nieuwe OVA-actie toegewezen`,
+        body: sampleAction
+          ? `Ticket #${params.ticketId}: ${this.describeAction(sampleAction)} is nu aan jou toegewezen.`
+          : `Je hebt een nieuwe OVA-opvolgactie op ticket #${params.ticketId}.`,
+        metadata: {
+          ticketId: params.ticketId,
+        },
+      });
+    }
+
+    if (reassignedUserIds.size > 0) {
+      const sampleAction = params.after.find(
+        (action) =>
+          action.internalAssignee?.id !== undefined &&
+          action.internalAssignee?.id !== params.actorId,
+      );
+
+      await this.notificationsService.notifyUsers({
+        recipientUserIds: Array.from(reassignedUserIds),
+        type: NotificationType.OVA_ACTION_REASSIGNED,
+        title: `OVA-actie herverdeeld`,
+        body: sampleAction
+          ? `Ticket #${params.ticketId}: ${this.describeAction(sampleAction)} is opnieuw aan jou toegewezen.`
+          : `Een OVA-opvolgactie op ticket #${params.ticketId} werd aan jou toegewezen.`,
+        metadata: {
+          ticketId: params.ticketId,
+        },
+      });
+    }
+  }
+
+  private describeAction(action: {
+    type: string;
+    description: string;
+    dueDate: string;
+  }) {
+    const actionTypeLabel =
+      action.type.trim().toLowerCase() === 'corrective'
+        ? 'corrigerende actie'
+        : 'preventieve actie';
+    const dueDateLabel = action.dueDate ? ` Deadline: ${formatActionDate(action.dueDate)}.` : '';
+
+    return `${actionTypeLabel} "${action.description}"${dueDateLabel}`;
+  }
+
+  private formatActionDate(value: string) {
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return value;
+    }
+
+    return new Intl.DateTimeFormat('nl-BE', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    }).format(parsed);
   }
 
   private serializeTicket(ticket: OvaTicketRecord) {

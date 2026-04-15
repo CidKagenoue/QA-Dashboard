@@ -7,6 +7,7 @@ import 'screens/login_screen.dart';
 import 'screens/reset_password_screen.dart';
 import 'services/account_management_service.dart';
 import 'services/auth_service.dart';
+import 'services/notification_service.dart';
 import 'theme/app_theme.dart';
 
 void main() {
@@ -44,6 +45,14 @@ class QADashboardApp extends StatelessWidget {
           update: (_, authService, accountManagementService) {
             final service =
                 accountManagementService ?? AccountManagementService();
+            service.bindAuth(authService);
+            return service;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthService, NotificationService>(
+          create: (_) => NotificationService(),
+          update: (_, authService, notificationService) {
+            final service = notificationService ?? NotificationService();
             service.bindAuth(authService);
             return service;
           },

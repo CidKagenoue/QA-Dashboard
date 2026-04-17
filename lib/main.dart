@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:qa_dashboard/screens/account_management_screen.dart';
+import 'package:qa_dashboard/screens/account_management_page.dart';
 
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
@@ -22,7 +22,7 @@ class QADashboardApp extends StatelessWidget {
     final uri = Uri.base;
 
     if (uri.path == '/account-management') {
-      return const AccountManagementScreen();
+      return const AccountManagementPage();
     }
 
     if (uri.path == '/reset-password') {
@@ -62,7 +62,7 @@ class QADashboardApp extends StatelessWidget {
         title: 'Vlotter',
         theme: buildAppTheme(),
         home: _buildInitialScreen(),
-        routes: {'/account-management': (_) => const AccountManagementScreen()},
+        routes: {'/account-management': (_) => const AccountManagementPage()},
         debugShowCheckedModeBanner: false,
       ),
     );

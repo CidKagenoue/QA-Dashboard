@@ -115,7 +115,7 @@ export class AccountsService {
     accountId: number,
     updateAccountAccessDto: UpdateAccountAccessDto,
   ) {
-    const existingAccount = await this.userService.findById(accountId);
+    const existingAccount = await this.userService.findManagedById(accountId);
     if (!existingAccount) {
       throw new NotFoundException('Account not found');
     }

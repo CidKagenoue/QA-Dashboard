@@ -74,7 +74,7 @@ class AccountManagementPage extends StatelessWidget {
                     'Profiel',
                     onTap: () => Navigator.of(
                       context,
-                    ).pushReplacement(_buildSmoothRoute(const AccountScreen())),
+                    ).pushReplacement(_buildSmoothRoute(const ProfileScreen())),
                   ),
                   const SizedBox(height: 20),
                   const _SidebarItem('Meldingen'),

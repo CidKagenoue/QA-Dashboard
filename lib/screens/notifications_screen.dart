@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/app_notification.dart';
+import '../services/notification_navigation_service.dart';
 import '../services/notification_service.dart';
 
 class NotificationsScreen extends StatefulWidget {
@@ -76,6 +77,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     }
 
                     if (!context.mounted) {
+                      return;
+                    }
+
+                    final opened = await NotificationNavigationService.openContext(
+                      context,
+                      item,
+                    );
+                    if (opened || !context.mounted) {
                       return;
                     }
 
@@ -189,22 +198,19 @@ class _NotificationTile extends StatelessWidget {
   }
 
   String _contextLabel(AppNotification item) {
-    final metadata = item.metadata;
-    if (metadata == null || metadata.isEmpty) {
+    if (item.metadata == null || item.metadata!.isEmpty) {
       return item.type.replaceAll('_', ' ');
     }
 
-    final ticketId = metadata['ticketId'];
-    if (ticketId is num) {
-      return 'OVA ticket #${ticketId.toInt()}';
+    if (item.ticketId != null) {
+      return 'OVA ticket #${item.ticketId}';
     }
 
-    final accountId = metadata['accountId'];
-    if (accountId is num) {
-      return 'Account #${accountId.toInt()}';
+    if (item.accountId != null) {
+      return 'Account #${item.accountId}';
     }
 
-    final source = metadata['source'];
+    final source = item.source;
     if (source is String && source.isNotEmpty) {
       if (source == 'reset-password') {
         return 'Wachtwoord reset';

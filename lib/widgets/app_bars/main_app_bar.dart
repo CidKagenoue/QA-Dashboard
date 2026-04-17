@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:qa_dashboard/models/app_notification.dart';
 import 'package:qa_dashboard/screens/settings_screen_navigation.dart';
 import 'package:qa_dashboard/screens/notifications_screen.dart';
+import 'package:qa_dashboard/services/notification_navigation_service.dart';
 import 'package:qa_dashboard/services/notification_service.dart';
 import '../../services/auth_service.dart';
 import '../../screens/login_screen.dart';
@@ -26,18 +28,52 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
               tooltip: 'Notificaties',
               offset: const Offset(0, 12),
               onSelected: (value) async {
-                if (value != 'open-all') {
+                if (value == 'open-all') {
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const NotificationsScreen(),
+                    ),
+                  );
+
+                  if (context.mounted) {
+                    await context.read<NotificationService>().refreshUnreadCount();
+                  }
                   return;
                 }
 
-                await Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const NotificationsScreen(),
-                  ),
-                );
+                if (!value.startsWith('open-notification:')) {
+                  return;
+                }
 
-                if (context.mounted) {
+                final id = int.tryParse(value.replaceFirst('open-notification:', ''));
+                if (id == null) {
+                  return;
+                }
+
+                final selected = recentNotifications.where((item) => item.id == id);
+                if (selected.isEmpty) {
+                  return;
+                }
+
+                final notification = selected.first;
+                if (!notification.isRead) {
+                  await context.read<NotificationService>().markAsRead([notification.id]);
+                }
+
+                if (!context.mounted) {
+                  return;
+                }
+
+                final opened = await NotificationNavigationService.openContext(
+                  context,
+                  notification,
+                );
+                if (opened && context.mounted) {
                   await context.read<NotificationService>().refreshUnreadCount();
+                }
+
+                if (!opened && context.mounted) {
+                  await _openNotificationDialog(context, notification);
                 }
               },
               itemBuilder: (menuContext) {
@@ -88,7 +124,7 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
                   for (final notification in recentNotifications) {
                     items.add(
                       PopupMenuItem<String>(
-                        enabled: false,
+                        value: 'open-notification:${notification.id}',
                         child: SizedBox(
                           width: 320,
                           child: _NotificationPreviewTile(
@@ -180,6 +216,25 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+}
+
+Future<void> _openNotificationDialog(
+  BuildContext context,
+  AppNotification notification,
+) {
+  return showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: Text(notification.title),
+      content: Text(notification.body),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(),
+          child: const Text('Sluiten'),
+        ),
+      ],
+    ),
+  );
 }
 
 String _relativeTimeLabel(DateTime value) {

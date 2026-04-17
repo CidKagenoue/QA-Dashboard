@@ -4,7 +4,7 @@ import 'package:qa_dashboard/screens/login_screen.dart';
 import 'package:qa_dashboard/screens/profile_screen.dart';
 import 'package:qa_dashboard/screens/departments_screen.dart';
 import 'package:qa_dashboard/screens/locations_screen.dart';
-import 'package:qa_dashboard/screens/account_management_screen.dart';
+import 'package:qa_dashboard/screens/account_management_page.dart';
 import 'package:qa_dashboard/services/auth_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -139,7 +139,7 @@ class _SettingsScreenNavigationState extends State<SettingsScreen> {
       case _SettingsSection.meldingen:
         return const Text('Meldingen (hier komen je notificaties)');
       case _SettingsSection.accountbeheer:
-        return AccountManagementScreen();
+        return const AccountManagementPage();
       case _SettingsSection.afdelingen:
         return DepartmentsScreen();
       case _SettingsSection.locaties:

@@ -1079,7 +1079,7 @@ export class OvaService {
       id: number;
       type: string;
       description: string;
-      dueDate: string;
+      dueDate: Date;
       internalAssignee: { id: number } | null;
     }>;
   }) {
@@ -1152,28 +1152,29 @@ export class OvaService {
   private describeAction(action: {
     type: string;
     description: string;
-    dueDate: string;
+    dueDate: Date;
   }) {
     const actionTypeLabel =
       action.type.trim().toLowerCase() === 'corrective'
         ? 'corrigerende actie'
         : 'preventieve actie';
-    const dueDateLabel = action.dueDate ? ` Deadline: ${formatActionDate(action.dueDate)}.` : '';
+    const dueDateLabel = action.dueDate
+      ? ` Deadline: ${this.formatActionDate(action.dueDate)}.`
+      : '';
 
     return `${actionTypeLabel} "${action.description}"${dueDateLabel}`;
   }
 
-  private formatActionDate(value: string) {
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) {
-      return value;
+  private formatActionDate(value: Date) {
+    if (Number.isNaN(value.getTime())) {
+      return '-';
     }
 
     return new Intl.DateTimeFormat('nl-BE', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
-    }).format(parsed);
+    }).format(value);
   }
 
   private serializeTicket(ticket: OvaTicketRecord) {

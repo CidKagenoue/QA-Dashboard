@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:qa_dashboard/screens/account_management_screen.dart';
+import 'package:qa_dashboard/screens/account_management_page.dart';
 import '../widgets/app_bars/main_app_bar.dart';
 
 import '../services/auth_service.dart';
@@ -243,7 +243,7 @@ class _DashboardContent extends StatelessWidget {
                               onPressed: () {
                                 Navigator.of(context).push(
                                   MaterialPageRoute(
-                                    builder: (context) => const AccountManagementScreen(),
+                                    builder: (context) => const AccountManagementPage(),
                                   ),
                                 );
                               },

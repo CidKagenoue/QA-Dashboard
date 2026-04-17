@@ -19,6 +19,19 @@ class AppNotification {
   final DateTime? readAt;
   final Map<String, dynamic>? metadata;
 
+  int? get ticketId => _readIntFromMetadata('ticketId');
+
+  int? get accountId => _readIntFromMetadata('accountId');
+
+  String? get source {
+    final value = metadata?['source'];
+    if (value is String && value.trim().isNotEmpty) {
+      return value.trim();
+    }
+
+    return null;
+  }
+
   factory AppNotification.fromJson(Map<String, dynamic> json) {
     final metadata = json['metadata'];
 
@@ -36,5 +49,18 @@ class AppNotification {
           ? Map<String, dynamic>.from(metadata)
           : null,
     );
+  }
+
+  int? _readIntFromMetadata(String key) {
+    final value = metadata?[key];
+    if (value is num) {
+      return value.toInt();
+    }
+
+    if (value is String) {
+      return int.tryParse(value);
+    }
+
+    return null;
   }
 }

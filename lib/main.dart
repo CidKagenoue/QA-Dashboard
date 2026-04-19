@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:qa_dashboard/screens/account_management_page.dart';
+import 'package:qa_dashboard/screens/account_management_screen.dart';
 
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/reset_password_screen.dart';
 import 'services/account_management_service.dart';
 import 'services/auth_service.dart';
-import 'services/notification_service.dart';
 import 'theme/app_theme.dart';
+import 'services/notification_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,7 +22,7 @@ class QADashboardApp extends StatelessWidget {
     final uri = Uri.base;
 
     if (uri.path == '/account-management') {
-      return const AccountManagementPage();
+      return const AccountManagementScreen();
     }
 
     if (uri.path == '/reset-password') {
@@ -40,6 +40,7 @@ class QADashboardApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthService()),
+        ChangeNotifierProvider(create: (_) => NotificationService()),
         ChangeNotifierProxyProvider<AuthService, AccountManagementService>(
           create: (_) => AccountManagementService(),
           update: (_, authService, accountManagementService) {
@@ -49,20 +50,12 @@ class QADashboardApp extends StatelessWidget {
             return service;
           },
         ),
-        ChangeNotifierProxyProvider<AuthService, NotificationService>(
-          create: (_) => NotificationService(),
-          update: (_, authService, notificationService) {
-            final service = notificationService ?? NotificationService();
-            service.bindAuth(authService);
-            return service;
-          },
-        ),
       ],
       child: MaterialApp(
         title: 'Vlotter',
         theme: buildAppTheme(),
         home: _buildInitialScreen(),
-        routes: {'/account-management': (_) => const AccountManagementPage()},
+        routes: {'/account-management': (_) => const AccountManagementScreen()},
         debugShowCheckedModeBanner: false,
       ),
     );

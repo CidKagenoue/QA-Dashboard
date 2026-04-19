@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 import 'forgot_password_screen.dart';
 import 'home_screen.dart';
 
@@ -35,6 +36,9 @@ class _LoginScreenState extends State<LoginScreen> {
         _emailController.text.trim(),
         _passwordController.text,
       );
+
+      Provider.of<NotificationService>(context, listen: false)
+          .bindAuth(authService);
 
       if (mounted) {
         Navigator.of(context).pushReplacement(
@@ -73,8 +77,7 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Row(
                 children: [
                   IconButton(
-                    icon:
-                        const Icon(Icons.menu, color: Colors.white, size: 28),
+                    icon: const Icon(Icons.menu, color: Colors.white, size: 28),
                     onPressed: () {},
                   ),
                   const Text(

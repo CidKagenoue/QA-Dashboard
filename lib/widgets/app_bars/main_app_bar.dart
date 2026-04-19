@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:qa_dashboard/models/app_notification.dart';
 import 'package:qa_dashboard/screens/settings_screen_navigation.dart';
-import 'package:qa_dashboard/screens/notifications_screen.dart';
-import 'package:qa_dashboard/services/notification_navigation_service.dart';
-import 'package:qa_dashboard/services/notification_service.dart';
 import '../../services/auth_service.dart';
+import '../notifications_popup.dart';
+import '../../services/notification_service.dart';
+import '../../models/notification_setting.dart' show AppNotification;
+import '../../services/notification_service.dart' show NotificationNavigationService;
 import '../../screens/login_screen.dart';
 
 class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -27,6 +27,10 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
             return PopupMenuButton<String>(
               tooltip: 'Notificaties',
               offset: const Offset(0, 12),
+              onOpened: () async {
+                // Markeer alles als gelezen zodra popover wordt geopend
+                await context.read<NotificationService>().markAllRead();
+              },
               onSelected: (value) async {
                 if (value == 'open-all') {
                   await Navigator.of(context).push(

@@ -1,9 +1,29 @@
-import 'package:flutter/foundation.dart';
-
-import '../models/app_notification.dart';
+import 'package:qa_dashboard/services/auth_service.dart';
 import 'api_service.dart';
-import 'auth_service.dart';
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
+import '../models/notification_setting.dart';
+import '../screens/account_management_screen.dart';
+import '../screens/ova_ticket_wizard_screen.dart';
+
+// Service for fetching notification data from backend (simple API helper)
+class NotificationApiService {
+  final String baseUrl;
+  NotificationApiService(this.baseUrl);
+
+  Future<int> getUnreadCount(int userId) async {
+    final response = await http.get(Uri.parse('$baseUrl/notifications/user/$userId/unread-count'));
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return data['count'] ?? 0;
+    }
+    throw Exception('Failed to load unread count');
+  }
+}
+
+// Notification data service (notifications, unread count, mark as read, etc)
 class NotificationService extends ChangeNotifier {
   AuthService? _authService;
   List<AppNotification> _notifications = const [];
@@ -58,6 +78,11 @@ class NotificationService extends ChangeNotifier {
       );
 
       _notifications = response.map(AppNotification.fromJson).toList();
+      // DEBUG LOGGING
+      debugPrint('[NOTIFICATIONS] Opgehaald: ${_notifications.length}');
+      for (final n in _notifications) {
+        debugPrint('[NOTIFICATIONS] ${n.id} | ${n.title} | ${n.body} | isRead: ${n.isRead}');
+      }
       _unreadCount = _notifications.where((item) => !item.isRead).length;
       _hasLoaded = true;
     } finally {
@@ -85,16 +110,11 @@ class NotificationService extends ChangeNotifier {
   }
 
   Future<void> markAsRead(List<int> notificationIds) async {
-    if (notificationIds.isEmpty) {
-      return;
-    }
-
+    if (notificationIds.isEmpty) return;
     final token = await _requireToken();
-    await ApiService.markNotificationsRead(
-      token: token,
-      notificationIds: notificationIds,
-    );
-
+    for (final id in notificationIds) {
+      await ApiService.markNotificationAsRead(token: token, notificationId: id);
+    }
     final ids = notificationIds.toSet();
     _notifications = _notifications
         .map(
@@ -118,8 +138,7 @@ class NotificationService extends ChangeNotifier {
 
   Future<void> markAllRead() async {
     final token = await _requireToken();
-    await ApiService.markAllNotificationsRead(token: token);
-
+    await ApiService.markAllNotificationsAsRead(token: token);
     _notifications = _notifications
         .map(
           (item) => item.isRead
@@ -155,5 +174,35 @@ class NotificationService extends ChangeNotifier {
     _isLoading = false;
     _hasLoaded = false;
     notifyListeners();
+  }
+}
+
+// Service for handling navigation based on notification context
+class NotificationNavigationService {
+  static Future<bool> openContext(
+    BuildContext context,
+    AppNotification notification,
+  ) async {
+    if (notification.ticketId != null) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => OvaTicketWizardScreen(
+            ticketId: notification.ticketId,
+          ),
+        ),
+      );
+      return true;
+    }
+
+    if (notification.accountId != null) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => const AccountManagementScreen(),
+        ),
+      );
+      return true;
+    }
+
+    return false;
   }
 }

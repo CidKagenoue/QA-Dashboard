@@ -18,7 +18,7 @@ type NotificationRecord = Prisma.NotificationGetPayload<{
 }>;
 
 @Injectable()
-export class NotificationsService {
+export class NotificationService {
   constructor(private readonly prisma: PrismaService) {}
 
   async listForUser(userId: number, options?: { limit?: number }) {

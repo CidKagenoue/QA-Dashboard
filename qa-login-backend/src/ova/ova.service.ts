@@ -5,8 +5,9 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { NotificationType, Prisma } from '@prisma/client';
-import { NotificationsService } from '../notifications/notifications.service';
+import { Prisma } from '@prisma/client';
+import { NotificationType } from '@prisma/client';
+import { NotificationService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   AssignableOvaUser,
@@ -19,6 +20,7 @@ import {
   UpdateOvaFollowUpActionDto,
   UpdateOvaTicketDto,
 } from './dto/ova-ticket.dto';
+
 
 const ovaUserSelect = {
   id: true,
@@ -159,7 +161,7 @@ export class OvaService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly userService: UserService,
-    private readonly notificationsService: NotificationsService,
+    private readonly notificationsService: NotificationService,
   ) {}
 
   async listTickets(actorId: number) {
@@ -293,6 +295,74 @@ export class OvaService {
       after: ticket.actions,
     });
 
+    // Notificatie-logica toevoegen
+    // 1. Bepaal meldingstekst
+    let notificationTitle = 'OVA-ticket aangemaakt';
+    let notificationBody = `Ticket #${ticket.id} is aangemaakt.`;
+    if (dto.ovaType) {
+      // Maak type-vergelijking robuuster: verwijder spaties en hoofdletters
+      const type = dto.ovaType.replace(/\s+/g, '').toLowerCase();
+      if (type === 'ova1') {
+        notificationTitle = 'OVA1 ticket aangemaakt';
+        notificationBody = `OVA ticket #${ticket.id} is aangemaakt.`;
+      } else if (type === 'ova2') {
+        notificationTitle = 'OVA2 ticket aangemaakt';
+        notificationBody = `OVA ticket #${ticket.id} is aangemaakt.`;
+      } else if (type === 'ova3') {
+        notificationTitle = 'OVA3 ticket aangemaakt';
+        notificationBody = `OVA ticket #${ticket.id} is aangemaakt.`;
+      } else if (type === 'nearmiss' || type === 'nearmiss') {
+        notificationTitle = 'Near miss ticket aangemaakt';
+        notificationBody = `Ticket #${ticket.id} is aangemaakt.`;
+      } else {
+        notificationTitle = 'OVA-ticket aangemaakt';
+        notificationBody = `Ticket #${ticket.id} is aangemaakt.`;
+      }
+    }
+
+    // 2. Check notificatievoorkeur
+    const notificationSettingsService = this["notificationSettingsService"]
+      || (this["notificationSettingsService"] = require('../notification-settings/notification-settings.service').NotificationSettingsService.prototype);
+    let sendNotification = true;
+    if (notificationSettingsService && notificationSettingsService.shouldSendNotification) {
+      try {
+        sendNotification = await notificationSettingsService.shouldSendNotification(
+          actorId,
+          NotificationType.OVA_TICKET_CREATED,
+          'OVA',
+          'inApp',
+        );
+      } catch (e) {
+        sendNotification = true;
+      }
+    }
+
+
+    // 3. Melding aanmaken
+    console.log('[OVA] Probeer melding aan te maken:', {
+      actorId,
+      notificationTitle,
+      ticketId: ticket.id,
+      ovaType: dto.ovaType,
+      sendNotification,
+    });
+    if (sendNotification) {
+      try {
+        await this.notificationsService.notifyUser?.({
+          recipientUserId: actorId,
+          type: NotificationType.OVA_TICKET_CREATED,
+          title: notificationTitle,
+          body: notificationBody,
+          metadata: { ticketId: ticket.id, ovaType: dto.ovaType },
+        });
+        console.log('[OVA] Melding succesvol aangemaakt voor ticket', ticket.id);
+      } catch (err) {
+        console.error('[OVA] Fout bij aanmaken melding:', err);
+      }
+    } else {
+      console.log('[OVA] Geen melding aangemaakt vanwege notificatievoorkeur.');
+    }
+
     return {
       ticket: this.serializeTicket(ticket),
     };
@@ -389,7 +459,8 @@ export class OvaService {
 
       await this.notificationsService.notifyUsers({
         recipientUserIds: recipientIds,
-        type: NotificationType.OVA_TICKET_STATUS_CHANGED,
+        // type: NotificationType.OVA_TICKET_STATUS_CHANGED, // Niet gedefinieerd in NotificationType
+        type: NotificationType.OVA_TICKET_CREATED, // Tijdelijk alternatief
         title: `OVA ticket #${ticket.id} status gewijzigd`,
         body: `Status veranderde van ${existingTicket.status} naar ${ticket.status}.`,
         metadata: {
@@ -403,6 +474,113 @@ export class OvaService {
     return {
       ticket: this.serializeTicket(ticket),
     };
+  }
+  private async notifyInternalAssignmentChanges(params: {
+    actorId: number;
+    ticketId: number;
+    before: InternalAssignmentSnapshot[];
+    after: Array<{
+      id: number;
+      type: string;
+      description: string;
+      dueDate: Date;
+      internalAssignee: { id: number } | null;
+    }>;
+  }) {
+    const beforeMap = new Map<number, number>();
+    for (const item of params.before) {
+      beforeMap.set(item.actionId, item.internalAssigneeId);
+    }
+
+    const newlyAssignedUserIds = new Set<number>();
+    const reassignedUserIds = new Set<number>();
+
+    for (const action of params.after) {
+      const nextAssigneeId = action.internalAssignee?.id;
+      if (!nextAssigneeId || nextAssigneeId === params.actorId) {
+        continue;
+      }
+
+      const previousAssigneeId = beforeMap.get(action.id);
+      if (!previousAssigneeId) {
+        newlyAssignedUserIds.add(nextAssigneeId);
+        continue;
+      }
+
+      if (previousAssigneeId !== nextAssigneeId) {
+        reassignedUserIds.add(nextAssigneeId);
+      }
+    }
+
+    if (newlyAssignedUserIds.size > 0) {
+      const sampleAction = params.after.find(
+        (action) =>
+          action.internalAssignee?.id !== undefined &&
+          action.internalAssignee?.id !== params.actorId,
+      );
+
+      await this.notificationsService.notifyUsers({
+        recipientUserIds: Array.from(newlyAssignedUserIds),
+        // type: NotificationType.OVA_ACTION_ASSIGNED, // Niet gedefinieerd in NotificationType
+        type: NotificationType.OVA_NEW_ACTION, // Tijdelijk alternatief
+        title: `Nieuwe OVA-actie toegewezen`,
+        body: sampleAction
+          ? `Ticket #${params.ticketId}: ${this.describeAction(sampleAction)} is nu aan jou toegewezen.`
+          : `Je hebt een nieuwe OVA-opvolgactie op ticket #${params.ticketId}.`,
+        metadata: {
+          ticketId: params.ticketId,
+        },
+      });
+    }
+
+    if (reassignedUserIds.size > 0) {
+      const sampleAction = params.after.find(
+        (action) =>
+          action.internalAssignee?.id !== undefined &&
+          action.internalAssignee?.id !== params.actorId,
+      );
+
+      await this.notificationsService.notifyUsers({
+        recipientUserIds: Array.from(reassignedUserIds),
+        // type: NotificationType.OVA_ACTION_REASSIGNED, // Niet gedefinieerd in NotificationType
+        type: NotificationType.OVA_NEW_ACTION, // Tijdelijk alternatief
+        title: `OVA-actie herverdeeld`,
+        body: sampleAction
+          ? `Ticket #${params.ticketId}: ${this.describeAction(sampleAction)} is opnieuw aan jou toegewezen.`
+          : `Een OVA-opvolgactie op ticket #${params.ticketId} werd aan jou toegewezen.`,
+        metadata: {
+          ticketId: params.ticketId,
+        },
+      });
+    }
+  }
+
+  private describeAction(action: {
+    type: string;
+    description: string;
+    dueDate: Date;
+  }) {
+    const actionTypeLabel =
+      action.type.trim().toLowerCase() === 'corrective'
+        ? 'corrigerende actie'
+        : 'preventieve actie';
+    const dueDateLabel = action.dueDate
+      ? ` Deadline: ${this.formatActionDate(action.dueDate)}.`
+      : '';
+
+    return `${actionTypeLabel} "${action.description}"${dueDateLabel}`;
+  }
+
+  private formatActionDate(value: Date) {
+    if (Number.isNaN(value.getTime())) {
+      return '-';
+    }
+
+    return new Intl.DateTimeFormat('nl-BE', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    }).format(value);
   }
 
   async listMyActions(actorId: number) {
@@ -639,12 +817,27 @@ export class OvaService {
         continue;
       }
 
-      await tx.ovaFollowUpAction.create({
+      // Nieuwe actie aanmaken
+      const createdAction = await tx.ovaFollowUpAction.create({
         data: {
           ticketId,
           ...actionData,
         },
       });
+
+      // Notificatie sturen naar verantwoordelijke
+      if (action.assigneeType === 'internal' && action.internalAssigneeId) {
+        const recipientUserId = action.internalAssigneeId;
+        const actionTypeLabel = action.type === 'corrective' ? 'corrigerende actie' : 'preventieve actie';
+        const body = `Er is een ${actionTypeLabel} aan jou toegewezen voor OVA-ticket #${ticketId}. Deadline: ${this.formatActionDate(action.dueDate)}.`;
+        await this.notificationsService.notifyUser?.({
+          recipientUserId,
+          type: NotificationType.OVA_NEW_ACTION,
+          title: `Nieuwe opvolgactie toegewezen (${actionTypeLabel})`,
+          body,
+          metadata: { ticketId, actionType: action.type, actionId: createdAction.id },
+        });
+      }
     }
 
     const deleteIds = existingActions
@@ -1069,112 +1262,6 @@ export class OvaService {
     }
 
     return Number(value);
-  }
-
-  private async notifyInternalAssignmentChanges(params: {
-    actorId: number;
-    ticketId: number;
-    before: InternalAssignmentSnapshot[];
-    after: Array<{
-      id: number;
-      type: string;
-      description: string;
-      dueDate: Date;
-      internalAssignee: { id: number } | null;
-    }>;
-  }) {
-    const beforeMap = new Map<number, number>();
-    for (const item of params.before) {
-      beforeMap.set(item.actionId, item.internalAssigneeId);
-    }
-
-    const newlyAssignedUserIds = new Set<number>();
-    const reassignedUserIds = new Set<number>();
-
-    for (const action of params.after) {
-      const nextAssigneeId = action.internalAssignee?.id;
-      if (!nextAssigneeId || nextAssigneeId === params.actorId) {
-        continue;
-      }
-
-      const previousAssigneeId = beforeMap.get(action.id);
-      if (!previousAssigneeId) {
-        newlyAssignedUserIds.add(nextAssigneeId);
-        continue;
-      }
-
-      if (previousAssigneeId !== nextAssigneeId) {
-        reassignedUserIds.add(nextAssigneeId);
-      }
-    }
-
-    if (newlyAssignedUserIds.size > 0) {
-      const sampleAction = params.after.find(
-        (action) =>
-          action.internalAssignee?.id !== undefined &&
-          action.internalAssignee?.id !== params.actorId,
-      );
-
-      await this.notificationsService.notifyUsers({
-        recipientUserIds: Array.from(newlyAssignedUserIds),
-        type: NotificationType.OVA_ACTION_ASSIGNED,
-        title: `Nieuwe OVA-actie toegewezen`,
-        body: sampleAction
-          ? `Ticket #${params.ticketId}: ${this.describeAction(sampleAction)} is nu aan jou toegewezen.`
-          : `Je hebt een nieuwe OVA-opvolgactie op ticket #${params.ticketId}.`,
-        metadata: {
-          ticketId: params.ticketId,
-        },
-      });
-    }
-
-    if (reassignedUserIds.size > 0) {
-      const sampleAction = params.after.find(
-        (action) =>
-          action.internalAssignee?.id !== undefined &&
-          action.internalAssignee?.id !== params.actorId,
-      );
-
-      await this.notificationsService.notifyUsers({
-        recipientUserIds: Array.from(reassignedUserIds),
-        type: NotificationType.OVA_ACTION_REASSIGNED,
-        title: `OVA-actie herverdeeld`,
-        body: sampleAction
-          ? `Ticket #${params.ticketId}: ${this.describeAction(sampleAction)} is opnieuw aan jou toegewezen.`
-          : `Een OVA-opvolgactie op ticket #${params.ticketId} werd aan jou toegewezen.`,
-        metadata: {
-          ticketId: params.ticketId,
-        },
-      });
-    }
-  }
-
-  private describeAction(action: {
-    type: string;
-    description: string;
-    dueDate: Date;
-  }) {
-    const actionTypeLabel =
-      action.type.trim().toLowerCase() === 'corrective'
-        ? 'corrigerende actie'
-        : 'preventieve actie';
-    const dueDateLabel = action.dueDate
-      ? ` Deadline: ${this.formatActionDate(action.dueDate)}.`
-      : '';
-
-    return `${actionTypeLabel} "${action.description}"${dueDateLabel}`;
-  }
-
-  private formatActionDate(value: Date) {
-    if (Number.isNaN(value.getTime())) {
-      return '-';
-    }
-
-    return new Intl.DateTimeFormat('nl-BE', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    }).format(value);
   }
 
   private serializeTicket(ticket: OvaTicketRecord) {

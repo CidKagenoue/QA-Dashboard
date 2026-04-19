@@ -5,6 +5,7 @@ import 'package:qa_dashboard/widgets/app_bars/main_app_bar.dart';
 import '../models/ova_ticket.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 import 'ova_follow_up_action_components.dart';
 
 const List<String> kOvaTicketStepLabels = [
@@ -283,6 +284,9 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
       setState(() {
         _applyTicket(ticket);
       });
+
+      // Notificaties direct ophalen na ticket aanmaken/bijwerken
+      context.read<NotificationService>().loadNotifications();
 
       final message =
           successMessage ??

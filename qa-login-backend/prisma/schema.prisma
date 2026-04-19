@@ -1,5 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
   provider = "prisma-client-js"
@@ -22,6 +20,11 @@ model User {
   ovaAccess            Boolean               @default(false) @map("ova_access")
   japGppAccess         Boolean               @default(false) @map("jap_gpp_access")
   maintenanceInspectionsAccess Boolean       @default(false) @map("maintenance_inspections_access")
+  // Notification preferences for modules
+  notifyWhsTours       Boolean               @default(true)
+  notifyOva            Boolean               @default(true)
+  notifyJapGpp         Boolean               @default(true)
+  notifyMaintenance    Boolean               @default(true)
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
   refreshTokenSessions RefreshTokenSession[]
@@ -34,37 +37,11 @@ model User {
   departmentLeaders DepartmentLeader[]
   departments       UserDepartment[]
   profileImage      String? // base64 string van profielfoto
-  notifications     Notification[]
+
+  notificationSettings NotificationSetting[]
+  notifications Notification[]
 
   @@map("users")
-}
-
-enum NotificationType {
-  OVA_ACTION_ASSIGNED
-  OVA_ACTION_REASSIGNED
-  OVA_TICKET_STATUS_CHANGED
-  ACCOUNT_CREATED
-  ACCOUNT_ACCESS_CHANGED
-  ACCOUNT_DELETED
-  PASSWORD_CHANGED
-}
-
-model Notification {
-  id              Int              @id @default(autoincrement())
-  recipientUserId Int              @map("recipient_user_id")
-  type            NotificationType
-  title           String
-  body            String
-  metadata        Json?
-  isRead          Boolean          @default(false) @map("is_read")
-  readAt          DateTime?        @map("read_at")
-  createdAt       DateTime         @default(now()) @map("created_at")
-  updatedAt       DateTime         @updatedAt @map("updated_at")
-  recipient       User             @relation(fields: [recipientUserId], references: [id], onDelete: Cascade)
-
-  @@index([recipientUserId, isRead], map: "notifications_recipient_is_read_idx")
-  @@index([createdAt], map: "notifications_created_at_idx")
-  @@map("notifications")
 }
 
 model RefreshTokenSession {
@@ -203,3 +180,70 @@ model Location {
   branchId  Int?
   branch    Branch? @relation(fields: [branchId], references: [id])
 }
+
+// This is your Prisma schema file,
+// NotificationSetting: per-user, per-type notificatievoorkeuren
+
+enum NotificationModule {
+  WHS_TOURS
+  OVA
+  JAP
+  MAINTENANCE
+
+  }
+
+  enum NotificationType {
+    OVA_TICKET_CREATED
+    OVA_ACTION_ASSIGNED
+    OVA_ACTION_REASSIGNED
+    OVA_TICKET_STATUS_CHANGED
+    ACCOUNT_CREATED
+    ACCOUNT_ACCESS_CHANGED
+    ACCOUNT_DELETED
+    PASSWORD_CHANGED
+    WHS_NEW_TASK
+    WHS_COMMENT
+    WHS_NEW_REPORT
+    OVA_DEADLINE
+    OVA_NEW_ACTION
+    OVA_1
+    OVA_2
+    OVA_3
+    JAP_NEW
+    JAP_COMMENT
+    JAP_STATUS_CHANGE
+    MAINTENANCE_DUE
+  }
+
+model NotificationSetting {
+  id               Int               @id @default(autoincrement())
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId           Int
+  module           NotificationModule
+  type             NotificationType
+  enabled          Boolean           @default(true)
+  email            Boolean           @default(false)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@unique([userId, type])
+}
+// Stores actual notifications for badge/count and notification list
+model Notification {
+  id              Int              @id @default(autoincrement())
+  recipientUserId Int              @map("recipient_user_id")
+  type            NotificationType
+  title           String
+  body            String
+  metadata        Json?
+  isRead          Boolean          @default(false) @map("is_read")
+  readAt          DateTime?        @map("read_at")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  recipient       User             @relation(fields: [recipientUserId], references: [id], onDelete: Cascade)
+
+  @@index([recipientUserId, isRead], map: "notifications_recipient_is_read_idx")
+  @@index([createdAt], map: "notifications_created_at_idx")
+  @@map("notifications")
+}
+// learn more about it in the docs: https://pris.ly/d/prisma-schema

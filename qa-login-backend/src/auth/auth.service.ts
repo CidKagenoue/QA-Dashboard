@@ -26,7 +26,7 @@ import {
   getRefreshJwtSignOptions,
   getRefreshJwtVerifyOptions,
 } from './jwt.config';
-import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationService } from '../notifications/notifications.service';
 import { NotificationType } from '@prisma/client';
 
 import type { ManagedAccount } from '../user/user.service';
@@ -37,7 +37,7 @@ export class AuthService implements OnModuleInit {
     private readonly userService: UserService,
     private readonly prismaService: PrismaService,
     private readonly emailService: EmailService,
-    private readonly notificationsService: NotificationsService,
+    private readonly notificationsService: NotificationService,
   ) {}
 
   async onModuleInit() {

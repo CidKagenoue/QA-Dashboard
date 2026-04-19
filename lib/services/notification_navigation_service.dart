@@ -1,34 +1,44 @@
-import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:qa_dashboard/services/auth_service.dart';
 
-import '../models/app_notification.dart';
-import '../screens/account_management_page.dart';
-import '../screens/ova_ticket_wizard_screen.dart';
 
 class NotificationNavigationService {
-  static Future<bool> openContext(
-    BuildContext context,
-    AppNotification notification,
-  ) async {
-    if (notification.ticketId != null) {
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => OvaTicketWizardScreen(
-            ticketId: notification.ticketId,
-          ),
-        ),
-      );
-      return true;
-    }
+  final String baseUrl;
+  final AuthService authService;
 
-    if (notification.accountId != null) {
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => const AccountManagementPage(),
-        ),
-      );
-      return true;
-    }
+  NotificationNavigationService({
+    required this.baseUrl,
+    required this.authService,
+  });
 
-    return false;
+  Future<Map<String, dynamic>> fetchSettings() async {
+    final token = await authService.getValidAccessToken();
+    final response = await http.get(
+      Uri.parse('$baseUrl/notification-settings'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to load notification settings');
+    }
+  }
+
+  Future<void> updateSettings(Map<String, dynamic> settings) async {
+    final token = await authService.getValidAccessToken();
+    final response = await http.patch(
+      Uri.parse('$baseUrl/notification-settings'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode(settings),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to update notification settings');
+    }
   }
 }
+
+

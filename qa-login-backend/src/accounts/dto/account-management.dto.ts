@@ -9,6 +9,11 @@ export class CreateAccountDto {
   ovaAccess?: boolean;
   japGppAccess?: boolean;
   maintenanceInspectionsAccess?: boolean;
+  // Notification preferences
+  notifyWhsTours?: boolean;
+  notifyOva?: boolean;
+  notifyJapGpp?: boolean;
+  notifyMaintenance?: boolean;
 }
 
 export class UpdateAccountAccessDto {
@@ -18,4 +23,17 @@ export class UpdateAccountAccessDto {
   ovaAccess?: boolean;
   japGppAccess?: boolean;
   maintenanceInspectionsAccess?: boolean;
+  // Notification preferences
+  notifyWhsTours?: boolean;
+  notifyOva?: boolean;
+  notifyJapGpp?: boolean;
+  notifyMaintenance?: boolean;
+}
+
+// For updating only notification settings
+export class UpdateNotificationSettingsDto {
+  notifyWhsTours?: boolean;
+  notifyOva?: boolean;
+  notifyJapGpp?: boolean;
+  notifyMaintenance?: boolean;
 }

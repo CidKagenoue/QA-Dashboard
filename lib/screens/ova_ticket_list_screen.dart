@@ -11,6 +11,8 @@ import 'ova_ticket_wizard_screen.dart';
 
 enum _TicketSection { open, incomplete, closed }
 
+const double _ticketTableColumnGap = 14;
+
 class OvaTicketListScreen extends StatefulWidget {
   const OvaTicketListScreen({super.key});
 
@@ -141,7 +143,6 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
       _selectedOvaType = null;
     });
   }
-
 
   _TicketSection _sectionForResult(String value) {
     switch (_normalizeValue(value)) {
@@ -277,6 +278,18 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
     return 'Incompleet';
   }
 
+  String _sectionStatusLabel(OvaTicket ticket) {
+    if (ticket.isClosed) {
+      return 'Gesloten';
+    }
+
+    if (_isOpenTicket(ticket)) {
+      return 'Open';
+    }
+
+    return _incompleteStatusLabel(ticket);
+  }
+
   String _actionProgressLabel(OvaTicket ticket) {
     final completedActions = ticket.actions
         .where((action) => action.isOk)
@@ -291,6 +304,67 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
     }
 
     return type;
+  }
+
+  String _reasonsLabel(OvaTicket ticket) {
+    final labels = <String>[
+      ...ticket.reasons,
+      if ((ticket.otherReason ?? '').trim().isNotEmpty)
+        'Andere: ${ticket.otherReason!.trim()}',
+    ];
+
+    if (labels.isEmpty) {
+      return '-';
+    }
+
+    return labels.join(', ');
+  }
+
+  String _causeAnalysisLabel(OvaTicket ticket) {
+    final method = ticket.causeAnalysisMethod?.trim();
+    final notes = ticket.causeAnalysisNotes?.trim();
+
+    if (method != null && method.isNotEmpty) {
+      return method;
+    }
+
+    if (notes != null && notes.isNotEmpty) {
+      return 'Notities ingevuld';
+    }
+
+    return 'Ontbreekt';
+  }
+
+  String _effectivenessLabel(OvaTicket ticket) {
+    final effectivenessDate = ticket.effectivenessDate;
+    if (effectivenessDate != null) {
+      return formatOvaDate(effectivenessDate);
+    }
+
+    final notes = ticket.effectivenessNotes?.trim();
+    if (notes != null && notes.isNotEmpty) {
+      return 'Notities ingevuld';
+    }
+
+    return '-';
+  }
+
+  String _closedInfoLabel(OvaTicket ticket) {
+    if (!ticket.isClosed) {
+      return '-';
+    }
+
+    final date = formatOvaDate(ticket.closedAt ?? ticket.updatedAt);
+    final user = ticket.closedBy?.displayName;
+    if (user == null || user.trim().isEmpty) {
+      return date;
+    }
+
+    return '$date door $user';
+  }
+
+  String _lastEditedLabel(OvaTicket ticket) {
+    return '${formatOvaDate(ticket.updatedAt)} door ${ticket.lastEditedBy.displayName}';
   }
 
   String _normalizeValue(String? value) {
@@ -368,7 +442,7 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
 
     return Scaffold(
       backgroundColor: pageBackground,
-      appBar: const MainAppBar(title: 'Vlotter',),
+      appBar: const MainAppBar(title: 'Vlotter'),
       body: RefreshIndicator(
         onRefresh: _loadTickets,
         child: LayoutBuilder(
@@ -490,6 +564,8 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
                         },
                         onSelected: _selectSection,
                       ),
+                      const SizedBox(height: 18),
+                      _TicketStatusGuide(section: _selectedSection),
                       const SizedBox(height: 24),
                       if (_isLoading)
                         const SizedBox(
@@ -537,211 +613,90 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
   }
 
   Widget _buildSelectedTable() {
-    switch (_selectedSection) {
-      case _TicketSection.open:
-        return _buildOpenTicketTable(_filteredTickets);
-      case _TicketSection.incomplete:
-        return _buildIncompleteTicketTable(_filteredTickets);
-      case _TicketSection.closed:
-        return _buildClosedTicketTable(_filteredTickets);
-    }
-  }
-
-  Widget _buildOpenTicketTable(List<OvaTicket> tickets) {
     return _TicketTable(
-      minWidth: 920,
+      minWidth: 1560,
       columns: const [
-        _TableColumnData(label: 'ID', flex: 10),
-        _TableColumnData(label: 'Omschrijving', flex: 44),
-        _TableColumnData(
-          label: 'OVA-Acties',
-          flex: 14,
-          alignment: Alignment.center,
-        ),
+        _TableColumnData(label: 'ID', flex: 6),
+        _TableColumnData(label: 'Status', flex: 14),
         _TableColumnData(
           label: 'Type OVA',
-          flex: 14,
+          flex: 11,
           alignment: Alignment.center,
         ),
         _TableColumnData(
-          label: 'Datum',
-          flex: 12,
+          label: 'Datum vaststelling',
+          flex: 15,
           alignment: Alignment.centerRight,
         ),
+        _TableColumnData(label: 'Omschrijving', flex: 32),
+        _TableColumnData(label: 'Aanleiding', flex: 24),
+        _TableColumnData(label: 'Oorzakenanalyse', flex: 18),
+        _TableColumnData(
+          label: 'Opvolgacties',
+          flex: 12,
+          alignment: Alignment.center,
+        ),
+        _TableColumnData(label: 'Effectiviteit', flex: 14),
+        _TableColumnData(label: 'Laatst bewerkt', flex: 22),
+        _TableColumnData(label: 'Afsluiting', flex: 18),
       ],
-      rows: List<Widget>.generate(tickets.length, (index) {
-        final ticket = tickets[index];
+      rows: List<Widget>.generate(_filteredTickets.length, (index) {
+        final ticket = _filteredTickets[index];
         return _TicketTableRow(
           striped: index.isOdd,
           onTap: () => _openTicket(ticketId: ticket.id),
           cells: [
             _TableCellData(
-              flex: 10,
+              flex: 6,
               child: Text(
                 ticket.id.toString().padLeft(4, '0'),
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
             _TableCellData(
-              flex: 44,
-              child: Text(
-                _ticketDescription(ticket),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFF2F382E),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+              flex: 14,
+              child: _TicketStatusChip(label: _sectionStatusLabel(ticket)),
             ),
             _TableCellData(
-              flex: 14,
-              alignment: Alignment.center,
-              child: Text(
-                _actionProgressLabel(ticket),
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ),
-            _TableCellData(
-              flex: 14,
+              flex: 11,
               alignment: Alignment.center,
               child: _OvaTypeChip(label: _ticketTypeLabel(ticket)),
+            ),
+            _TableCellData(
+              flex: 15,
+              alignment: Alignment.centerRight,
+              child: _CellText(
+                formatOvaDate(ticket.findingDate ?? ticket.updatedAt),
+              ),
+            ),
+            _TableCellData(
+              flex: 32,
+              child: _CellText(_ticketDescription(ticket), emphasized: true),
+            ),
+            _TableCellData(flex: 24, child: _CellText(_reasonsLabel(ticket))),
+            _TableCellData(
+              flex: 18,
+              child: _CellText(_causeAnalysisLabel(ticket)),
             ),
             _TableCellData(
               flex: 12,
-              alignment: Alignment.centerRight,
+              alignment: Alignment.center,
               child: Text(
-                formatOvaDate(ticket.findingDate ?? ticket.updatedAt),
-              ),
-            ),
-          ],
-        );
-      }),
-    );
-  }
-
-  Widget _buildIncompleteTicketTable(List<OvaTicket> tickets) {
-    return _TicketTable(
-      minWidth: 860,
-      columns: const [
-        _TableColumnData(label: 'ID', flex: 10),
-        _TableColumnData(label: 'Omschrijving', flex: 52),
-        _TableColumnData(label: 'Status', flex: 22),
-        _TableColumnData(
-          label: 'Datum',
-          flex: 16,
-          alignment: Alignment.centerRight,
-        ),
-      ],
-      rows: List<Widget>.generate(tickets.length, (index) {
-        final ticket = tickets[index];
-        return _TicketTableRow(
-          striped: index.isOdd,
-          onTap: () => _openTicket(ticketId: ticket.id),
-          cells: [
-            _TableCellData(
-              flex: 10,
-              child: Text(
-                ticket.id.toString().padLeft(4, '0'),
-                style: const TextStyle(fontWeight: FontWeight.w600),
+                _actionProgressLabel(ticket),
+                style: const TextStyle(fontWeight: FontWeight.w700),
               ),
             ),
             _TableCellData(
-              flex: 52,
-              child: Text(
-                _ticketDescription(ticket),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFF2F382E),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+              flex: 14,
+              child: _CellText(_effectivenessLabel(ticket)),
             ),
             _TableCellData(
               flex: 22,
-              child: _IncompleteStatusChip(
-                label: _incompleteStatusLabel(ticket),
-              ),
-            ),
-            _TableCellData(
-              flex: 16,
-              alignment: Alignment.centerRight,
-              child: Text(
-                formatOvaDate(ticket.findingDate ?? ticket.updatedAt),
-              ),
-            ),
-          ],
-        );
-      }),
-    );
-  }
-
-  Widget _buildClosedTicketTable(List<OvaTicket> tickets) {
-    return _TicketTable(
-      minWidth: 900,
-      columns: const [
-        _TableColumnData(label: 'ID', flex: 10),
-        _TableColumnData(label: 'Omschrijving', flex: 48),
-        _TableColumnData(
-          label: 'Type OVA',
-          flex: 18,
-          alignment: Alignment.center,
-        ),
-        _TableColumnData(
-          label: 'Afgesloten op',
-          flex: 16,
-          alignment: Alignment.centerRight,
-        ),
-        _TableColumnData(
-          label: 'Door',
-          flex: 18,
-          alignment: Alignment.centerRight,
-        ),
-      ],
-      rows: List<Widget>.generate(tickets.length, (index) {
-        final ticket = tickets[index];
-        return _TicketTableRow(
-          striped: index.isOdd,
-          onTap: () => _openTicket(ticketId: ticket.id),
-          cells: [
-            _TableCellData(
-              flex: 10,
-              child: Text(
-                ticket.id.toString().padLeft(4, '0'),
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ),
-            _TableCellData(
-              flex: 48,
-              child: Text(
-                _ticketDescription(ticket),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFF2F382E),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+              child: _CellText(_lastEditedLabel(ticket)),
             ),
             _TableCellData(
               flex: 18,
-              alignment: Alignment.center,
-              child: _OvaTypeChip(label: _ticketTypeLabel(ticket)),
-            ),
-            _TableCellData(
-              flex: 16,
-              alignment: Alignment.centerRight,
-              child: Text(formatOvaDate(ticket.closedAt ?? ticket.updatedAt)),
-            ),
-            _TableCellData(
-              flex: 18,
-              alignment: Alignment.centerRight,
-              child: Text(
-                ticket.closedBy?.displayName ?? '-',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+              child: _CellText(_closedInfoLabel(ticket)),
             ),
           ],
         );
@@ -808,6 +763,107 @@ class _SectionTabs extends StatelessWidget {
             ),
           );
         }).toList(),
+      ),
+    );
+  }
+}
+
+class _TicketStatusGuide extends StatelessWidget {
+  const _TicketStatusGuide({required this.section});
+
+  final _TicketSection section;
+
+  @override
+  Widget build(BuildContext context) {
+    switch (section) {
+      case _TicketSection.open:
+        return const _StatusGuideCard(
+          title: 'Open',
+          description:
+              'Dit ticket heeft een oorzakenanalyse en minstens een opvolgactie. Het wordt actief opgevolgd tot de opvolging en effectiviteit afgerond zijn.',
+          color: Color(0xFFEAF4D9),
+          iconColor: Color(0xFF6F972D),
+        );
+      case _TicketSection.incomplete:
+        return const _StatusGuideCard(
+          title: 'Incompleet',
+          description:
+              'Dit ticket is gestart, maar mist nog een oorzakenanalyse of opvolgacties. Vul die info aan voordat het als actief opgevolgd telt.',
+          color: Color(0xFFFFF5DE),
+          iconColor: Color(0xFFB37A12),
+        );
+      case _TicketSection.closed:
+        return const _StatusGuideCard(
+          title: 'Gesloten',
+          description:
+              'Dit ticket is afgehandeld. Het blijft zichtbaar als historiek en bewijs van de uitgevoerde opvolging.',
+          color: Color(0xFFEAF0F4),
+          iconColor: Color(0xFF527083),
+        );
+    }
+  }
+}
+
+class _StatusGuideCard extends StatelessWidget {
+  const _StatusGuideCard({
+    required this.title,
+    required this.description,
+    required this.color,
+    required this.iconColor,
+  });
+
+  final String title;
+  final String description;
+  final Color color;
+  final Color iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: iconColor.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.7),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Icon(Icons.info_outline_rounded, color: iconColor, size: 17),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: iconColor,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: const TextStyle(
+                    color: Color(0xFF475142),
+                    fontSize: 12,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1016,6 +1072,26 @@ class _TicketTable extends StatelessWidget {
                   children: [
                     _TableHeader(columns: columns),
                     ...rows,
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFFBFCF8),
+                        border: Border(
+                          top: BorderSide(color: Color(0xFFE8ECE3)),
+                        ),
+                      ),
+                      child: const Text(
+                        'Klik op een rij om alle details, oorzakenanalyse en opvolgacties te openen.',
+                        style: TextStyle(
+                          color: Color(0xFF6B7367),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -1038,22 +1114,26 @@ class _TableHeader extends StatelessWidget {
       color: const Color(0xFFF6F7F2),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
-        children: columns.map((column) {
-          return Expanded(
-            flex: column.flex,
-            child: Align(
-              alignment: column.alignment,
-              child: Text(
-                column.label,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF545C50),
+        children: _withTableColumnGaps(
+          columns.map((column) {
+            return Expanded(
+              flex: column.flex,
+              child: Align(
+                alignment: column.alignment,
+                child: Text(
+                  column.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF545C50),
+                  ),
                 ),
               ),
-            ),
-          );
-        }).toList(),
+            );
+          }).toList(),
+        ),
       ),
     );
   }
@@ -1080,19 +1160,35 @@ class _TicketTableRow extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
           child: Row(
-            children: cells.map((cell) {
-              return Expanded(
-                flex: cell.flex,
-                child: Align(alignment: cell.alignment, child: cell.child),
-              );
-            }).toList(),
+            children: _withTableColumnGaps(
+              cells.map((cell) {
+                return Expanded(
+                  flex: cell.flex,
+                  child: Align(alignment: cell.alignment, child: cell.child),
+                );
+              }).toList(),
+            ),
           ),
         ),
       ),
     );
   }
+}
+
+List<Widget> _withTableColumnGaps(List<Widget> children) {
+  final spacedChildren = <Widget>[];
+
+  for (var index = 0; index < children.length; index += 1) {
+    if (index > 0) {
+      spacedChildren.add(const SizedBox(width: _ticketTableColumnGap));
+    }
+
+    spacedChildren.add(children[index]);
+  }
+
+  return spacedChildren;
 }
 
 class _TableColumnData {
@@ -1117,6 +1213,75 @@ class _TableCellData {
   final int flex;
   final Widget child;
   final Alignment alignment;
+}
+
+class _CellText extends StatelessWidget {
+  const _CellText(this.value, {this.emphasized = false});
+
+  final String value;
+  final bool emphasized;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: value,
+      waitDuration: const Duration(milliseconds: 450),
+      child: Text(
+        value,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: const Color(0xFF2F382E),
+          fontWeight: emphasized ? FontWeight.w600 : FontWeight.w500,
+        ),
+      ),
+    );
+  }
+}
+
+class _TicketStatusChip extends StatelessWidget {
+  const _TicketStatusChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalized = label.trim().toLowerCase();
+    late final Color backgroundColor;
+    late final Color textColor;
+
+    if (normalized == 'open') {
+      backgroundColor = const Color(0xFFEAF4D9);
+      textColor = const Color(0xFF6F972D);
+    } else if (normalized == 'gesloten') {
+      backgroundColor = const Color(0xFFEAF0F4);
+      textColor = const Color(0xFF527083);
+    } else {
+      backgroundColor = const Color(0xFFF5F1E2);
+      textColor = const Color(0xFF786233);
+    }
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: textColor,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _OvaTypeChip extends StatelessWidget {
@@ -1159,31 +1324,6 @@ class _OvaTypeChip extends StatelessWidget {
         style: TextStyle(
           color: textColor,
           fontSize: 11,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
-
-class _IncompleteStatusChip extends StatelessWidget {
-  const _IncompleteStatusChip({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF5F1E2),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: Color(0xFF786233),
-          fontSize: 12,
           fontWeight: FontWeight.w700,
         ),
       ),

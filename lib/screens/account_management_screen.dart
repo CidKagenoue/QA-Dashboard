@@ -748,10 +748,7 @@ class _EmptySectionState extends StatelessWidget {
 }
 
 class _InfoChip extends StatelessWidget {
-  const _InfoChip({
-    required this.icon,
-    required this.label,
-  });
+  const _InfoChip({required this.icon, required this.label});
 
   final IconData icon;
   final String label;
@@ -816,7 +813,9 @@ class _SelectionField extends StatelessWidget {
         child: Text(
           value,
           style: TextStyle(
-            color: value == 'Selecteer afdelingen' || value == 'Afdelingen laden...'
+            color:
+                value == 'Selecteer afdelingen' ||
+                    value == 'Afdelingen laden...'
                 ? const Color(0xFF667085)
                 : const Color(0xFF101828),
           ),

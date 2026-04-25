@@ -21,8 +21,12 @@ export class UserController {
 
   @Get()
   @UseGuards(AdminGuard)
-  findAll() {
-    return this.userService.findAll();
+  async findAll() {
+    const users = await this.userService.findAll();
+    return users.map((user) => ({
+      ...user,
+      departments: user.departments.map((d) => d.department),
+    }));
   }
 
   @Get(':id')
@@ -31,7 +35,11 @@ export class UserController {
     @Req() req: AuthenticatedRequest,
   ) {
     await this.assertSelfOrAdmin(req, id);
-    return this.userService.findManagedById(id);
+    const user = await this.userService.findManagedById(id);
+    return {
+      ...user,
+      departments: user.departments.map((d) => d.department),
+    };
   }
 
   @Patch(':id')
@@ -41,7 +49,11 @@ export class UserController {
     @Req() req: AuthenticatedRequest,
   ) {
     await this.assertSelfOrAdmin(req, id);
-    return this.userService.update(id, dto);
+    const user = await this.userService.update(id, dto);
+    return {
+      ...user,
+      departments: user.departments.map((d) => d.department),
+    };
   }
 
   private async assertSelfOrAdmin(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 import 'forgot_password_screen.dart';
 import 'home_screen.dart';
 
@@ -35,6 +36,9 @@ class _LoginScreenState extends State<LoginScreen> {
         _emailController.text.trim(),
         _passwordController.text,
       );
+
+      Provider.of<NotificationService>(context, listen: false)
+          .bindAuth(authService);
 
       if (mounted) {
         Navigator.of(context).pushReplacement(
@@ -73,8 +77,7 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Row(
                 children: [
                   IconButton(
-                    icon:
-                        const Icon(Icons.menu, color: Colors.white, size: 28),
+                    icon: const Icon(Icons.menu, color: Colors.white, size: 28),
                     onPressed: () {},
                   ),
                   const Text(
@@ -136,13 +139,15 @@ class _LoginScreenState extends State<LoginScreen> {
                                 fillColor: Colors.white,
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide:
-                                      BorderSide(color: Colors.grey[300]!),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey[300]!,
+                                  ),
                                 ),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide:
-                                      BorderSide(color: Colors.grey[300]!),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey[300]!,
+                                  ),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
@@ -187,13 +192,15 @@ class _LoginScreenState extends State<LoginScreen> {
                                 fillColor: Colors.white,
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide:
-                                      BorderSide(color: Colors.grey[300]!),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey[300]!,
+                                  ),
                                 ),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide:
-                                      BorderSide(color: Colors.grey[300]!),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey[300]!,
+                                  ),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
@@ -239,8 +246,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                 width: 350,
                                 height: 50,
                                 child: ElevatedButton(
-                                  onPressed:
-                                      authService.isLoading ? null : _handleLogin,
+                                  onPressed: authService.isLoading
+                                      ? null
+                                      : _handleLogin,
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFF7CB342),
                                     foregroundColor: Colors.white,
@@ -282,10 +290,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           },
                           child: const Text(
                             'Wachtwoord vergeten',
-                            style: TextStyle(
-                              color: Colors.grey,
-                              fontSize: 14,
-                            ),
+                            style: TextStyle(color: Colors.grey, fontSize: 14),
                           ),
                         ),
                       ],

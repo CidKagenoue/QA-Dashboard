@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:qa_dashboard/widgets/app_bars/main_app_bar.dart';
 
 import '../models/ova_assigned_action.dart';
 import '../models/ova_ticket.dart';
@@ -92,89 +93,152 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Geen Scaffold — alleen body-content
-    return RefreshIndicator(
-      onRefresh: _loadActions,
-      child: LayoutBuilder(
-        builder: (context, viewportConstraints) {
-          return ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(24),
-            children: [
-              Container(
-                width: double.infinity,
-                constraints: BoxConstraints(
-                  minHeight: viewportConstraints.maxHeight - 48,
-                ),
-                padding: const EdgeInsets.fromLTRB(32, 28, 32, 32),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: const Color(0xFFE2E6DD)),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x12000000),
-                      blurRadius: 18,
-                      offset: Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Dashboard > OVA > Acties',
-                      style: TextStyle(
-                          fontSize: 11, color: Color(0xFF7B8077)),
-                    ),
-                    const SizedBox(height: 18),
-                    Text(
-                      'OVA Acties',
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineMedium
-                          ?.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Bekijk en beheer jouw openstaande opvolgacties. '
-                      'Acties verdwijnen automatisch zodra het ticket naar '
-                      'effectiviteitscontrole gaat of formeel afgesloten wordt.',
-                      style: TextStyle(
-                          color: Color(0xFF586154), height: 1.45),
-                    ),
-                    const SizedBox(height: 28),
-                    if (_isLoading)
-                      const SizedBox(
-                        height: 260,
-                        child: Center(child: CircularProgressIndicator()),
-                      )
-                    else if (_error != null)
-                      _ActionErrorState(
-                          message: _error!, onRetry: _loadActions)
-                    else if (_actions.isEmpty)
-                      const _ActionEmptyState()
-                    else
-                      _ActionsTable(
-                        actions: _actions,
-                        onOpenTicket: (item) =>
-                            _openTicket(item.ticket.id),
-                        onStatusChanged: _updateActionStatus,
-                      ),
-                  ],
-                ),
+    return Scaffold(
+      backgroundColor: const Color(0xFFF6F6F3),
+      appBar: const MainAppBar(title: 'Mijn OVA-acties',),
+      body: RefreshIndicator(
+        onRefresh: _loadActions,
+        child: ListView(
+          padding: const EdgeInsets.all(24),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x0F000000),
+                    blurRadius: 20,
+                    offset: Offset(0, 6),
+                  ),
+                ],
               ),
-            ],
-          );
-        },
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Openstaande opvolgacties',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Acties verdwijnen automatisch uit deze lijst zodra het ticket doorgaat naar de effectiviteitscontrole of formeel wordt afgesloten.',
+                  ),
+                  const SizedBox(height: 28),
+                  if (_isLoading)
+                    const Center(child: CircularProgressIndicator())
+                  else if (_error != null)
+                    _ActionErrorState(message: _error!, onRetry: _loadActions)
+                  else if (_actions.isEmpty)
+                    const _ActionEmptyState()
+                  else
+                    Column(
+                      children: _actions
+                          .map(
+                            (item) => Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: _AssignedActionCard(
+                                item: item,
+                                onOpenTicket: () => _openTicket(item.ticket.id),
+                                onStatusChanged: (isOk) =>
+                                    _updateActionStatus(item, isOk),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-// Lege staat
-// ---------------------------------------------------------------------------
+class _AssignedActionCard extends StatelessWidget {
+  const _AssignedActionCard({
+    required this.item,
+    required this.onOpenTicket,
+    required this.onStatusChanged,
+  });
+
+  final OvaAssignedAction item;
+  final VoidCallback onOpenTicket;
+  final ValueChanged<bool> onStatusChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FBF5),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFDCE6C7)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.action.description,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF2B3424),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Ticket #${item.ticket.id} • ${item.action.typeLabel}',
+                      style: const TextStyle(color: Color(0xFF5D6656)),
+                    ),
+                  ],
+                ),
+              ),
+              ElevatedButton(
+                onPressed: onOpenTicket,
+                child: const Text('Open ticket'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Deadline: ${formatOvaDate(item.action.dueDate)}',
+            style: const TextStyle(color: Color(0xFF4F5847)),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              ChoiceChip(
+                label: const Text('NOK'),
+                selected: !item.action.isOk,
+                onSelected: (_) => onStatusChanged(false),
+              ),
+              ChoiceChip(
+                label: const Text('OK'),
+                selected: item.action.isOk,
+                onSelected: (_) => onStatusChanged(true),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _ActionEmptyState extends StatelessWidget {
   const _ActionEmptyState();
@@ -326,11 +390,6 @@ class _ActionsTable extends StatelessWidget {
     );
   }
 }
-
-// ---------------------------------------------------------------------------
-// Tabelrij
-// ---------------------------------------------------------------------------
-
 class _ActionsTableRow extends StatelessWidget {
   const _ActionsTableRow({
     required this.item,

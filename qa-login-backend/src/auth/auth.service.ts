@@ -1,3 +1,4 @@
+
 import {
   BadRequestException,
   Injectable,
@@ -25,18 +26,10 @@ import {
   getRefreshJwtSignOptions,
   getRefreshJwtVerifyOptions,
 } from './jwt.config';
+import { NotificationService } from '../notifications/notifications.service';
+import { NotificationType } from '@prisma/client';
 
-type AuthUser = {
-  id: number;
-  email: string;
-  name: string | null;
-  isAdmin: boolean;
-  basisAccess: boolean;
-  whsToursAccess: boolean;
-  ovaAccess: boolean;
-  japGppAccess: boolean;
-  maintenanceInspectionsAccess: boolean;
-};
+import type { ManagedAccount } from '../user/user.service';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -44,6 +37,7 @@ export class AuthService implements OnModuleInit {
     private readonly userService: UserService,
     private readonly prismaService: PrismaService,
     private readonly emailService: EmailService,
+    private readonly notificationsService: NotificationService,
   ) {}
 
   async onModuleInit() {
@@ -65,7 +59,9 @@ export class AuthService implements OnModuleInit {
       throw new UnauthorizedException('Ongeldig e-mailadres of wachtwoord');
     }
 
-    return this.buildAuthResponse(user);
+    // Fetch managed user with departments
+    const managedUser = await this.userService.findManagedById(user.id);
+    return this.buildAuthResponse(managedUser);
   }
 
   async refresh(refreshTokenDto: RefreshTokenDto) {
@@ -120,6 +116,9 @@ export class AuthService implements OnModuleInit {
       throw new UnauthorizedException('Gebruiker niet gevonden');
     }
 
+    // Fetch managed user with departments
+    const managedUser = await this.userService.findManagedById(user.id);
+
     const nextSessionId = crypto.randomUUID();
     const nextRefreshToken = this.generateRefreshToken(userId, nextSessionId);
     const nextRefreshTokenHash = this.hashToken(nextRefreshToken);
@@ -140,13 +139,7 @@ export class AuthService implements OnModuleInit {
       }),
     ]);
 
-    const accessToken = this.generateAccessToken(user.id, user.email);
-
-    return {
-      token: accessToken,
-      accessToken,
-      refreshToken: nextRefreshToken,
-    };
+    return this.buildAuthResponse(managedUser);
   }
 
   async revokeRefreshToken(refreshToken: string) {
@@ -316,24 +309,71 @@ export class AuthService implements OnModuleInit {
       }),
     ]);
 
+    await this.notificationsService.notifyUser({
+      recipientUserId: resetTokenRecord.userId,
+      type: NotificationType.PASSWORD_CHANGED,
+      title: 'Wachtwoord gewijzigd',
+      body: 'Je wachtwoord werd gewijzigd via de reset-flow.',
+      metadata: {
+        source: 'reset-password',
+      },
+    });
+
     return {
       message:
         'Wachtwoord is succesvol gewijzigd. Je kunt nu inloggen met je nieuwe wachtwoord.',
     };
   }
 
-  private async buildAuthResponse(user: AuthUser) {
-    const tokens = await this.generateTokenPair(user.id, user.email);
 
-    return {
-      user: this.serializeUser(user),
-      token: tokens.accessToken,
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-    };
+  async changePassword(
+    userId: number,
+    currentPassword: string,
+    newPassword: string,
+    confirmNewPassword: string
+    ) {
+      const user = await this.userService.findById(userId);
+      if (!user) throw new UnauthorizedException('Gebruiker niet gevonden');
+
+      const valid = await bcrypt.compare(currentPassword, user.password);
+      if (!valid) throw new UnauthorizedException('Huidig wachtwoord klopt niet');
+
+      if (newPassword !== confirmNewPassword) {
+        throw new BadRequestException('Wachtwoorden komen niet overeen');
+      }
+
+      if (newPassword.length < 8) {
+        throw new BadRequestException('Wachtwoord moet minimaal 8 tekens zijn');
+      }
+
+      const hashed = await bcrypt.hash(newPassword, 12);
+
+      await this.prismaService.user.update({
+        where: { id: userId },
+        data: { password: hashed },
+      });
+
+      await this.notificationsService.notifyUser({
+        recipientUserId: userId,
+        type: NotificationType.PASSWORD_CHANGED,
+        title: 'Wachtwoord gewijzigd',
+        body: 'Je wachtwoord werd gewijzigd via accountinstellingen.',
+        metadata: {
+          source: 'change-password',
+        },
+      });
+
+      return { message: 'Wachtwoord succesvol gewijzigd' };
   }
 
-  private serializeUser(user: AuthUser) {
+  private async buildAuthResponse(user: ManagedAccount) {
+    const tokens = await this.generateTokenPair(user.id, user.email);
+
+    // Map departments to [{id, name}, ...]
+    const mappedDepartments = Array.isArray(user.departments)
+      ? user.departments.map((d: any) => d.department)
+      : [];
+
     const access = {
       basis: user.basisAccess,
       whsTours: user.whsToursAccess,
@@ -343,12 +383,19 @@ export class AuthService implements OnModuleInit {
     };
 
     return {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      isAdmin: user.isAdmin,
-      access,
-      hasAnyAccess: user.isAdmin || Object.values(access).some(Boolean),
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        isAdmin: user.isAdmin,
+        departments: mappedDepartments,
+        access,
+        hasAnyAccess: user.isAdmin || Object.values(access).some(Boolean),
+        profileImage: user.profileImage,
+      },
+      token: tokens.accessToken,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
     };
   }
 

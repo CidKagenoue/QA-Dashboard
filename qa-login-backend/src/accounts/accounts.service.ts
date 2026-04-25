@@ -1,3 +1,4 @@
+
 import {
   BadRequestException,
   ConflictException,
@@ -161,11 +162,12 @@ export class AccountsService {
     this.assignBoolean(updateAccountAccessDto, 'whsToursAccess', updateData);
     this.assignBoolean(updateAccountAccessDto, 'ovaAccess', updateData);
     this.assignBoolean(updateAccountAccessDto, 'japGppAccess', updateData);
-    this.assignBoolean(
-      updateAccountAccessDto,
-      'maintenanceInspectionsAccess',
-      updateData,
-    );
+    this.assignBoolean(updateAccountAccessDto, 'maintenanceInspectionsAccess', updateData);
+    // Notification preferences
+    this.assignBoolean(updateAccountAccessDto, 'notifyWhsTours', updateData);
+    this.assignBoolean(updateAccountAccessDto, 'notifyOva', updateData);
+    this.assignBoolean(updateAccountAccessDto, 'notifyJapGpp', updateData);
+    this.assignBoolean(updateAccountAccessDto, 'notifyMaintenance', updateData);
 
     return updateData;
   }

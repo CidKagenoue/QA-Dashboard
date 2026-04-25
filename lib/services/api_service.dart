@@ -6,9 +6,41 @@ import 'package:http/http.dart' as http;
 import '../models/user.dart';
 
 class ApiService {
+  static const String _webApiBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://localhost:3001',
+  );
+
+  static Future<void> changePassword({
+    required String token,
+    required String currentPassword,
+    required String newPassword,
+    required String confirmNewPassword,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/change-password'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+        'confirmNewPassword': confirmNewPassword,
+      }),
+    );
+
+    if (response.statusCode == 204 || response.statusCode == 200) {
+      return;
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['message'] ?? 'Wachtwoord wijzigen mislukt');
+    }
+  }
+
   static String get baseUrl {
     if (kIsWeb) {
-      return 'http://localhost:3001';
+      return _webApiBaseUrl;
     }
 
     switch (defaultTargetPlatform) {
@@ -97,6 +129,8 @@ class ApiService {
     required String token,
     String? name,
     String? email,
+    List<int>? departmentIds,
+    String? profileImage,
   }) async {
     final payload = <String, dynamic>{};
     if (name != null) {
@@ -104,6 +138,12 @@ class ApiService {
     }
     if (email != null) {
       payload['email'] = email;
+    }
+    if (departmentIds != null) {
+      payload['departmentIds'] = departmentIds;
+    }
+    if (profileImage != null) {
+      payload['profileImage'] = profileImage;
     }
 
     return _requestObject(
@@ -384,6 +424,77 @@ class ApiService {
       'Content-Type': 'application/json',
       if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
     };
+  }
+
+    // Notification Endpoints
+  static Future<List<Map<String, dynamic>>> fetchNotifications({
+    required String token,
+    int? limit,
+    int? offset,
+    bool? unreadOnly,
+  }) async {
+    final queryParameters = <String, String>{};
+    if (limit != null) queryParameters['limit'] = limit.toString();
+    if (offset != null) queryParameters['offset'] = offset.toString();
+    if (unreadOnly != null) {
+      queryParameters['unreadOnly'] = unreadOnly.toString();
+    }
+
+    final uri = Uri.parse('$baseUrl/notifications').replace(
+      queryParameters: queryParameters.isEmpty ? null : queryParameters,
+    );
+
+    final response = await _requestObject(
+      () => http.get(uri, headers: _headers(token: token)),
+    );
+
+    final notifications = response['notifications'];
+    if (notifications is! List) {
+      throw Exception('Invalid notification list received from the server');
+    }
+
+    return notifications
+        .whereType<Map>()
+        .map((n) => Map<String, dynamic>.from(n))
+        .toList();
+  }
+
+  static Future<int> fetchUnreadNotificationCount({
+    required String token,
+  }) async {
+    final response = await _requestObject(
+      () => http.get(
+        Uri.parse('$baseUrl/notifications/unread-count'),
+        headers: _headers(token: token),
+      ),
+    );
+    final count = response['count'];
+    if (count is int) return count;
+    if (count is String) return int.tryParse(count) ?? 0;
+    return 0;
+  }
+
+  static Future<void> markNotificationAsRead({
+    required String token,
+    required int notificationId,
+  }) async {
+    await _requestObject(
+      () => http.patch(
+        Uri.parse('$baseUrl/notifications/$notificationId/read'),
+        headers: _headers(token: token),
+      ),
+    );
+  }
+
+  static Future<void> markAllNotificationsAsRead({
+    required String token,
+  }) async {
+    await _requestObject(
+      () => http.patch(
+        Uri.parse('$baseUrl/notifications/mark-all-read'),
+        headers: _headers(token: token),
+      ),
+    );
   }
 
   static Future<Map<String, dynamic>> _requestObject(

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 export const managedAccountSelect = {
   id: true,
@@ -12,6 +13,7 @@ export const managedAccountSelect = {
   ovaAccess: true,
   japGppAccess: true,
   maintenanceInspectionsAccess: true,
+  profileImage: true, // <-- profielfoto wordt nu meegegeven
   departments: {
     select: {
       department: {
@@ -66,10 +68,38 @@ export class UserService {
     return this.prisma.user.findUnique({ where: { id } });
   }
 
-  async update(id: number, data: Prisma.UserUpdateInput) {
-    return this.prisma.user.update({
+  async update(id: number, data: Prisma.UserUpdateInput | UpdateUserDto) {
+    // Check of departmentIds is meegegeven (voor PATCH vanuit frontend)
+    let departmentIds: number[] | undefined = undefined;
+    let dataCopy: any = { ...data };
+    if ('departmentIds' in dataCopy && Array.isArray(dataCopy.departmentIds)) {
+      departmentIds = dataCopy.departmentIds;
+      delete dataCopy.departmentIds;
+    }
+
+    const updatedUser = await this.prisma.user.update({
       where: { id },
-      data: this.normalizeUserUpdateInput(data),
+      data: this.normalizeUserUpdateInput(dataCopy),
+      select: managedAccountSelect,
+    });
+
+    // Indien departmentIds meegegeven, update de UserDepartment-relaties
+    if (departmentIds) {
+      // Verwijder bestaande koppelingen
+      await this.prisma.userDepartment.deleteMany({ where: { userId: id } });
+      // Voeg nieuwe koppelingen toe
+      await Promise.all(
+        departmentIds.map(departmentId =>
+          this.prisma.userDepartment.create({
+            data: { userId: id, departmentId },
+          })
+        )
+      );
+    }
+
+    // Geef de user terug met de nieuwe afdelingen
+    return this.prisma.user.findUnique({
+      where: { id },
       select: managedAccountSelect,
     });
   }

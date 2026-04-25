@@ -1,4 +1,4 @@
-import { Controller, Post, Body, HttpStatus, HttpCode, Req } from '@nestjs/common';
+import { Controller, Post, Body, HttpStatus, HttpCode, Req, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
   LoginDto,
@@ -8,6 +8,7 @@ import {
   VerifyResetTokenDto,
 } from './dto/auth.dto';
 import { Public } from './public.decorator';
+import { JwtPayload } from 'jsonwebtoken';
 
 @Controller('auth')
 export class AuthController {
@@ -37,6 +38,49 @@ export class AuthController {
       console.error('Forgot password error:', error.message);
       throw error;
     }
+  }
+
+   @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  async changePassword(
+    @Req() req: any,
+    @Body()
+    body: {
+      currentPassword: string;
+      newPassword: string;
+      confirmNewPassword: string;
+    },
+  ) {
+    const authHeader = req.headers?.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      throw new UnauthorizedException('Geen geldige token');
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const decoded = await this.authService.verifyToken(token);
+
+    if (typeof decoded !== 'object' || decoded === null) {
+      throw new UnauthorizedException('Ongeldig token formaat');
+    }
+
+    const payload = decoded as JwtPayload;
+
+    if (!payload.sub) {
+      throw new UnauthorizedException('Token bevat geen geldig user ID');
+    }
+
+    const userId = Number(payload.sub);
+
+    if (isNaN(userId)) {
+      throw new UnauthorizedException('Ongeldig user ID in token');
+    }
+
+    return await this.authService.changePassword(
+      userId,
+      body.currentPassword,
+      body.newPassword,
+      body.confirmNewPassword,
+    );
   }
 
   @Public()

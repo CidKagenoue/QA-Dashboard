@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:qa_dashboard/widgets/app_bars/main_app_bar.dart';
 
 import '../models/ova_ticket.dart';
 import '../services/api_service.dart';
@@ -313,22 +314,26 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
     final authService = context.watch<AuthService>();
     final user = authService.user;
     final canCreate = user != null && (user.isAdmin || user.access.ova);
+    final pageBackground = Theme.of(context).scaffoldBackgroundColor;
 
-    return RefreshIndicator(
-      onRefresh: _loadTickets,
-      child: LayoutBuilder(
-        builder: (context, viewportConstraints) {
-          final isNarrow = viewportConstraints.maxWidth < 760;
-          final outerPadding = isNarrow
-              ? const EdgeInsets.all(16)
-              : const EdgeInsets.fromLTRB(24, 20, 24, 24);
-          final contentPadding = isNarrow
-              ? const EdgeInsets.fromLTRB(20, 20, 20, 24)
-              : const EdgeInsets.fromLTRB(32, 28, 32, 32);
-          final minHeight = math.max(
-            0.0,
-            viewportConstraints.maxHeight - outerPadding.vertical,
-          );
+    return Scaffold(
+      backgroundColor: pageBackground,
+      appBar: const MainAppBar(title: 'Vlotter',),
+      body: RefreshIndicator(
+        onRefresh: _loadTickets,
+        child: LayoutBuilder(
+          builder: (context, viewportConstraints) {
+            final isNarrowPage = viewportConstraints.maxWidth < 760;
+            final outerPadding = isNarrowPage
+                ? const EdgeInsets.all(16)
+                : const EdgeInsets.fromLTRB(24, 20, 24, 24);
+            final contentPadding = isNarrowPage
+                ? const EdgeInsets.fromLTRB(20, 20, 20, 24)
+                : const EdgeInsets.fromLTRB(32, 28, 32, 32);
+            final minContentHeight = math.max(
+              0.0,
+              viewportConstraints.maxHeight - outerPadding.vertical,
+            );
 
           return ListView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -336,12 +341,12 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
             children: [
               Container(
                 width: double.infinity,
-                constraints: BoxConstraints(minHeight: minHeight),
+                constraints: BoxConstraints(minHeight: minContentHeight),
                 padding: contentPadding,
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius:
-                      BorderRadius.circular(isNarrow ? 18 : 24),
+                      BorderRadius.circular(isNarrowPage ? 18 : 24),
                   border: Border.all(color: const Color(0xFFE2E6DD)),
                   boxShadow: const [
                     BoxShadow(
@@ -489,6 +494,7 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
             ],
           );
         },
+        ),
       ),
     );
   }

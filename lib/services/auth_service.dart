@@ -7,6 +7,30 @@ import '../models/user.dart';
 import 'api_service.dart';
 
 class AuthService extends ChangeNotifier {
+  Future<void> changePassword({
+  required String currentPassword,
+  required String newPassword,
+  required String confirmNewPassword,
+  }) async {
+    if (_token == null) {
+      throw Exception('Niet ingelogd');
+    }
+
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      await ApiService.changePassword(
+        token: _token!,
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+        confirmNewPassword: confirmNewPassword,
+      );
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
   User? _user;
   String? _token;
   String? _refreshToken;
@@ -189,6 +213,8 @@ class AuthService extends ChangeNotifier {
   Future<void> updateProfile({
     required String email,
     required String name,
+    List<int>? departmentIds,
+    String? profileImage,
   }) async {
     if (_user == null || _token == null) {
       throw Exception('Not authenticated');
@@ -204,6 +230,8 @@ class AuthService extends ChangeNotifier {
         token: validToken,
         email: email,
         name: name,
+        departmentIds: departmentIds,
+        profileImage: profileImage,
       );
 
       _user = User.fromJson(response);

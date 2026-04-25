@@ -1,290 +1,123 @@
-// lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:qa_dashboard/screens/jap_gpp_placeholder_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
-
+import '../widgets/app_bars/main_app_bar.dart';
 import '../models/ova_assigned_action.dart';
 import '../models/ova_ticket.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
-import 'account_management_page.dart';
-import 'departments_screen.dart';
-import 'login_screen.dart';
 import 'ova_dashboard_screen.dart';
-import 'profile_screen.dart';
-import 'maintenance_inspections_placeholder_screen.dart';
-import 'whs_tours_placeholder_screen.dart';
 
-// ─────────────────────────────────────────────
-//  HomeScreen — root shell met sidebar + body
-// ─────────────────────────────────────────────
+enum _HomeSection {
+  dashboard,
+  whsTours,
+  ova,
+  onderhoud,
+  japGpp,
+}
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  static const _sidebarGreen = Color(0xFF8BC34A);
+  static const _sidebarText = Color(0xFFFFFFFF);
+  static const _sidebarSelected = Color(0xFF7CB342);
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  _ActiveModule _activeModule = _ActiveModule.dashboard;
-
-  void _selectModule(_ActiveModule module) {
-    setState(() => _activeModule = module);
-  }
+  _HomeSection _selected = _HomeSection.dashboard;
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AuthService>(
-      builder: (context, authService, _) {
-        final user = authService.user;
-        if (user == null) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        final hasOvaAccess =
-            user.isAdmin || user.access.ova || user.access.basis;
-
-        return Scaffold(
-          backgroundColor: const Color(0xFFF6F6F3),
-          body: LayoutBuilder(
-            builder: (context, constraints) {
-              final isCompact = constraints.maxWidth < 860;
-              if (isCompact) {
-                return Column(
-                  children: [
-                    _TopBar(
-                      authService: authService,
-                      onLogout: () => _logout(context, authService),
-                    ),
-                    _CompactNavBar(
-                      user: user,
-                      active: _activeModule,
-                      onSelect: _selectModule,
-                    ),
-                    Expanded(
-                      child: _resolveBody(
-                        context,
-                        _activeModule,
-                        authService,
-                        user,
-                        hasOvaAccess,
-                      ),
-                    ),
-                  ],
-                );
-              }
-
-              return Row(
-                children: [
-                  _SideBar(
-                    user: user,
-                    active: _activeModule,
-                    onSelect: _selectModule,
-                    onLogout: () => _logout(context, authService),
-                  ),
-                  Expanded(
-                    child: Column(
-                      children: [
-                        _TopBar(
-                          authService: authService,
-                          onLogout: () => _logout(context, authService),
-                          showLogout: false,
-                        ),
-                        Expanded(
-                          child: _resolveBody(
-                            context,
-                            _activeModule,
-                            authService,
-                            user,
-                            hasOvaAccess,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            },
+    return Scaffold(
+      appBar: const MainAppBar(title: 'Vlotter',),
+      body: Row(
+        children: [
+          Container(
+            width: 200,
+            color: HomeScreen._sidebarGreen,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 32),
+                _SidebarItem(
+                  icon: Icons.dashboard,
+                  label: 'Dashboard',
+                  selected: _selected == _HomeSection.dashboard,
+                  onTap: () => setState(() => _selected = _HomeSection.dashboard),
+                ),
+                const SizedBox(height: 12),
+                _SidebarItem(
+                  icon: Icons.apartment_outlined,
+                  label: 'WHS-Tours',
+                  selected: _selected == _HomeSection.whsTours,
+                  onTap: () => setState(() => _selected = _HomeSection.whsTours),
+                ),
+                const SizedBox(height: 12),
+                _SidebarItem(
+                  icon: Icons.info_outline_rounded,
+                  label: 'OVA',
+                  selected: _selected == _HomeSection.ova,
+                  onTap: () => setState(() => _selected = _HomeSection.ova),
+                ),
+                const SizedBox(height: 12),
+                _SidebarItem(
+                  icon: Icons.build,
+                  label: 'Onderhoud\nKeuringen',
+                  selected: _selected == _HomeSection.onderhoud,
+                  onTap: () => setState(() => _selected = _HomeSection.onderhoud),
+                ),
+                const SizedBox(height: 12),
+                _SidebarItem(
+                  icon: Icons.assignment,
+                  label: 'JAP & GPP',
+                  selected: _selected == _HomeSection.japGpp,
+                  onTap: () => setState(() => _selected = _HomeSection.japGpp),
+                ),
+                const Spacer(),
+              ],
+            ),
           ),
-        );
-      },
-    );
-  }
-
-  Widget _resolveBody(
-    BuildContext context,
-    _ActiveModule module,
-    AuthService authService,
-    dynamic user,
-    bool hasOvaAccess,
-  ) {
-    switch (module) {
-      case _ActiveModule.dashboard:
-        return _DashboardBody(
-          authService: authService,
-          onNavigate: _selectModule,
-        );
-      case _ActiveModule.ova:
-        return hasOvaAccess
-            ? const OvaDashboardScreen()
-            : const _NoAccessBody(moduleName: 'OVA');
-      case _ActiveModule.whsTours:
-        return (user.isAdmin || user.access.whsTours)
-            ? const WhsToursScreen()
-            : const _NoAccessBody(moduleName: 'WHS-Tours');
-      case _ActiveModule.onderhoudKeuringen:
-        return (user.isAdmin || user.access.maintenanceInspections)
-            ? const MaintenanceInspectionsPlaceholderScreen()
-            : const _NoAccessBody(moduleName: 'Onderhoud & Keuringen');
-      case _ActiveModule.japGpp:
-        return (user.isAdmin || user.access.japGpp)
-            ? const JapGppScreen()
-            : const _NoAccessBody(moduleName: 'JAP & GPP');
-      case _ActiveModule.departments:
-        return const DepartmentsScreen();
-      case _ActiveModule.accounts:
-        return const AccountManagementPage();
-    }
-  }
-
-  Future<void> _logout(
-    BuildContext context,
-    AuthService authService,
-  ) async {
-    await authService.logout();
-    if (context.mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-        (_) => false,
-      );
-    }
-  }
-}
-
-// ─────────────────────────────────────────────
-//  Navigatie-modules enum
-// ─────────────────────────────────────────────
-
-enum _ActiveModule {
-  dashboard,
-  whsTours,
-  ova,
-  onderhoudKeuringen,
-  japGpp,
-  departments,
-  accounts,
-}
-
-// ─────────────────────────────────────────────
-//  Sidebar (wide layout)
-// ─────────────────────────────────────────────
-
-class _SideBar extends StatelessWidget {
-  const _SideBar({
-    required this.user,
-    required this.active,
-    required this.onSelect,
-    required this.onLogout,
-  });
-
-  final dynamic user;
-  final _ActiveModule active;
-  final ValueChanged<_ActiveModule> onSelect;
-  final VoidCallback onLogout;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 200,
-      color: const Color(0xFF8CC63F),
-      child: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-              child: Row(
-                children: [
-                  const Icon(Icons.menu_rounded, color: Colors.white, size: 22),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'Vlotter',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(color: Color(0x33FFFFFF), height: 1),
-            const SizedBox(height: 8),
-            _SidebarItem(
-              icon: Icons.grid_view_rounded,
-              label: 'Dashboard',
-              selected: active == _ActiveModule.dashboard,
-              onTap: () => onSelect(_ActiveModule.dashboard),
-            ),
-            if (user.isAdmin || user.access.whsTours)
-              _SidebarItem(
-                icon: Icons.apartment_outlined,
-                label: 'WHS-Tours',
-                selected: active == _ActiveModule.whsTours,
-                onTap: () => onSelect(_ActiveModule.whsTours),
-              ),
-            if (user.isAdmin || user.access.ova || user.access.basis)
-              _SidebarItem(
-                icon: Icons.radio_button_checked_rounded,
-                label: 'OVA',
-                selected: active == _ActiveModule.ova,
-                onTap: () => onSelect(_ActiveModule.ova),
-              ),
-            if (user.isAdmin || user.access.maintenanceInspections)
-              _SidebarItem(
-                icon: Icons.build_outlined,
-                label: 'Onderhoud\nKeuringen',
-                selected: active == _ActiveModule.onderhoudKeuringen,
-                onTap: () => onSelect(_ActiveModule.onderhoudKeuringen),
-              ),
-            if (user.isAdmin || user.access.japGpp)
-              _SidebarItem(
-                icon: Icons.folder_open_outlined,
-                label: 'JAP & GPP',
-                selected: active == _ActiveModule.japGpp,
-                onTap: () => onSelect(_ActiveModule.japGpp),
-              ),
-            const Spacer(),
-            const Divider(color: Color(0x33FFFFFF), height: 1),
-            const SizedBox(height: 4),
-            _SidebarItem(
-              icon: Icons.settings_outlined,
-              label: 'Instellingen',
-              selected: false,
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const AccountScreen()),
-              ),
-            ),
-            _SidebarItem(
-              icon: Icons.logout_rounded,
-              label: 'Afmelden',
-              selected: false,
-              onTap: onLogout,
-            ),
-            const SizedBox(height: 12),
-          ],
-        ),
+          Expanded(
+            child: _buildSectionContent(_selected),
+          ),
+        ],
       ),
     );
+  }
+
+  Widget _buildSectionContent(_HomeSection section) {
+    switch (section) {
+      case _HomeSection.dashboard:
+        return _DashboardBody(
+          authService: Provider.of<AuthService>(context, listen: false),
+          onNavigate: (section) {
+            setState(() {
+              _selected = section as _HomeSection;
+            });
+          },
+        );
+      case _HomeSection.whsTours:
+        return const Center(child: Text('WHS-Tours'));
+      case _HomeSection.ova:
+        return const OvaDashboardScreen();
+      case _HomeSection.onderhoud:
+        return const Center(child: Text('Onderhoud & Keuringen'));
+      case _HomeSection.japGpp:
+        return const Center(child: Text('JAP & GPP'));
+    }
   }
 }
 
 class _SidebarItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback? onTap;
+
   const _SidebarItem({
     required this.icon,
     required this.label,
@@ -292,248 +125,35 @@ class _SidebarItem extends StatelessWidget {
     this.onTap,
   });
 
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback? onTap;
-
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Ink(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: selected ? const Color(0xFF6FA832) : Colors.transparent,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Row(
-            children: [
-              Icon(icon, size: 19, color: Colors.white),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight:
-                        selected ? FontWeight.w700 : FontWeight.w500,
-                    fontSize: 13,
-                    height: 1.25,
-                  ),
-                ),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        decoration: BoxDecoration(
+          color: selected ? HomeScreen._sidebarSelected : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        child: Row(
+          children: [
+            Icon(icon, color: HomeScreen._sidebarText, size: 22),
+            const SizedBox(width: 14),
+            Text(
+              label,
+              style: const TextStyle(
+                color: HomeScreen._sidebarText,
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
-
-// ─────────────────────────────────────────────
-//  Compact nav bar (mobile / narrow)
-// ─────────────────────────────────────────────
-
-class _CompactNavBar extends StatelessWidget {
-  const _CompactNavBar({
-    required this.user,
-    required this.active,
-    required this.onSelect,
-  });
-
-  final dynamic user;
-  final _ActiveModule active;
-  final ValueChanged<_ActiveModule> onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFF8CC63F),
-      height: 80,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        children: [
-          _CompactNavItem(
-            icon: Icons.grid_view_rounded,
-            label: 'Dashboard',
-            selected: active == _ActiveModule.dashboard,
-            onTap: () => onSelect(_ActiveModule.dashboard),
-          ),
-          if (user.isAdmin || user.access.whsTours)
-            _CompactNavItem(
-              icon: Icons.apartment_outlined,
-              label: 'WHS-Tours',
-              selected: active == _ActiveModule.whsTours,
-              onTap: () => onSelect(_ActiveModule.whsTours),
-            ),
-          if (user.isAdmin || user.access.ova || user.access.basis)
-            _CompactNavItem(
-              icon: Icons.radio_button_checked_rounded,
-              label: 'OVA',
-              selected: active == _ActiveModule.ova,
-              onTap: () => onSelect(_ActiveModule.ova),
-            ),
-          if (user.isAdmin || user.access.maintenanceInspections)
-            _CompactNavItem(
-              icon: Icons.build_outlined,
-              label: 'Onderhoud\nKeuringen',
-              selected: active == _ActiveModule.onderhoudKeuringen,
-              onTap: () => onSelect(_ActiveModule.onderhoudKeuringen),
-            ),
-          if (user.isAdmin || user.access.japGpp)
-            _CompactNavItem(
-              icon: Icons.folder_open_outlined,
-              label: 'JAP & GPP',
-              selected: active == _ActiveModule.japGpp,
-              onTap: () => onSelect(_ActiveModule.japGpp),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CompactNavItem extends StatelessWidget {
-  const _CompactNavItem({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Ink(
-          width: 88,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          decoration: BoxDecoration(
-            color: selected ? const Color(0xFF6FA832) : Colors.transparent,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 18, color: Colors.white),
-              const SizedBox(height: 5),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight:
-                      selected ? FontWeight.w700 : FontWeight.w500,
-                  height: 1.2,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────
-//  Top bar
-// ─────────────────────────────────────────────
-
-class _TopBar extends StatelessWidget {
-  const _TopBar({
-    required this.authService,
-    required this.onLogout,
-    this.showLogout = true,
-  });
-
-  final AuthService authService;
-  final VoidCallback onLogout;
-  final bool showLogout;
-
-  @override
-  Widget build(BuildContext context) {
-    final user = authService.user;
-    return Container(
-      height: 56,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Color(0xFFE8EBE3))),
-      ),
-      child: Row(
-        children: [
-          const Text(
-            'QA Dashboard',
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 15,
-              color: Color(0xFF2B3424),
-            ),
-          ),
-          const Spacer(),
-          if (user != null)
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: Text(
-                user.displayName,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF5A6354),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          IconButton(
-            icon: const Icon(
-              Icons.notifications_none_rounded,
-              color: Color(0xFF555F4E),
-            ),
-            tooltip: 'Meldingen',
-            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Meldingen zijn hier nog niet beschikbaar.'),
-              ),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(
-              Icons.settings_outlined,
-              color: Color(0xFF555F4E),
-            ),
-            tooltip: 'Instellingen',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AccountScreen()),
-            ),
-          ),
-          if (showLogout)
-            IconButton(
-              icon: const Icon(Icons.logout_rounded, color: Color(0xFF555F4E)),
-              tooltip: 'Afmelden',
-              onPressed: onLogout,
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────
-//  Dashboard body
-// ─────────────────────────────────────────────
 
 class _DashboardBody extends StatefulWidget {
   const _DashboardBody({
@@ -542,7 +162,7 @@ class _DashboardBody extends StatefulWidget {
   });
 
   final AuthService authService;
-  final ValueChanged<_ActiveModule> onNavigate;
+  final ValueChanged<_HomeSection> onNavigate;
 
   @override
   State<_DashboardBody> createState() => _DashboardBodyState();
@@ -643,7 +263,7 @@ class _DashboardBodyState extends State<_DashboardBody> {
                     _OvaTicketsCard(
                       openTickets: _openTickets,
                       ticketsByType: _ticketsByType,
-                      onTap: () => widget.onNavigate(_ActiveModule.ova),
+                      onTap: () => widget.onNavigate(_HomeSection.ova),
                     ),
                     _StatCard(
                       title: 'Mijn OVA Acties',
@@ -651,7 +271,7 @@ class _DashboardBodyState extends State<_DashboardBody> {
                       subtitle: 'NOK',
                       accentColor: const Color(0xFF8CC63F),
                       icon: Icons.format_list_bulleted_rounded,
-                      onTap: () => widget.onNavigate(_ActiveModule.ova),
+                      onTap: () => widget.onNavigate(_HomeSection.ova),
                     ),
                     _StatCard(
                       title: 'OVA Incidenten',
@@ -659,7 +279,7 @@ class _DashboardBodyState extends State<_DashboardBody> {
                       subtitle: 'open deze maand',
                       accentColor: const Color(0xFFF5A623),
                       icon: Icons.warning_amber_rounded,
-                      onTap: () => widget.onNavigate(_ActiveModule.ova),
+                      onTap: () => widget.onNavigate(_HomeSection.ova),
                     ),
                     const _AfvalverwerkingCard(),
                   ],
@@ -675,43 +295,43 @@ class _DashboardBodyState extends State<_DashboardBody> {
                     if (_actions.isNotEmpty)
                       _RecentActionsCard(
                         actions: _actions.take(3).toList(),
-                        onTap: () => widget.onNavigate(_ActiveModule.ova),
+                        onTap: () => widget.onNavigate(_HomeSection.ova),
                       ),
 
-                    // === REPLACED: show JAP & GPP commentaar and Upcoming maintenance ===
-                    _JapGppCommentaarCard(
-                      items: [
-                        JapGppComment(
-                          title: 'FD Soft Handafwasmiddel',
-                          author: 'Milton Boon',
-                          comment: 'Opgebruiken en vervangen',
-                        ),
-                        JapGppComment(
-                          title: 'Loctite Quick Gasket',
-                          author: 'Tina Dupon',
-                          comment: 'Deze wordt niet meer gemaakt',
-                        ),
-                      ],
-                      onTap: () => widget.onNavigate(_ActiveModule.japGpp),
-                    ),
-                    _UpcomingMaintenanceCard(
-                      items: [
-                        MaintenanceItem(
-                          title: 'Stookinstallatie De Dietrich (Netweg 2)',
-                          date: '03/07/2025',
-                        ),
-                        MaintenanceItem(
-                          title: 'Elektrische installatie (Netweg 4)',
-                          date: '15/07/2025',
-                        ),
-                        MaintenanceItem(
-                          title: 'Brandblussers (Tunnelweg 1)',
-                          date: '28/12/2025',
-                        ),
-                      ],
-                      onTap: () =>
-                          widget.onNavigate(_ActiveModule.onderhoudKeuringen),
-                    ),
+                      // === REPLACED: show JAP & GPP commentaar and Upcoming maintenance ===
+                      _JapGppCommentaarCard(
+                        items: [
+                          JapGppComment(
+                            title: 'FD Soft Handafwasmiddel',
+                            author: 'Milton Boon',
+                            comment: 'Opgebruiken en vervangen',
+                          ),
+                          JapGppComment(
+                            title: 'Loctite Quick Gasket',
+                            author: 'Tina Dupon',
+                            comment: 'Deze wordt niet meer gemaakt',
+                          ),
+                        ],
+                        onTap: () => widget.onNavigate(_HomeSection.japGpp),
+                      ),
+                      _UpcomingMaintenanceCard(
+                        items: [
+                          MaintenanceItem(
+                            title: 'Stookinstallatie De Dietrich (Netweg 2)',
+                            date: '03/07/2025',
+                          ),
+                          MaintenanceItem(
+                            title: 'Elektrische installatie (Netweg 4)',
+                            date: '15/07/2025',
+                          ),
+                          MaintenanceItem(
+                            title: 'Brandblussers (Tunnelweg 1)',
+                            date: '28/12/2025',
+                          ),
+                        ],
+                        onTap: () =>
+                            widget.onNavigate(_HomeSection.onderhoud),
+                      ),
                   ];
 
                   if (cards.isEmpty) return const SizedBox.shrink();
@@ -802,10 +422,6 @@ class _WelcomeHeader extends StatelessWidget {
     );
   }
 }
-
-// ─────────────────────────────────────────────
-//  Stat card rij
-// ─────────────────────────────────────────────
 
 class _StatCardRow extends StatelessWidget {
   const _StatCardRow({required this.children});
@@ -1302,17 +918,17 @@ class _JapGppCommentaarCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(item.title ?? '',
+                        Text(item.title,
                             style: const TextStyle(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 14,
                                 color: Color(0xFF2B3424))),
                         const SizedBox(height: 4),
-                        Text(item.author ?? '',
+                        Text(item.author,
                             style: const TextStyle(
                                 fontSize: 12, color: Color(0xFF6B7A62))),
                         const SizedBox(height: 6),
-                        Text(item.comment ?? '',
+                        Text(item.comment,
                             style: const TextStyle(
                                 fontSize: 13, color: Color(0xFF4A4F45))),
                       ],
@@ -1381,13 +997,13 @@ class _UpcomingMaintenanceCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(item.title ?? '',
+                        Text(item.title,
                             style: const TextStyle(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 14,
                                 color: Color(0xFF2B3424))),
                         const SizedBox(height: 4),
-                        Text(item.date ?? '',
+                        Text(item.date,
                             style: const TextStyle(
                                 fontSize: 12, color: Color(0xFF6B7A62))),
                       ],

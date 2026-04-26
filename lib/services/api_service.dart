@@ -6,9 +6,9 @@ import 'package:http/http.dart' as http;
 import '../models/user.dart';
 
 class ApiService {
-  static const String _webApiBaseUrl = String.fromEnvironment(
+  static const String _configuredWebApiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://localhost:3001',
+    defaultValue: '',
   );
 
   static Future<void> changePassword({
@@ -40,7 +40,16 @@ class ApiService {
 
   static String get baseUrl {
     if (kIsWeb) {
-      return _webApiBaseUrl;
+      if (_configuredWebApiBaseUrl.isNotEmpty) {
+        return _configuredWebApiBaseUrl;
+      }
+
+      final origin = Uri.base.origin;
+      if (origin.contains('localhost') || origin.contains('127.0.0.1')) {
+        return 'http://localhost:3001';
+      }
+
+      return origin;
     }
 
     switch (defaultTargetPlatform) {

@@ -2,7 +2,6 @@
 
 import 'package:flutter/material.dart';
 import '../models/jap_entry.dart';
-import '../services/jap_api_service.dart';
 
 // ---------------------------------------------------------------------------
 // Mock data – remove once the real API is wired up
@@ -311,80 +310,82 @@ class _JapGppScreenState extends State<JapGppScreen> {
   }
 
   Widget _buildToolbar() {
-    return Row(
-      children: [
-        // + Nieuw button
-        ElevatedButton.icon(
-          onPressed: () {
-            // TODO: navigate to new JAP entry screen
-          },
-          icon: const Icon(Icons.add, size: 18),
-          label: const Text('Nieuw'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF8CC63F),
-            foregroundColor: Colors.white,
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            textStyle: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
+  return Row(
+    children: [
+      const Spacer(),
+
+      // Search bar
+      SizedBox(
+        width: 260,
+        child: TextField(
+          controller: _searchController,
+          decoration: InputDecoration(
+            hintText: 'Zoeken',
+            hintStyle: const TextStyle(fontSize: 14),
+            prefixIcon: const Icon(Icons.search, size: 20),
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 10,
             ),
-            shape: RoundedRectangleBorder(
+            border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(999),
+              borderSide: const BorderSide(color: Color(0xFFD7DBD2)),
             ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(999),
+              borderSide: const BorderSide(color: Color(0xFFD7DBD2)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(999),
+              borderSide: const BorderSide(
+                color: Color(0xFF8CC63F),
+                width: 1.5,
+              ),
+            ),
+            filled: true,
+            fillColor: Colors.white,
           ),
         ),
-        const SizedBox(width: 8),
+      ),
 
-        // Filter icon button
-        IconButton(
-          onPressed: () {
-            // TODO: implement filter panel
-          },
-          icon: const Icon(Icons.filter_alt_outlined),
-          tooltip: 'Filteren',
-          color: const Color(0xFF6B7A62),
-        ),
+      const SizedBox(width: 8),
 
-        const Spacer(),
+      // Filter icon button
+      IconButton(
+        onPressed: () {
+          // TODO: implement filter panel
+        },
+        icon: const Icon(Icons.filter_alt_outlined),
+        tooltip: 'Filteren',
+        color: const Color(0xFF6B7A62),
+      ),
 
-        // Search bar
-        SizedBox(
-          width: 260,
-          child: TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              hintText: 'Zoeken',
-              hintStyle: const TextStyle(fontSize: 14),
-              prefixIcon: const Icon(Icons.search, size: 20),
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 10,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(999),
-                borderSide: const BorderSide(color: Color(0xFFD7DBD2)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(999),
-                borderSide: const BorderSide(color: Color(0xFFD7DBD2)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(999),
-                borderSide: const BorderSide(
-                  color: Color(0xFF8CC63F),
-                  width: 1.5,
-                ),
-              ),
-              filled: true,
-              fillColor: Colors.white,
-            ),
+      const SizedBox(width: 4),
+
+      // New entry button
+      ElevatedButton.icon(
+        onPressed: () {
+          // TODO: navigate to new JAP entry screen
+        },
+        icon: const Icon(Icons.add, size: 18),
+        label: const Text('Nieuw'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF8CC63F),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          textStyle: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(999),
           ),
         ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
+}
 
   Widget _buildTable() {
     return Container(

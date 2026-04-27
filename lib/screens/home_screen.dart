@@ -7,7 +7,7 @@ import '../models/ova_ticket.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import 'ova_dashboard_screen.dart';
-
+import 'jap_gpp_screen.dart';
 enum _HomeSection {
   dashboard,
   whsTours,
@@ -96,7 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
           authService: Provider.of<AuthService>(context, listen: false),
           onNavigate: (section) {
             setState(() {
-              _selected = section as _HomeSection;
+              _selected = section;
             });
           },
         );
@@ -107,7 +107,7 @@ class _HomeScreenState extends State<HomeScreen> {
       case _HomeSection.onderhoud:
         return const Center(child: Text('Onderhoud & Keuringen'));
       case _HomeSection.japGpp:
-        return const Center(child: Text('JAP & GPP'));
+        return const JapGppScreen();
     }
   }
 }

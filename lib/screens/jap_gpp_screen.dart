@@ -85,13 +85,13 @@ class _JapGppScreenState extends State<JapGppScreen> {
   bool _loading = true;
   String? _error;
 
-  // ── search / sort ─────────────────────────────────────────────────────────
+  // ── search ────────────────────────────────────────────────────────────────
   final _searchController = TextEditingController();
-  _SortColumn _sortColumn = _SortColumn.jaar;
-  bool _sortAscending = true;
+
+  String? _filterPriority; // 'hoog' | 'middel' | 'laag' | null
+  int? _filterYear;
 
   // ── active tab (JAP | GPP) ────────────────────────────────────────────────
-  // For now only JAP is implemented; GPP tab is visible but disabled.
   int _tabIndex = 0;
 
   @override
@@ -135,54 +135,165 @@ class _JapGppScreenState extends State<JapGppScreen> {
   void _applyFilter() {
     final query = _searchController.text.toLowerCase();
     var result = _allEntries.where((e) {
-      if (query.isEmpty) return true;
-      return e.doelstellingMaatregel.toLowerCase().contains(query) ||
-          e.domein.toLowerCase().contains(query) ||
-          e.jaarLabel.contains(query);
+      if (query.isNotEmpty) {
+        final matchesQuery =
+            e.doelstellingMaatregel.toLowerCase().contains(query) ||
+            e.domein.toLowerCase().contains(query) ||
+            e.jaarLabel.contains(query);
+        if (!matchesQuery) return false;
+      }
+      if (_filterPriority != null) {
+        final priorityMatch = switch (_filterPriority) {
+          'hoog' => e.prioriteit == JapPriority.hoog,
+          'middel' => e.prioriteit == JapPriority.middel,
+          'laag' => e.prioriteit == JapPriority.laag,
+          _ => true,
+        };
+        if (!priorityMatch) return false;
+      }
+      if (_filterYear != null && e.jaar != _filterYear) return false;
+      return true;
     }).toList();
 
-    _sortList(result);
-
-    setState(() {
-      _filtered = result;
-    });
+    setState(() => _filtered = result);
   }
 
-  void _sortList(List<JapEntry> list) {
-    list.sort((a, b) {
-      int cmp;
-      switch (_sortColumn) {
-        case _SortColumn.jaar:
-          cmp = a.jaar.compareTo(b.jaar);
-          break;
-        case _SortColumn.doelstelling:
-          cmp = a.doelstellingMaatregel
-              .compareTo(b.doelstellingMaatregel);
-          break;
-        case _SortColumn.domein:
-          cmp = a.domein.compareTo(b.domein);
-          break;
-        case _SortColumn.prioriteit:
-          cmp = a.prioriteit.index.compareTo(b.prioriteit.index);
-          break;
-        case _SortColumn.realisatie:
-          cmp = a.realisatie.index.compareTo(b.realisatie.index);
-          break;
-      }
-      return _sortAscending ? cmp : -cmp;
-    });
-  }
+  void _showFilterSheet() {
+    final years = _allEntries.map((e) => e.jaar).toSet().toList()..sort();
 
-  void _onSort(_SortColumn column) {
-    setState(() {
-      if (_sortColumn == column) {
-        _sortAscending = !_sortAscending;
-      } else {
-        _sortColumn = column;
-        _sortAscending = true;
-      }
-    });
-    _applyFilter();
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Filteren',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF243022),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _filterPriority = null;
+                            _filterYear = null;
+                          });
+                          _applyFilter();
+                          setSheetState(() {});
+                        },
+                        child: const Text(
+                          'Wis filters',
+                          style: TextStyle(color: Color(0xFF6B7A62)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Priority filter
+                  const Text(
+                    'Prioriteit',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF4D5548),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      _FilterChip(
+                        label: 'Hoge prioriteit',
+                        selected: _filterPriority == 'hoog',
+                        onTap: () {
+                          setState(() => _filterPriority =
+                              _filterPriority == 'hoog' ? null : 'hoog');
+                          _applyFilter();
+                          setSheetState(() {});
+                        },
+                      ),
+                      _FilterChip(
+                        label: 'Middelhoge prioriteit',
+                        selected: _filterPriority == 'middel',
+                        onTap: () {
+                          setState(() => _filterPriority =
+                              _filterPriority == 'middel' ? null : 'middel');
+                          _applyFilter();
+                          setSheetState(() {});
+                        },
+                      ),
+                      _FilterChip(
+                        label: 'Lage prioriteit',
+                        selected: _filterPriority == 'laag',
+                        onTap: () {
+                          setState(() => _filterPriority =
+                              _filterPriority == 'laag' ? null : 'laag');
+                          _applyFilter();
+                          setSheetState(() {});
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Year filter
+                  const Text(
+                    'Jaar',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF4D5548),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: years.map((year) {
+                      return _FilterChip(
+                        label: year.toString(),
+                        selected: _filterYear == year,
+                        onTap: () {
+                          setState(() =>
+                              _filterYear = _filterYear == year ? null : year);
+                          _applyFilter();
+                          setSheetState(() {});
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Apply button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Toepassen'),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   // ── build ─────────────────────────────────────────────────────────────────
@@ -207,21 +318,16 @@ class _JapGppScreenState extends State<JapGppScreen> {
         children: [
           Text(
             'Dashboard',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[500],
-            ),
+            style: TextStyle(fontSize: 12, color: Colors.grey[500]),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Icon(Icons.chevron_right, size: 14, color: Colors.grey[400]),
+            child:
+                Icon(Icons.chevron_right, size: 14, color: Colors.grey[400]),
           ),
           Text(
             'JAP & GPP',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[500],
-            ),
+            style: TextStyle(fontSize: 12, color: Colors.grey[500]),
           ),
         ],
       ),
@@ -255,20 +361,9 @@ class _JapGppScreenState extends State<JapGppScreen> {
                 _TabButton(
                   label: 'GPP',
                   selected: _tabIndex == 1,
-                  // GPP not yet implemented — show disabled style
                   onTap: null,
                 ),
               ],
-            ),
-          ),
-          // Instellingen link (right side, like screenshot)
-          TextButton.icon(
-            onPressed: () {},
-            icon: const Icon(Icons.settings_outlined, size: 16),
-            label: const Text('Instellingen'),
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF6B7A62),
-              textStyle: const TextStyle(fontSize: 13),
             ),
           ),
         ],
@@ -310,82 +405,81 @@ class _JapGppScreenState extends State<JapGppScreen> {
   }
 
   Widget _buildToolbar() {
-  return Row(
-    children: [
-      const Spacer(),
+    return Row(
+      children: [
+        const Spacer(),
 
-      // Search bar
-      SizedBox(
-        width: 260,
-        child: TextField(
-          controller: _searchController,
-          decoration: InputDecoration(
-            hintText: 'Zoeken',
-            hintStyle: const TextStyle(fontSize: 14),
-            prefixIcon: const Icon(Icons.search, size: 20),
-            isDense: true,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 10,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(999),
-              borderSide: const BorderSide(color: Color(0xFFD7DBD2)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(999),
-              borderSide: const BorderSide(color: Color(0xFFD7DBD2)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(999),
-              borderSide: const BorderSide(
-                color: Color(0xFF8CC63F),
-                width: 1.5,
+        // Search bar
+        SizedBox(
+          width: 260,
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Zoeken',
+              hintStyle: const TextStyle(fontSize: 14),
+              prefixIcon: const Icon(Icons.search, size: 20),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 10,
               ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(999),
+                borderSide: const BorderSide(color: Color(0xFFD7DBD2)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(999),
+                borderSide: const BorderSide(color: Color(0xFFD7DBD2)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(999),
+                borderSide: const BorderSide(
+                  color: Color(0xFF8CC63F),
+                  width: 1.5,
+                ),
+              ),
+              filled: true,
+              fillColor: Colors.white,
             ),
-            filled: true,
-            fillColor: Colors.white,
           ),
         ),
-      ),
 
-      const SizedBox(width: 8),
+        const SizedBox(width: 8),
 
-      // Filter icon button
-      IconButton(
-        onPressed: () {
-          // TODO: implement filter panel
-        },
-        icon: const Icon(Icons.filter_alt_outlined),
-        tooltip: 'Filteren',
-        color: const Color(0xFF6B7A62),
-      ),
+        // Filter icon button
+        IconButton(
+          onPressed: _showFilterSheet,
+          icon: const Icon(Icons.filter_alt_outlined),
+          tooltip: 'Filteren',
+          color: const Color(0xFF6B7A62),
+        ),
 
-      const SizedBox(width: 4),
+        const SizedBox(width: 4),
 
-      // New entry button
-      ElevatedButton.icon(
-        onPressed: () {
-          // TODO: navigate to new JAP entry screen
-        },
-        icon: const Icon(Icons.add, size: 18),
-        label: const Text('Nieuw'),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF8CC63F),
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          textStyle: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(999),
+        // New entry button
+        ElevatedButton.icon(
+          onPressed: () {
+            // TODO: navigate to new JAP entry screen
+          },
+          icon: const Icon(Icons.add, size: 18),
+          label: const Text('Nieuw'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF8CC63F),
+            foregroundColor: Colors.white,
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            textStyle: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(999),
+            ),
           ),
         ),
-      ),
-    ],
-  );
-}
+      ],
+    );
+  }
 
   Widget _buildTable() {
     return Container(
@@ -399,12 +493,12 @@ class _JapGppScreenState extends State<JapGppScreen> {
         child: SingleChildScrollView(
           child: Table(
             columnWidths: const {
-              0: FixedColumnWidth(32),   // icon
-              1: FixedColumnWidth(90),   // jaar
-              2: FlexColumnWidth(3),     // doelstelling
-              3: FlexColumnWidth(2),     // domein
-              4: FlexColumnWidth(1.6),   // prioriteit
-              5: FlexColumnWidth(1.6),   // realisatie
+              0: FixedColumnWidth(32),  // icon
+              1: FixedColumnWidth(90),  // jaar
+              2: FlexColumnWidth(3),    // doelstelling
+              3: FlexColumnWidth(2),    // domein
+              4: FlexColumnWidth(1.6),  // prioriteit
+              5: FlexColumnWidth(1.6),  // realisatie
             },
             children: [
               _buildHeaderRow(),
@@ -424,45 +518,32 @@ class _JapGppScreenState extends State<JapGppScreen> {
         ),
       ),
       children: [
-        // empty icon column
         const SizedBox(height: 44),
-        _HeaderCell(
-          label: 'Jaar',
-          column: _SortColumn.jaar,
-          current: _sortColumn,
-          ascending: _sortAscending,
-          onSort: _onSort,
-        ),
-        _HeaderCell(
-          label: 'Doelstelling – maatregel',
-          column: _SortColumn.doelstelling,
-          current: _sortColumn,
-          ascending: _sortAscending,
-          onSort: _onSort,
-        ),
-        _HeaderCell(
-          label: 'Domein',
-          column: _SortColumn.domein,
-          current: _sortColumn,
-          ascending: _sortAscending,
-          onSort: _onSort,
-        ),
-        _HeaderCell(
-          label: 'Prioriteit',
-          column: _SortColumn.prioriteit,
-          current: _sortColumn,
-          ascending: _sortAscending,
-          onSort: _onSort,
-        ),
-        _HeaderCell(
-          label: 'Realisatie',
-          column: _SortColumn.realisatie,
-          current: _sortColumn,
-          ascending: _sortAscending,
-          onSort: _onSort,
-          isLast: true,
-        ),
+        _buildHeaderCell('Jaar'),
+        _buildHeaderCell('Doelstelling – maatregel'),
+        _buildHeaderCell('Domein'),
+        _buildHeaderCell('Prioriteit'),
+        _buildHeaderCell('Realisatie', isLast: true),
       ],
+    );
+  }
+
+  Widget _buildHeaderCell(String label, {bool isLast = false}) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 8,
+        right: isLast ? 16 : 8,
+        top: 12,
+        bottom: 12,
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF6B7A62),
+        ),
+      ),
     );
   }
 
@@ -532,8 +613,6 @@ class _JapGppScreenState extends State<JapGppScreen> {
 // Sub-widgets
 // ---------------------------------------------------------------------------
 
-enum _SortColumn { jaar, doelstelling, domein, prioriteit, realisatie }
-
 class _TabButton extends StatelessWidget {
   final String label;
   final bool selected;
@@ -554,9 +633,8 @@ class _TabButton extends StatelessWidget {
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
-              color: selected
-                  ? const Color(0xFF8CC63F)
-                  : Colors.transparent,
+              color:
+                  selected ? const Color(0xFF8CC63F) : Colors.transparent,
               width: 2,
             ),
           ),
@@ -565,74 +643,13 @@ class _TabButton extends StatelessWidget {
           label,
           style: TextStyle(
             fontSize: 14,
-            fontWeight:
-                selected ? FontWeight.w700 : FontWeight.w500,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
             color: selected
                 ? const Color(0xFF243022)
                 : (onTap == null
                     ? const Color(0xFFBBC3B4)
                     : const Color(0xFF6B7A62)),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _HeaderCell extends StatelessWidget {
-  final String label;
-  final _SortColumn column;
-  final _SortColumn current;
-  final bool ascending;
-  final void Function(_SortColumn) onSort;
-  final bool isLast;
-
-  const _HeaderCell({
-    required this.label,
-    required this.column,
-    required this.current,
-    required this.ascending,
-    required this.onSort,
-    this.isLast = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isActive = current == column;
-    return InkWell(
-      onTap: () => onSort(column),
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: 8,
-          right: isLast ? 16 : 8,
-          top: 12,
-          bottom: 12,
-        ),
-        child: Row(
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: isActive
-                    ? const Color(0xFF8CC63F)
-                    : const Color(0xFF6B7A62),
-              ),
-            ),
-            const SizedBox(width: 4),
-            Icon(
-              isActive
-                  ? (ascending
-                      ? Icons.arrow_upward
-                      : Icons.arrow_downward)
-                  : Icons.unfold_more,
-              size: 14,
-              color: isActive
-                  ? const Color(0xFF8CC63F)
-                  : const Color(0xFFBBC3B4),
-            ),
-          ],
         ),
       ),
     );
@@ -714,6 +731,47 @@ class _RealisatieLabel extends StatelessWidget {
         fontSize: 13,
         fontWeight: FontWeight.w600,
         color: color,
+      ),
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFFEAF4D9) : Colors.white,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected
+                ? const Color(0xFF8CC63F)
+                : const Color(0xFFD7DBD2),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: selected
+                ? const Color(0xFF4A7A1E)
+                : const Color(0xFF4D5548),
+          ),
+        ),
       ),
     );
   }

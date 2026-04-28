@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
-import '../models/department.dart';
-import '../models/user.dart';
 import '../services/auth_service.dart';
 import '../services/department_api_service.dart';
+import '../models/department.dart';
 import '../theme/app_theme.dart';
+import '../models/user.dart';
 
 class DepartmentsScreen extends StatefulWidget {
   const DepartmentsScreen({super.key});
@@ -169,8 +168,8 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
           final query = searchController.text.toLowerCase();
-          final filtered = allUsers
-              .where((u) => (u.name ?? u.email).toLowerCase().contains(query))
+            final filtered = allUsers
+              .where((u) => ((u.name ?? u.email)).toLowerCase().contains(query))
               .toList();
 
           return Dialog(
@@ -212,7 +211,7 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
                               horizontal: 4,
                             ),
                             title: Text(
-                              user.name ?? user.email,
+                              (user.name ?? user.email),
                               style: const TextStyle(fontSize: 14),
                             ),
                             trailing: GestureDetector(
@@ -283,7 +282,7 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
       await _saveDepartment(
         id: _selected!.id,
         name: _selected!.name,
-        leaderIds: result,
+        leaderIds: result.toList(),
       );
     }
   }
@@ -296,9 +295,8 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
     final auth = Provider.of<AuthService>(context, listen: false);
     setState(() => _isLoading = true);
     try {
-      final token = await auth.getValidAccessToken();
       final saved = await DepartmentApiService.saveDepartment(
-        token: token,
+        token: auth.token!,
         id: id,
         name: name,
         leaderIds: leaderIds,
@@ -428,7 +426,6 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
       ),
     );
   }
-
   Widget _buildAccessDeniedState({
     required String title,
     required String description,

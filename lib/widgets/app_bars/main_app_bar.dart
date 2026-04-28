@@ -5,7 +5,6 @@ import '../../services/auth_service.dart';
 import '../notifications_popup.dart';
 import '../../services/notification_service.dart';
 import '../../models/notification_setting.dart' show AppNotification;
-import '../../services/notification_service.dart' show NotificationNavigationService;
 import '../../screens/login_screen.dart';
 
 class MainAppBar extends StatelessWidget implements PreferredSizeWidget {

@@ -87,10 +87,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Navigator.of(ctx).pop();
                 }
               },
-              child: const Text('Toevoegen'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF7CB342),
               ),
+              child: const Text('Toevoegen'),
             ),
           ],
         );

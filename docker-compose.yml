@@ -45,8 +45,14 @@ services:
     container_name: qa-frontend
     ports:
       - "80:80"
+      - "443:443"
+    environment:
+      ENABLE_HTTPS: "true"
     depends_on:
       - backend
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
     networks:
       - qa_net
 

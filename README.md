@@ -195,6 +195,62 @@ Check `qa-login-backend/prisma/schema.prisma` for full schema details.
 - Regenerate `JWT_SECRET` in `.env` if needed
 - Ensure `JWT_EXPIRES_IN` is properly formatted (e.g., `15m`, `1h`)
 
+## Domain And HTTPS (Docker)
+
+This project is configured for:
+
+- Domain: `vlotterqa.tech` and `www.vlotterqa.tech`
+- HTTP on port `80`
+- HTTPS on port `443` (enabled automatically when certificates are available)
+
+### 1. DNS Records
+
+In your domain provider panel, create:
+
+- `A` record: `@` -> your server IP
+- `A` record: `www` -> your server IP
+
+### 2. Start Services
+
+```bash
+docker compose up -d
+```
+
+If no cert is present yet, frontend starts in HTTP mode automatically.
+
+### 3. Issue Let's Encrypt Certificate
+
+```bash
+mkdir -p certbot/conf certbot/www
+
+docker run --rm \
+  -v "$PWD/certbot/conf:/etc/letsencrypt" \
+  -v "$PWD/certbot/www:/var/www/certbot" \
+  certbot/certbot certonly --webroot \
+  -w /var/www/certbot \
+  -d vlotterqa.tech -d www.vlotterqa.tech \
+  --email your-email@example.com --agree-tos --no-eff-email
+```
+
+Then restart frontend to switch to HTTPS config:
+
+```bash
+docker compose restart frontend
+```
+
+### 4. Renew Certificate
+
+Run this periodically (cron or systemd timer):
+
+```bash
+docker run --rm \
+  -v "$PWD/certbot/conf:/etc/letsencrypt" \
+  -v "$PWD/certbot/www:/var/www/certbot" \
+  certbot/certbot renew
+
+docker compose restart frontend
+```
+
 ## Environment Notes
 
 - This is a **login-only** system (no registration endpoint)

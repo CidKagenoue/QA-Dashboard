@@ -52,9 +52,14 @@ String formatOvaDateTime(DateTime value) {
 }
 
 class OvaTicketWizardScreen extends StatefulWidget {
-  const OvaTicketWizardScreen({super.key, this.ticketId});
+  const OvaTicketWizardScreen({
+    super.key,
+    this.ticketId,
+    this.onClose,
+  });
 
   final int? ticketId;
+  final VoidCallback? onClose;
 
   @override
   State<OvaTicketWizardScreen> createState() => _OvaTicketWizardScreenState();
@@ -454,7 +459,11 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
   }
 
   void _closeWizard() {
-    Navigator.of(context).pop(_resultSectionForExit());
+    if (widget.onClose != null) {
+      widget.onClose!();
+    } else {
+      Navigator.of(context).pop(_resultSectionForExit());
+    }
   }
 
   Future<bool?> _showProceedWithOpenActionsDialog() {

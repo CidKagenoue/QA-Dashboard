@@ -296,21 +296,25 @@ export class OvaService {
     });
 
     // Notificatie-logica toevoegen
-    // 1. Bepaal meldingstekst
+    // 1. Bepaal meldingstekst en het bijbehorende notification type
     let notificationTitle = 'OVA-ticket aangemaakt';
     let notificationBody = `Ticket #${ticket.id} is aangemaakt.`;
+    let notificationType: NotificationType = NotificationType.OVA_TICKET_CREATED;
     if (dto.ovaType) {
       // Maak type-vergelijking robuuster: verwijder spaties en hoofdletters
       const type = dto.ovaType.replace(/\s+/g, '').toLowerCase();
       if (type === 'ova1') {
         notificationTitle = 'OVA1 ticket aangemaakt';
         notificationBody = `OVA ticket #${ticket.id} is aangemaakt.`;
+        notificationType = NotificationType.OVA_1;
       } else if (type === 'ova2') {
         notificationTitle = 'OVA2 ticket aangemaakt';
         notificationBody = `OVA ticket #${ticket.id} is aangemaakt.`;
+        notificationType = NotificationType.OVA_2;
       } else if (type === 'ova3') {
         notificationTitle = 'OVA3 ticket aangemaakt';
         notificationBody = `OVA ticket #${ticket.id} is aangemaakt.`;
+        notificationType = NotificationType.OVA_3;
       } else if (type === 'nearmiss' || type === 'nearmiss') {
         notificationTitle = 'Near miss ticket aangemaakt';
         notificationBody = `Ticket #${ticket.id} is aangemaakt.`;
@@ -320,47 +324,29 @@ export class OvaService {
       }
     }
 
-    // 2. Check notificatievoorkeur
-    const notificationSettingsService = this["notificationSettingsService"]
-      || (this["notificationSettingsService"] = require('../notification-settings/notification-settings.service').NotificationSettingsService.prototype);
-    let sendNotification = true;
-    if (notificationSettingsService && notificationSettingsService.shouldSendNotification) {
-      try {
-        sendNotification = await notificationSettingsService.shouldSendNotification(
-          actorId,
-          NotificationType.OVA_TICKET_CREATED,
-          'OVA',
-          'inApp',
-        );
-      } catch (e) {
-        sendNotification = true;
-      }
-    }
-
-
-    // 3. Melding aanmaken
+    // 2. Melding aanmaken; de NotificationService controleert nu centraal de user settings.
     console.log('[OVA] Probeer melding aan te maken:', {
       actorId,
       notificationTitle,
       ticketId: ticket.id,
       ovaType: dto.ovaType,
-      sendNotification,
+      notificationType,
     });
-    if (sendNotification) {
-      try {
-        await this.notificationsService.notifyUser?.({
-          recipientUserId: actorId,
-          type: NotificationType.OVA_TICKET_CREATED,
-          title: notificationTitle,
-          body: notificationBody,
-          metadata: { ticketId: ticket.id, ovaType: dto.ovaType },
-        });
+    try {
+      const notificationCreated = await this.notificationsService.notifyUser({
+        recipientUserId: actorId,
+        type: notificationType,
+        title: notificationTitle,
+        body: notificationBody,
+        metadata: { ticketId: ticket.id, ovaType: dto.ovaType },
+      });
+      if (notificationCreated) {
         console.log('[OVA] Melding succesvol aangemaakt voor ticket', ticket.id);
-      } catch (err) {
-        console.error('[OVA] Fout bij aanmaken melding:', err);
+      } else {
+        console.log('[OVA] Melding overgeslagen vanwege notificatievoorkeur voor ticket', ticket.id);
       }
-    } else {
-      console.log('[OVA] Geen melding aangemaakt vanwege notificatievoorkeur.');
+    } catch (err) {
+      console.error('[OVA] Fout bij aanmaken melding:', err);
     }
 
     return {

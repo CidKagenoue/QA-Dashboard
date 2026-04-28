@@ -27,7 +27,7 @@ export class NotificationSettingsService {
         },
       },
     });
-    if (!setting) return true; // Default: send if no setting exists
+    if (!setting) return false; // Alleen expliciet opgeslagen toggles mogen notificaties toelaten
     if (channel === 'inApp') return !!setting.enabled;
     if (channel === 'email') return !!setting.email;
     return false;

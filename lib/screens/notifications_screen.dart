@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../services/api_service.dart';
 import '../services/notification_navigation_service.dart';
 import '../services/auth_service.dart';
 import '../models/notification_setting.dart';
@@ -23,7 +24,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     super.didChangeDependencies();
     final authService = Provider.of<AuthService>(context, listen: false);
     _service = NotificationNavigationService(
-      baseUrl: 'http://localhost:3001', // Pas aan naar je backend
+      baseUrl: ApiService.baseUrl,
       authService: authService,
     );
     _fetchSettings();

@@ -1,5 +1,5 @@
 -- DropIndex
-DROP INDEX "UserDepartment_departmentId_idx";
+DROP INDEX IF EXISTS "UserDepartment_departmentId_idx";
 
 -- AlterTable
 ALTER TABLE "ova_external_contacts" ALTER COLUMN "updated_at" DROP DEFAULT;

@@ -1,79 +1,19 @@
 // lib/screens/jap_gpp_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:qa_dashboard/services/jap_api_service.dart';
 import '../models/jap_entry.dart';
-
-// ---------------------------------------------------------------------------
-// Mock data – remove once the real API is wired up
-// ---------------------------------------------------------------------------
-final _mockEntries = [
-  JapEntry(
-    id: 1,
-    jaar: 2024,
-    doelstellingMaatregel: 'Opmaken van een procedure werken met derden',
-    domein: 'Arbeidsveiligheid',
-    prioriteit: JapPriority.laag,
-    realisatie: JapRealisatie.inUitvoering,
-  ),
-  JapEntry(
-    id: 2,
-    jaar: 2025,
-    doelstellingMaatregel:
-        'Schoonmaakplan opstellen Horeca inclusief legionella…',
-    domein: 'Arbeidsveiligheid',
-    prioriteit: JapPriority.middel,
-    realisatie: JapRealisatie.uitgevoerd,
-  ),
-  JapEntry(
-    id: 3,
-    jaar: 2025,
-    doelstellingMaatregel: 'Opmaken intern noodplan',
-    domein: 'Arbeidsveiligheid',
-    prioriteit: JapPriority.laag,
-    realisatie: JapRealisatie.negNietUitgevoerd,
-  ),
-  JapEntry(
-    id: 4,
-    jaar: 2026,
-    doelstellingMaatregel: 'Nieuwe procedure AO wordt uitgewerkt',
-    domein: 'Welzijnbeleid',
-    prioriteit: JapPriority.hoog,
-    realisatie: JapRealisatie.uitgevoerd,
-  ),
-  JapEntry(
-    id: 5,
-    jaar: 2026,
-    doelstellingMaatregel:
-        'Opmaken van een procedure voor een medewerkers die …',
-    domein: 'Arbeidsveiligheid',
-    prioriteit: JapPriority.laag,
-    realisatie: JapRealisatie.uitgevoerd,
-  ),
-  JapEntry(
-    id: 6,
-    jaar: 2021,
-    eindJaar: 2026,
-    doelstellingMaatregel: 'Bij elke opmaak van een prijsofferte voor …',
-    domein: 'Vul aan',
-    prioriteit: JapPriority.laag,
-    realisatie: JapRealisatie.uitgevoerd,
-  ),
-  JapEntry(
-    id: 7,
-    jaar: 2021,
-    eindJaar: 2026,
-    doelstellingMaatregel: 'Veiligheids- (instructie) films op de flatscreen',
-    domein: 'Arbeidsveiligheid',
-    prioriteit: JapPriority.hoog,
-    realisatie: JapRealisatie.uitgevoerd,
-  ),
-];
-
 // ---------------------------------------------------------------------------
 // Screen
 // ---------------------------------------------------------------------------
 class JapGppScreen extends StatefulWidget {
-  const JapGppScreen({super.key});
+  final String token;
+
+  const JapGppScreen({
+    super.key,
+    required this.token,
+  });
+
   @override
   State<JapGppScreen> createState() => _JapGppScreenState();
 }
@@ -115,9 +55,9 @@ class _JapGppScreenState extends State<JapGppScreen> {
     });
 
     try {
-      // TODO: uncomment once backend is ready and remove _mockEntries
-      // final entries = await JapApiService.fetchJapEntries(token: widget.token);
-      final entries = _mockEntries;
+      final entries = await JapApiService.fetchJapEntries(
+        token: widget.token,
+      );
 
       setState(() {
         _allEntries = entries;
@@ -296,6 +236,25 @@ class _JapGppScreenState extends State<JapGppScreen> {
     );
   }
 
+
+  void _showCreateJapDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: _CreateJapForm(
+            token: widget.token,
+            onSaved: _loadEntries,
+          ),
+        );
+      },
+    );
+  }
+
   // ── build ─────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
@@ -458,9 +417,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
 
         // New entry button
         ElevatedButton.icon(
-          onPressed: () {
-            // TODO: navigate to new JAP entry screen
-          },
+          onPressed: _showCreateJapDialog,
           icon: const Icon(Icons.add, size: 18),
           label: const Text('Nieuw'),
           style: ElevatedButton.styleFrom(
@@ -771,6 +728,267 @@ class _FilterChip extends StatelessWidget {
                 ? const Color(0xFF4A7A1E)
                 : const Color(0xFF4D5548),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CreateJapForm extends StatefulWidget {
+  final String token;
+  final VoidCallback onSaved;
+
+  const _CreateJapForm({
+    required this.token,
+    required this.onSaved,
+  });
+
+  @override
+  State<_CreateJapForm> createState() => _CreateJapFormState();
+}
+
+class _CreateJapFormState extends State<_CreateJapForm> {
+  final _doelstellingController = TextEditingController();
+  final _opmerkingController = TextEditingController();
+
+  String _domein = 'Arbeidsveiligheid';
+  String _risico = 'Algemeen';
+  String _uitvoerder = '';
+  String _prioriteit = 'Lage prioriteit';
+  String _realisatie = 'Uitgevoerd';
+
+  DateTime? _startDate;
+  DateTime? _endDate;
+
+  @override
+  void dispose() {
+    _doelstellingController.dispose();
+    _opmerkingController.dispose();
+    super.dispose();
+  }
+
+  String _prioriteitToApiString(String label) {
+    switch (label) {
+      case 'Hoge prioriteit':
+        return 'hoog';
+      case 'Middelhoge prioriteit':
+        return 'middel';
+      default:
+        return 'laag';
+    }
+  }
+
+  String _realisatieToApiString(String label) {
+    switch (label) {
+      case 'In uitvoering':
+        return 'in_uitvoering';
+      case 'Nog niet uitgevoerd':
+        return 'neg_niet_uitgevoerd';
+      default:
+        return 'uitgevoerd';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Nieuw JAP Aanmaken',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            TextField(
+              controller: _doelstellingController,
+              decoration: const InputDecoration(
+                labelText: 'Doelstelling - maatregel *',
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            DropdownButtonFormField<String>(
+              value: _domein,
+              items: ['Arbeidsveiligheid', 'Welzijnbeleid']
+                  .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                  .toList(),
+              onChanged: (v) => setState(() => _domein = v!),
+              decoration: const InputDecoration(labelText: 'Domein *'),
+            ),
+            const SizedBox(height: 12),
+
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: _risico,
+                    items: ['Algemeen']
+                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                        .toList(),
+                    onChanged: (v) => setState(() => _risico = v!),
+                    decoration: const InputDecoration(labelText: 'Risicoveld *'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    decoration: const InputDecoration(labelText: 'Uitvoerder *'),
+                    onChanged: (v) => _uitvoerder = v,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: _prioriteit,
+                    items: ['Hoge prioriteit', 'Middelhoge prioriteit', 'Lage prioriteit']
+                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                        .toList(),
+                    onChanged: (v) => setState(() => _prioriteit = v!),
+                    decoration: const InputDecoration(labelText: 'Prioriteit *'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: _realisatie,
+                    items: ['Uitgevoerd', 'In uitvoering', 'Nog niet uitgevoerd']
+                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                        .toList(),
+                    onChanged: (v) => setState(() => _realisatie = v!),
+                    decoration: const InputDecoration(labelText: 'Realisatie *'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            TextField(
+              controller: _opmerkingController,
+              maxLines: 3,
+              decoration: const InputDecoration(labelText: 'Opmerking'),
+            ),
+            const SizedBox(height: 12),
+
+            Row(
+              children: [
+                Expanded(
+                  child: _DateField(
+                    label: 'Startdatum *',
+                    date: _startDate,
+                    onPick: (date) => setState(() => _startDate = date),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _DateField(
+                    label: 'Einddatum',
+                    date: _endDate,
+                    onPick: (date) => setState(() => _endDate = date),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Annuleren'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: () async {
+                    final doelstelling = _doelstellingController.text.trim();
+                    if (_startDate == null || doelstelling.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Vul alle verplichte velden in.'),
+                        ),
+                      );
+                      return;
+                    }
+
+                    try {
+                      await JapApiService.createJapEntry(
+                        token: widget.token,
+                        payload: {
+                          'doelstellingMaatregel': doelstelling,
+                          'domein': _domein,
+                          'jaar': _startDate!.year,
+                          'eindJaar': _endDate?.year,
+                          'prioriteit': _prioriteitToApiString(_prioriteit),
+                          'realisatie': _realisatieToApiString(_realisatie),
+                          'uitvoerder': _uitvoerder,
+                          'opmerking': _opmerkingController.text.trim(),
+                        },
+                      );
+
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                        widget.onSaved();
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Fout: ${e.toString()}')),
+                        );
+                      }
+                    }
+                  },
+                  child: const Text('Opslaan'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DateField extends StatelessWidget {
+  final String label;
+  final DateTime? date;
+  final Function(DateTime) onPick;
+
+  const _DateField({
+    required this.label,
+    required this.date,
+    required this.onPick,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () async {
+        final picked = await showDatePicker(
+          context: context,
+          initialDate: date ?? DateTime.now(),
+          firstDate: DateTime(2020),
+          lastDate: DateTime(2100),
+        );
+        if (picked != null) onPick(picked);
+      },
+      child: InputDecorator(
+        decoration: InputDecoration(labelText: label),
+        child: Text(
+          date != null
+              ? "${date!.day}/${date!.month}/${date!.year}"
+              : 'Selecteer datum',
         ),
       ),
     );

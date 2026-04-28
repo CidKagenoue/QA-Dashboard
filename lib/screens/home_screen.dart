@@ -107,7 +107,9 @@ class _HomeScreenState extends State<HomeScreen> {
       case _HomeSection.onderhoud:
         return const Center(child: Text('Onderhoud & Keuringen'));
       case _HomeSection.japGpp:
-        return const JapGppScreen();
+        return JapGppScreen(
+          token: Provider.of<AuthService>(context, listen: false).token ?? '',
+        );
     }
   }
 }

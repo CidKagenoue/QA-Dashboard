@@ -320,7 +320,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
                 _TabButton(
                   label: 'GPP',
                   selected: _tabIndex == 1,
-                  onTap: null,
+                  onTap: () => setState(() => _tabIndex = 1),
                 ),
               ],
             ),
@@ -331,6 +331,8 @@ class _JapGppScreenState extends State<JapGppScreen> {
   }
 
   Widget _buildBody() {
+    if (_tabIndex == 1) return _buildGppBody();
+
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -358,6 +360,117 @@ class _JapGppScreenState extends State<JapGppScreen> {
           _buildToolbar(),
           const SizedBox(height: 12),
           Expanded(child: _buildTable()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGppBody() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        children: [
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Spacer(),
+              SizedBox(
+                width: 260,
+                child: TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Zoeken',
+                    hintStyle: const TextStyle(fontSize: 14),
+                    prefixIcon: const Icon(Icons.search, size: 20),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(999),
+                      borderSide: const BorderSide(color: Color(0xFFD7DBD2)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(999),
+                      borderSide: const BorderSide(color: Color(0xFFD7DBD2)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(999),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF8CC63F),
+                        width: 1.5,
+                      ),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: null,
+                icon: const Icon(Icons.filter_alt_outlined),
+                color: const Color(0xFF6B7A62),
+              ),
+              const SizedBox(width: 4),
+              ElevatedButton.icon(
+                onPressed: null,
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Nieuw'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF8CC63F),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE4E9DD)),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: SingleChildScrollView(
+                  child: Table(
+                    columnWidths: const {
+                      0: FixedColumnWidth(32),
+                      1: FixedColumnWidth(90),
+                      2: FlexColumnWidth(3),
+                      3: FlexColumnWidth(2),
+                      4: FlexColumnWidth(1.6),
+                      5: FlexColumnWidth(1.6),
+                    },
+                    children: [
+                      TableRow(
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(color: Color(0xFFE4E9DD)),
+                          ),
+                        ),
+                        children: [
+                          const SizedBox(height: 44),
+                          _buildHeaderCell('Jaar'),
+                          _buildHeaderCell('Product – omschrijving'),
+                          _buildHeaderCell('Categorie'),
+                          _buildHeaderCell('Status'),
+                          _buildHeaderCell('Vervaldatum', isLast: true),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

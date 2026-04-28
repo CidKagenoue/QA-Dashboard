@@ -9,9 +9,9 @@ import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import 'ova_ticket_wizard_screen.dart';
 
-enum _TicketSection { open, incomplete, closed }
+enum _TicketSection { open, closed }
 
-const double _ticketTableColumnGap = 14;
+const double _ticketTableColumnGap = 10;
 
 class OvaTicketListScreen extends StatefulWidget {
   const OvaTicketListScreen({super.key, this.onNavigateBack});
@@ -132,24 +132,11 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
       case 'open':
         return _TicketSection.open;
       default:
-        return _TicketSection.incomplete;
+        return _TicketSection.open;
     }
   }
 
-  bool _hasCauseAnalysis(OvaTicket ticket) {
-    final method = ticket.causeAnalysisMethod?.trim();
-    final notes = ticket.causeAnalysisNotes?.trim();
-    return (method != null && method.isNotEmpty) ||
-        (notes != null && notes.isNotEmpty);
-  }
-
-  bool _isOpenTicket(OvaTicket ticket) =>
-      !ticket.isClosed &&
-      _hasCauseAnalysis(ticket) &&
-      ticket.actions.isNotEmpty;
-
-  bool _isIncompleteTicket(OvaTicket ticket) =>
-      !ticket.isClosed && !_isOpenTicket(ticket);
+  bool _isOpenTicket(OvaTicket ticket) => !ticket.isClosed;
 
   List<OvaTicket> _sortTickets(Iterable<OvaTicket> tickets) {
     final sorted = tickets.toList();
@@ -164,8 +151,6 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
 
   List<OvaTicket> get _openTickets =>
       _sortTickets(_tickets.where(_isOpenTicket));
-  List<OvaTicket> get _incompleteTickets =>
-      _sortTickets(_tickets.where(_isIncompleteTicket));
   List<OvaTicket> get _closedTickets =>
       _sortTickets(_tickets.where((t) => t.isClosed));
   List<String> get _availableOvaTypes =>
@@ -177,8 +162,6 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
     switch (_selectedSection) {
       case _TicketSection.open:
         tickets = _openTickets;
-      case _TicketSection.incomplete:
-        tickets = _incompleteTickets;
       case _TicketSection.closed:
         tickets = _closedTickets;
     }
@@ -205,7 +188,6 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
       _ticketDescription(ticket),
       ticket.ovaType ?? '',
       ticket.statusLabel,
-      _incompleteStatusLabel(ticket),
       ticket.createdBy.displayName,
       ticket.lastEditedBy.displayName,
     ].any((v) => _normalizeValue(v).contains(query));
@@ -221,13 +203,7 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
       final n = c?.replaceAll(RegExp(r'\s+'), ' ').trim();
       if (n != null && n.isNotEmpty) return n;
     }
-    return 'Geen omschrijving beschikbaar';
-  }
-
-  String _incompleteStatusLabel(OvaTicket ticket) {
-    if (!_hasCauseAnalysis(ticket)) return 'Oorzakenanalyse';
-    if (ticket.actions.isEmpty) return 'Lege Opvolgacties';
-    return 'Incompleet';
+    return '-';
   }
 
   String _sectionStatusLabel(OvaTicket ticket) {
@@ -235,14 +211,14 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
       return 'Gesloten';
     }
 
-    if (_isOpenTicket(ticket)) {
-      return 'Open';
-    }
-
-    return _incompleteStatusLabel(ticket);
+    return 'Open';
   }
 
   String _actionProgressLabel(OvaTicket ticket) {
+    if (ticket.actions.isEmpty) {
+      return '-';
+    }
+
     final done = ticket.actions.where((a) => a.isOk).length;
     return '$done/${ticket.actions.length}';
   }
@@ -278,7 +254,7 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
       return 'Notities ingevuld';
     }
 
-    return 'Ontbreekt';
+    return '-';
   }
 
   String _effectivenessLabel(OvaTicket ticket) {
@@ -342,8 +318,6 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
     switch (s) {
       case _TicketSection.open:
         return _openTickets.length;
-      case _TicketSection.incomplete:
-        return _incompleteTickets.length;
       case _TicketSection.closed:
         return _closedTickets.length;
     }
@@ -353,8 +327,6 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
     switch (s) {
       case _TicketSection.open:
         return 'Geen open tickets';
-      case _TicketSection.incomplete:
-        return 'Geen incomplete tickets';
       case _TicketSection.closed:
         return 'Geen gesloten tickets';
     }
@@ -363,9 +335,7 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
   String _emptyMessageForSection(_TicketSection s) {
     switch (s) {
       case _TicketSection.open:
-        return 'Tickets met een afgewerkte oorzakenanalyse en minstens een opvolgactie verschijnen hier.';
-      case _TicketSection.incomplete:
-        return 'Tickets zonder oorzakenanalyse of zonder opvolgacties verschijnen hier.';
+        return 'Alle tickets die nog niet afgesloten zijn verschijnen hier.';
       case _TicketSection.closed:
         return 'Afgesloten tickets blijven hier zichtbaar zodat de historiek bewaard blijft.';
     }
@@ -501,9 +471,6 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
                           _TicketSection.open: _ticketCountForSection(
                             _TicketSection.open,
                           ),
-                          _TicketSection.incomplete: _ticketCountForSection(
-                            _TicketSection.incomplete,
-                          ),
                           _TicketSection.closed: _ticketCountForSection(
                             _TicketSection.closed,
                           ),
@@ -565,18 +532,10 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
       minWidth: 1560,
       columns: const [
         _TableColumnData(label: 'ID', flex: 6),
-        _TableColumnData(label: 'Status', flex: 14),
-        _TableColumnData(
-          label: 'Type OVA',
-          flex: 11,
-          alignment: Alignment.center,
-        ),
-        _TableColumnData(
-          label: 'Datum vaststelling',
-          flex: 15,
-          alignment: Alignment.centerRight,
-        ),
-        _TableColumnData(label: 'Omschrijving', flex: 32),
+        _TableColumnData(label: 'Status', flex: 9),
+        _TableColumnData(label: 'Type OVA', flex: 9),
+        _TableColumnData(label: 'Datum vaststelling', flex: 13),
+        _TableColumnData(label: 'Omschrijving', flex: 34),
         _TableColumnData(label: 'Aanleiding', flex: 24),
         _TableColumnData(label: 'Oorzakenanalyse', flex: 18),
         _TableColumnData(
@@ -602,23 +561,21 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
               ),
             ),
             _TableCellData(
-              flex: 14,
+              flex: 9,
               child: _TicketStatusChip(label: _sectionStatusLabel(ticket)),
             ),
             _TableCellData(
-              flex: 11,
-              alignment: Alignment.center,
+              flex: 9,
               child: _OvaTypeChip(label: _ticketTypeLabel(ticket)),
             ),
             _TableCellData(
-              flex: 15,
-              alignment: Alignment.centerRight,
+              flex: 13,
               child: _CellText(
                 formatOvaDate(ticket.findingDate ?? ticket.updatedAt),
               ),
             ),
             _TableCellData(
-              flex: 32,
+              flex: 34,
               child: _CellText(_ticketDescription(ticket), emphasized: true),
             ),
             _TableCellData(flex: 24, child: _CellText(_reasonsLabel(ticket))),
@@ -672,8 +629,6 @@ class _SectionTabs extends StatelessWidget {
     switch (s) {
       case _TicketSection.open:
         return 'Open Tickets';
-      case _TicketSection.incomplete:
-        return 'Incomplete Tickets';
       case _TicketSection.closed:
         return 'Gesloten Tickets';
     }
@@ -732,25 +687,17 @@ class _TicketStatusGuide extends StatelessWidget {
         return const _StatusGuideCard(
           title: 'Open',
           description:
-              'Dit ticket heeft een oorzakenanalyse en minstens een opvolgactie. Het wordt actief opgevolgd tot de opvolging en effectiviteit afgerond zijn.',
-          color: Color(0xFFEAF4D9),
-          iconColor: Color(0xFF6F972D),
-        );
-      case _TicketSection.incomplete:
-        return const _StatusGuideCard(
-          title: 'Incompleet',
-          description:
-              'Dit ticket is gestart, maar mist nog een oorzakenanalyse of opvolgacties. Vul die info aan voordat het als actief opgevolgd telt.',
-          color: Color(0xFFFFF5DE),
-          iconColor: Color(0xFFB37A12),
+              'Alle tickets die nog niet afgesloten zijn staan hier. Ontbrekende onderdelen worden in de tabel met een streepje aangeduid.',
+          color: Color(0xFFFFF1EF),
+          iconColor: Color(0xFFC43C33),
         );
       case _TicketSection.closed:
         return const _StatusGuideCard(
           title: 'Gesloten',
           description:
               'Dit ticket is afgehandeld. Het blijft zichtbaar als historiek en bewijs van de uitgevoerde opvolging.',
-          color: Color(0xFFEAF0F4),
-          iconColor: Color(0xFF527083),
+          color: Color(0xFFEAF4D9),
+          iconColor: Color(0xFF6F972D),
         );
     }
   }
@@ -1203,11 +1150,11 @@ class _TicketStatusChip extends StatelessWidget {
     late final Color textColor;
 
     if (normalized == 'open') {
+      backgroundColor = const Color(0xFFFFE1DD);
+      textColor = const Color(0xFFC43C33);
+    } else if (normalized == 'gesloten') {
       backgroundColor = const Color(0xFFEAF4D9);
       textColor = const Color(0xFF6F972D);
-    } else if (normalized == 'gesloten') {
-      backgroundColor = const Color(0xFFEAF0F4);
-      textColor = const Color(0xFF527083);
     } else {
       backgroundColor = const Color(0xFFF5F1E2);
       textColor = const Color(0xFF786233);

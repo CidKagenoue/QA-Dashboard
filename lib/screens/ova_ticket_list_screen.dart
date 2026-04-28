@@ -14,7 +14,9 @@ enum _TicketSection { open, incomplete, closed }
 const double _ticketTableColumnGap = 14;
 
 class OvaTicketListScreen extends StatefulWidget {
-  const OvaTicketListScreen({super.key});
+  const OvaTicketListScreen({super.key, this.onNavigateBack});
+
+  final VoidCallback? onNavigateBack;
 
   @override
   State<OvaTicketListScreen> createState() => _OvaTicketListScreenState();
@@ -44,10 +46,7 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
   }
 
   void _handleSearchChanged() {
-    if (!mounted) {
-      return;
-    }
-
+    if (!mounted) return;
     setState(() {});
   }
 
@@ -60,46 +59,36 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
     try {
       final token = await context.read<AuthService>().getValidAccessToken();
       final response = await ApiService.fetchOvaTickets(token: token);
-      if (!mounted) {
-        return;
-      }
-
+      if (!mounted) return;
       setState(() {
         _tickets = response.map(OvaTicket.fromJson).toList();
       });
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
-
+      if (!mounted) return;
       setState(() {
         _error = error.toString().replaceFirst('Exception: ', '');
       });
     } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     }
   }
 
   Future<void> _openTicket({int? ticketId}) async {
+    // OvaTicketWizardScreen wordt nog steeds via Navigator.push geopend
+    // zodat de wizard zijn eigen volledige scherm heeft met terug-knop.
     final resultingSection = await Navigator.of(context).push<String?>(
       MaterialPageRoute(
         builder: (context) => OvaTicketWizardScreen(ticketId: ticketId),
       ),
     );
 
-    if (resultingSection == null || !mounted) {
-      return;
-    }
+    if (resultingSection == null || !mounted) return;
 
     final targetSection = _sectionForResult(resultingSection);
     await _loadTickets();
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     setState(() {
       _selectedSection = targetSection;
@@ -110,10 +99,7 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
   }
 
   void _selectSection(_TicketSection section) {
-    if (_selectedSection == section) {
-      return;
-    }
-
+    if (_selectedSection == section) return;
     setState(() {
       _selectedSection = section;
       if (section != _TicketSection.open) {
@@ -128,20 +114,14 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
         _selectedOvaType = null;
         return;
       }
-
       _selectedOvaType = type;
     });
   }
 
   void _clearFilters() {
-    if (!_hasActiveFilters) {
-      return;
-    }
-
+    if (!_hasActiveFilters) return;
     _searchController.clear();
-    setState(() {
-      _selectedOvaType = null;
-    });
+    setState(() => _selectedOvaType = null);
   }
 
   _TicketSection _sectionForResult(String value) {
@@ -163,40 +143,31 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
         (notes != null && notes.isNotEmpty);
   }
 
-  bool _isOpenTicket(OvaTicket ticket) {
-    return !ticket.isClosed &&
-        _hasCauseAnalysis(ticket) &&
-        ticket.actions.isNotEmpty;
-  }
+  bool _isOpenTicket(OvaTicket ticket) =>
+      !ticket.isClosed &&
+      _hasCauseAnalysis(ticket) &&
+      ticket.actions.isNotEmpty;
 
-  bool _isIncompleteTicket(OvaTicket ticket) {
-    return !ticket.isClosed && !_isOpenTicket(ticket);
-  }
+  bool _isIncompleteTicket(OvaTicket ticket) =>
+      !ticket.isClosed && !_isOpenTicket(ticket);
 
   List<OvaTicket> _sortTickets(Iterable<OvaTicket> tickets) {
     final sorted = tickets.toList();
-    sorted.sort((left, right) {
-      final leftDate = left.findingDate ?? left.updatedAt;
-      final rightDate = right.findingDate ?? right.updatedAt;
-      final byDate = leftDate.compareTo(rightDate);
-      if (byDate != 0) {
-        return byDate;
-      }
-
-      return left.id.compareTo(right.id);
+    sorted.sort((l, r) {
+      final ld = l.findingDate ?? l.updatedAt;
+      final rd = r.findingDate ?? r.updatedAt;
+      final byDate = ld.compareTo(rd);
+      return byDate != 0 ? byDate : l.id.compareTo(r.id);
     });
     return sorted;
   }
 
   List<OvaTicket> get _openTickets =>
       _sortTickets(_tickets.where(_isOpenTicket));
-
   List<OvaTicket> get _incompleteTickets =>
       _sortTickets(_tickets.where(_isIncompleteTicket));
-
   List<OvaTicket> get _closedTickets =>
-      _sortTickets(_tickets.where((ticket) => ticket.isClosed));
-
+      _sortTickets(_tickets.where((t) => t.isClosed));
   List<String> get _availableOvaTypes =>
       _resolveAvailableOvaTypes(_openTickets);
 
@@ -211,31 +182,25 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
       case _TicketSection.closed:
         tickets = _closedTickets;
     }
-
     if (query.isNotEmpty) {
-      tickets = tickets.where((ticket) => _matchesSearch(ticket, query));
+      tickets = tickets.where((t) => _matchesSearch(t, query));
     }
-
     if (_selectedSection == _TicketSection.open &&
         _selectedOvaType != null &&
         _selectedOvaType!.trim().isNotEmpty) {
-      tickets = tickets.where(
-        (ticket) => _sameOvaType(ticket.ovaType, _selectedOvaType),
-      );
+      tickets = tickets.where((t) => _sameOvaType(t.ovaType, _selectedOvaType));
     }
-
     return tickets.toList();
   }
 
-  bool get _hasActiveFilters {
-    return _searchController.text.trim().isNotEmpty ||
-        (_selectedSection == _TicketSection.open &&
-            _selectedOvaType != null &&
-            _selectedOvaType!.trim().isNotEmpty);
-  }
+  bool get _hasActiveFilters =>
+      _searchController.text.trim().isNotEmpty ||
+      (_selectedSection == _TicketSection.open &&
+          _selectedOvaType != null &&
+          _selectedOvaType!.trim().isNotEmpty);
 
   bool _matchesSearch(OvaTicket ticket, String query) {
-    final values = <String>[
+    return <String>[
       ticket.id.toString(),
       _ticketDescription(ticket),
       ticket.ovaType ?? '',
@@ -243,38 +208,25 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
       _incompleteStatusLabel(ticket),
       ticket.createdBy.displayName,
       ticket.lastEditedBy.displayName,
-    ];
-
-    return values.any((value) => _normalizeValue(value).contains(query));
+    ].any((v) => _normalizeValue(v).contains(query));
   }
 
   String _ticketDescription(OvaTicket ticket) {
-    final candidates = <String?>[
+    for (final c in [
       ticket.incidentDescription,
       ticket.followUpActions,
       ticket.otherReason,
       if (ticket.reasons.isNotEmpty) ticket.reasons.join(', '),
-    ];
-
-    for (final candidate in candidates) {
-      final normalized = candidate?.replaceAll(RegExp(r'\s+'), ' ').trim();
-      if (normalized != null && normalized.isNotEmpty) {
-        return normalized;
-      }
+    ]) {
+      final n = c?.replaceAll(RegExp(r'\s+'), ' ').trim();
+      if (n != null && n.isNotEmpty) return n;
     }
-
     return 'Geen omschrijving beschikbaar';
   }
 
   String _incompleteStatusLabel(OvaTicket ticket) {
-    if (!_hasCauseAnalysis(ticket)) {
-      return 'Oorzakenanalyse';
-    }
-
-    if (ticket.actions.isEmpty) {
-      return 'Lege Opvolgacties';
-    }
-
+    if (!_hasCauseAnalysis(ticket)) return 'Oorzakenanalyse';
+    if (ticket.actions.isEmpty) return 'Lege Opvolgacties';
     return 'Incompleet';
   }
 
@@ -291,19 +243,13 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
   }
 
   String _actionProgressLabel(OvaTicket ticket) {
-    final completedActions = ticket.actions
-        .where((action) => action.isOk)
-        .length;
-    return '$completedActions/${ticket.actions.length}';
+    final done = ticket.actions.where((a) => a.isOk).length;
+    return '$done/${ticket.actions.length}';
   }
 
   String _ticketTypeLabel(OvaTicket ticket) {
     final type = ticket.ovaType?.trim();
-    if (type == null || type.isEmpty) {
-      return '-';
-    }
-
-    return type;
+    return (type == null || type.isEmpty) ? '-' : type;
   }
 
   String _reasonsLabel(OvaTicket ticket) {
@@ -371,37 +317,29 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
     return value?.trim().toLowerCase() ?? '';
   }
 
-  bool _sameOvaType(String? left, String? right) {
-    return _normalizeValue(left) == _normalizeValue(right);
-  }
+  bool _sameOvaType(String? l, String? r) =>
+      _normalizeValue(l) == _normalizeValue(r);
 
   List<String> _resolveAvailableOvaTypes(List<OvaTicket> tickets) {
-    const preferredOrder = ['Near Miss', 'OVA 3', 'OVA 2', 'OVA 1'];
+    const preferred = ['Near Miss', 'OVA 3', 'OVA 2', 'OVA 1'];
     final types = tickets
-        .map((ticket) => ticket.ovaType?.trim())
+        .map((t) => t.ovaType?.trim())
         .whereType<String>()
-        .where((type) => type.isNotEmpty)
+        .where((t) => t.isNotEmpty)
         .toList();
-
     final ordered = <String>[];
-    for (final preferred in preferredOrder) {
-      final match = types.where((type) => _sameOvaType(type, preferred));
-      if (match.isNotEmpty) {
-        ordered.add(match.first);
-      }
+    for (final p in preferred) {
+      final match = types.where((t) => _sameOvaType(t, p));
+      if (match.isNotEmpty) ordered.add(match.first);
     }
-
-    for (final type in types) {
-      if (!ordered.any((existing) => _sameOvaType(existing, type))) {
-        ordered.add(type);
-      }
+    for (final t in types) {
+      if (!ordered.any((e) => _sameOvaType(e, t))) ordered.add(t);
     }
-
     return ordered;
   }
 
-  int _ticketCountForSection(_TicketSection section) {
-    switch (section) {
+  int _ticketCountForSection(_TicketSection s) {
+    switch (s) {
       case _TicketSection.open:
         return _openTickets.length;
       case _TicketSection.incomplete:
@@ -411,8 +349,8 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
     }
   }
 
-  String _emptyTitleForSection(_TicketSection section) {
-    switch (section) {
+  String _emptyTitleForSection(_TicketSection s) {
+    switch (s) {
       case _TicketSection.open:
         return 'Geen open tickets';
       case _TicketSection.incomplete:
@@ -422,8 +360,8 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
     }
   }
 
-  String _emptyMessageForSection(_TicketSection section) {
-    switch (section) {
+  String _emptyMessageForSection(_TicketSection s) {
+    switch (s) {
       case _TicketSection.open:
         return 'Tickets met een afgewerkte oorzakenanalyse en minstens een opvolgactie verschijnen hier.';
       case _TicketSection.incomplete:
@@ -432,6 +370,10 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
         return 'Afgesloten tickets blijven hier zichtbaar zodat de historiek bewaard blijft.';
     }
   }
+
+  // ---------------------------------------------------------------------------
+  // Build — geen Scaffold/AppBar
+  // ---------------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -482,6 +424,7 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Breadcrumb
                       const Text(
                         'Dashboard > OVA > Tickets',
                         style: TextStyle(
@@ -490,9 +433,11 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
                         ),
                       ),
                       const SizedBox(height: 18),
+
+                      // Titel + knop
                       LayoutBuilder(
-                        builder: (context, constraints) {
-                          final isCompact = constraints.maxWidth < 840;
+                        builder: (context, c) {
+                          final compact = c.maxWidth < 840;
                           final titleBlock = Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -517,7 +462,7 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
                             ],
                           );
 
-                          if (isCompact) {
+                          if (compact) {
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -533,7 +478,6 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
                               ],
                             );
                           }
-
                           return Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -549,6 +493,8 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
                         },
                       ),
                       const SizedBox(height: 28),
+
+                      // Sectie tabs
                       _SectionTabs(
                         selectedSection: _selectedSection,
                         counts: {
@@ -567,6 +513,8 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
                       const SizedBox(height: 18),
                       _TicketStatusGuide(section: _selectedSection),
                       const SizedBox(height: 24),
+
+                      // Content
                       if (_isLoading)
                         const SizedBox(
                           height: 260,
@@ -705,6 +653,10 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Sectie tabs
+// ---------------------------------------------------------------------------
+
 class _SectionTabs extends StatelessWidget {
   const _SectionTabs({
     required this.selectedSection,
@@ -716,8 +668,8 @@ class _SectionTabs extends StatelessWidget {
   final Map<_TicketSection, int> counts;
   final ValueChanged<_TicketSection> onSelected;
 
-  String _labelForSection(_TicketSection section) {
-    switch (section) {
+  String _label(_TicketSection s) {
+    switch (s) {
       case _TicketSection.open:
         return 'Open Tickets';
       case _TicketSection.incomplete:
@@ -736,16 +688,16 @@ class _SectionTabs extends StatelessWidget {
       child: Wrap(
         spacing: 28,
         runSpacing: 10,
-        children: _TicketSection.values.map((section) {
-          final isSelected = section == selectedSection;
+        children: _TicketSection.values.map((s) {
+          final selected = s == selectedSection;
           return InkWell(
-            onTap: () => onSelected(section),
+            onTap: () => onSelected(s),
             child: Container(
               padding: const EdgeInsets.only(bottom: 10),
               decoration: BoxDecoration(
                 border: Border(
                   bottom: BorderSide(
-                    color: isSelected
+                    color: selected
                         ? const Color(0xFF8CC63F)
                         : Colors.transparent,
                     width: 2,
@@ -753,10 +705,10 @@ class _SectionTabs extends StatelessWidget {
                 ),
               ),
               child: Text(
-                '${_labelForSection(section)} (${counts[section] ?? 0})',
+                '${_label(s)} (${counts[s] ?? 0})',
                 style: TextStyle(
                   fontSize: 13,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                   color: const Color(0xFF2F382E),
                 ),
               ),
@@ -956,8 +908,8 @@ class _TicketToolbar extends StatelessWidget {
     );
 
     return LayoutBuilder(
-      builder: (context, constraints) {
-        final isCompact = constraints.maxWidth < 940;
+      builder: (context, c) {
+        final compact = c.maxWidth < 940;
         final left = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -975,21 +927,20 @@ class _TicketToolbar extends StatelessWidget {
                 spacing: 8,
                 runSpacing: 8,
                 children: availableOvaTypes.map((type) {
-                  final isSelected =
-                      _normalize(type) == _normalize(selectedOvaType);
+                  final sel = _norm(type) == _norm(selectedOvaType);
                   return ChoiceChip(
                     label: Text(type),
-                    selected: isSelected,
+                    selected: sel,
                     onSelected: (_) => onToggleOvaType(type),
                     selectedColor: const Color(0xFFEAF4D9),
                     labelStyle: TextStyle(
-                      color: isSelected
+                      color: sel
                           ? const Color(0xFF6B8F2A)
                           : const Color(0xFF4D5548),
                       fontWeight: FontWeight.w600,
                     ),
                     side: BorderSide(
-                      color: isSelected
+                      color: sel
                           ? const Color(0xFF98C74D)
                           : const Color(0xFFD9DDD1),
                     ),
@@ -1005,7 +956,7 @@ class _TicketToolbar extends StatelessWidget {
           ],
         );
 
-        if (isCompact) {
+        if (compact) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1037,8 +988,12 @@ class _TicketToolbar extends StatelessWidget {
     );
   }
 
-  String _normalize(String? value) => value?.trim().toLowerCase() ?? '';
+  String _norm(String? v) => v?.trim().toLowerCase() ?? '';
 }
+
+// ---------------------------------------------------------------------------
+// Tabel
+// ---------------------------------------------------------------------------
 
 class _TicketTable extends StatelessWidget {
   const _TicketTable({
@@ -1054,8 +1009,8 @@ class _TicketTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
-      builder: (context, constraints) {
-        final tableWidth = math.max(constraints.maxWidth, minWidth).toDouble();
+      builder: (context, c) {
+        final w = math.max(c.maxWidth, minWidth).toDouble();
         return Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
@@ -1066,7 +1021,7 @@ class _TicketTable extends StatelessWidget {
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: SizedBox(
-                width: tableWidth,
+                width: w,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -1105,7 +1060,6 @@ class _TicketTable extends StatelessWidget {
 
 class _TableHeader extends StatelessWidget {
   const _TableHeader({required this.columns});
-
   final List<_TableColumnData> columns;
 
   @override
@@ -1197,7 +1151,6 @@ class _TableColumnData {
     required this.flex,
     this.alignment = Alignment.centerLeft,
   });
-
   final String label;
   final int flex;
   final Alignment alignment;
@@ -1209,7 +1162,6 @@ class _TableCellData {
     required this.child,
     this.alignment = Alignment.centerLeft,
   });
-
   final int flex;
   final Widget child;
   final Alignment alignment;
@@ -1286,46 +1238,39 @@ class _TicketStatusChip extends StatelessWidget {
 
 class _OvaTypeChip extends StatelessWidget {
   const _OvaTypeChip({required this.label});
-
   final String label;
 
   @override
   Widget build(BuildContext context) {
-    final normalized = label.trim().toLowerCase();
-    late final Color backgroundColor;
-    late final Color textColor;
-
-    switch (normalized) {
+    final n = label.trim().toLowerCase();
+    final Color bg;
+    final Color fg;
+    switch (n) {
       case 'near miss':
-        backgroundColor = const Color(0xFFEAF4D9);
-        textColor = const Color(0xFF6F972D);
+        bg = const Color(0xFFEAF4D9);
+        fg = const Color(0xFF6F972D);
       case 'ova 1':
-        backgroundColor = const Color(0xFFFFF0C7);
-        textColor = const Color(0xFFAF7A00);
+        bg = const Color(0xFFFFF0C7);
+        fg = const Color(0xFFAF7A00);
       case 'ova 2':
-        backgroundColor = const Color(0xFFFFE2B3);
-        textColor = const Color(0xFFB55A00);
+        bg = const Color(0xFFFFE2B3);
+        fg = const Color(0xFFB55A00);
       case 'ova 3':
-        backgroundColor = const Color(0xFFFFD4CF);
-        textColor = const Color(0xFFC43C33);
+        bg = const Color(0xFFFFD4CF);
+        fg = const Color(0xFFC43C33);
       default:
-        backgroundColor = const Color(0xFFF0F2EC);
-        textColor = const Color(0xFF5A6256);
+        bg = const Color(0xFFF0F2EC);
+        fg = const Color(0xFF5A6256);
     }
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: backgroundColor,
+        color: bg,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
-        style: TextStyle(
-          color: textColor,
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-        ),
+        style: TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -1384,7 +1329,6 @@ class _SectionEmptyState extends StatelessWidget {
 
 class _EmptyTicketState extends StatelessWidget {
   const _EmptyTicketState({required this.canCreate, this.onCreate});
-
   final bool canCreate;
   final VoidCallback? onCreate;
 
@@ -1408,7 +1352,7 @@ class _EmptyTicketState extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             canCreate
-                ? 'Maak een eerste ticket aan en werk het stap voor stap verder af. Zodra opvolgacties toegevoegd zijn, verhuist het naar Open Tickets.'
+                ? 'Maak een eerste ticket aan en werk het stap voor stap verder af.'
                 : 'Zodra een ticket gestart is, verschijnt het hier zodat jij het verder kunt opvolgen.',
             textAlign: TextAlign.center,
           ),
@@ -1428,7 +1372,6 @@ class _EmptyTicketState extends StatelessWidget {
 
 class _ErrorState extends StatelessWidget {
   const _ErrorState({required this.message, required this.onRetry});
-
   final String message;
   final Future<void> Function() onRetry;
 

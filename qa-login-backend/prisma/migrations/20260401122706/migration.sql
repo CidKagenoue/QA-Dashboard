@@ -1,6 +1,5 @@
-
 -- DropIndex
-DROP INDEX "UserDepartment_departmentId_idx";
+DROP INDEX IF EXISTS "UserDepartment_departmentId_idx";
 
 -- AlterTable
 ALTER TABLE "ova_external_contacts" ALTER COLUMN "updated_at" DROP DEFAULT;
@@ -31,5 +30,3 @@ CREATE INDEX "password_reset_tokens_user_id_idx" ON "password_reset_tokens"("use
 
 -- AddForeignKey
 ALTER TABLE "password_reset_tokens" ADD CONSTRAINT "password_reset_tokens_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
-

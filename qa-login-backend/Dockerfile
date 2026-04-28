@@ -18,4 +18,4 @@ RUN echo "=== Checking dist directory ===" && ls -laR dist/ || echo "ERROR: dist
 
 EXPOSE 3001
 
-CMD ["sh", "-c", "npx prisma migrate deploy && npm run start:prod"]
+CMD ["sh", "-c", "if [ \"$AUTO_RESET_DB\" = \"true\" ]; then npx prisma migrate reset --force --skip-seed; else npx prisma migrate deploy; fi && npm run start:prod"]

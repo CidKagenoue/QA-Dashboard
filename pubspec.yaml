@@ -12,6 +12,7 @@ dependencies:
   http: ^1.1.0
   shared_preferences: ^2.2.2
   provider: ^6.1.1
+  url_launcher: ^6.3.0  
 
   # Add file_picker for web-compatible file/image picking
   file_picker: ^6.1.1

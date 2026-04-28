@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../services/api_service.dart';
 import '../services/notification_navigation_service.dart';
 import '../services/auth_service.dart';
 import '../models/notification_setting.dart';
@@ -13,7 +14,6 @@ class NotificationsScreen extends StatefulWidget {
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
   late NotificationNavigationService _service;
-  bool _loading = true;
   String? _error;
     List<NotificationSetting> _settings = [];
     List<NotificationSetting> _uiSettings = [];
@@ -24,7 +24,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     super.didChangeDependencies();
     final authService = Provider.of<AuthService>(context, listen: false);
     _service = NotificationNavigationService(
-      baseUrl: 'http://localhost:3001', // Pas aan naar je backend
+      baseUrl: ApiService.baseUrl,
       authService: authService,
     );
     _fetchSettings();
@@ -32,7 +32,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Future<void> _fetchSettings() async {
     setState(() {
-      _loading = true;
       _error = null;
     });
     try {
@@ -57,13 +56,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         }).toList();
           // Maak een kopie voor de UI die direct aangepast mag worden
           _uiSettings = List<NotificationSetting>.from(_settings);
-        _loading = false;
       });
     } catch (e) {
       // Alleen bij netwerkfout een foutmelding tonen, layout blijft altijd zichtbaar
       setState(() {
         _error = 'Fout bij laden van instellingen';
-        _loading = false;
       });
     }
   }

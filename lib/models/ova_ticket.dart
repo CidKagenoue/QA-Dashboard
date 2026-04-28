@@ -131,6 +131,8 @@ class OvaFollowUpAction {
           : null,
     );
   }
+
+  String? get title => null;
 }
 
 class OvaTicket {

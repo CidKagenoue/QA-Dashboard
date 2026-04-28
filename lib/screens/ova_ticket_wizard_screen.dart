@@ -52,11 +52,7 @@ String formatOvaDateTime(DateTime value) {
 }
 
 class OvaTicketWizardScreen extends StatefulWidget {
-  const OvaTicketWizardScreen({
-    super.key,
-    this.ticketId,
-    this.onClose,
-  });
+  const OvaTicketWizardScreen({super.key, this.ticketId, this.onClose});
 
   final int? ticketId;
   final VoidCallback? onClose;
@@ -684,6 +680,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
                           const SizedBox(height: 24),
                         ],
                         Container(
+                          width: double.infinity,
                           padding: const EdgeInsets.all(24),
                           decoration: BoxDecoration(
                             color: Colors.white,
@@ -722,6 +719,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
                         ),
                         const SizedBox(height: 24),
                         Container(
+                          width: double.infinity,
                           padding: const EdgeInsets.all(28),
                           decoration: BoxDecoration(
                             color: Colors.white,
@@ -1498,70 +1496,129 @@ class _WizardStepper extends StatelessWidget {
     final accessibleStep = currentStep > (storedStep - 1)
         ? currentStep
         : (storedStep - 1);
+    final activeProgressStep = locked
+        ? kOvaTicketStepLabels.length - 1
+        : accessibleStep;
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: List.generate(kOvaTicketStepLabels.length, (index) {
-          final isCompleted = index < storedStep - 1;
-          final isCurrent = index == currentStep;
-          final isReachable = locked || index <= accessibleStep;
-          final circleColor = isCurrent || isCompleted
-              ? const Color(0xFF8CC63F)
-              : Colors.white;
-          final borderColor = isReachable
-              ? const Color(0xFF8CC63F)
-              : const Color(0xFFD4D8CF);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 760;
+        final labelFontSize = isCompact ? 11.0 : 13.0;
+        final circleSize = isCompact ? 20.0 : 22.0;
+        final horizontalPadding = isCompact ? 2.0 : 6.0;
 
-          return Padding(
-            padding: EdgeInsets.only(right: index == 6 ? 0 : 18),
-            child: InkWell(
-              onTap: isReachable ? () => onTap(index) : null,
-              borderRadius: BorderRadius.circular(18),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                child: Column(
-                  children: [
-                    SizedBox(
-                      width: 112,
-                      child: Text(
-                        kOvaTicketStepLabels[index],
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: isCurrent
-                              ? FontWeight.w700
-                              : FontWeight.w500,
-                          color: isReachable
-                              ? const Color(0xFF2B3424)
-                              : const Color(0xFF98A095),
+        return Column(
+          children: [
+            Row(
+              children: List.generate(kOvaTicketStepLabels.length, (index) {
+                final isCurrent = index == currentStep;
+                final isReachable = locked || index <= accessibleStep;
+
+                return Expanded(
+                  child: InkWell(
+                    onTap: isReachable ? () => onTap(index) : null,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: horizontalPadding,
+                        vertical: 6,
+                      ),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          kOvaTicketStepLabels[index],
+                          maxLines: 1,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: labelFontSize,
+                            fontWeight: isCurrent
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            color: isReachable
+                                ? const Color(0xFF2B3424)
+                                : const Color(0xFF98A095),
+                          ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    Container(
-                      width: 22,
-                      height: 22,
-                      decoration: BoxDecoration(
-                        color: circleColor,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: borderColor, width: 2),
-                      ),
-                      child: isCompleted
-                          ? const Icon(
-                              Icons.check_rounded,
-                              size: 14,
-                              color: Colors.white,
-                            )
-                          : null,
+                  ),
+                );
+              }),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: circleSize,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Positioned.fill(
+                    left: circleSize / 2,
+                    right: circleSize / 2,
+                    child: Row(
+                      children: List.generate(kOvaTicketStepLabels.length - 1, (
+                        index,
+                      ) {
+                        final isActive = index < activeProgressStep;
+                        return Expanded(
+                          child: Container(
+                            height: 2,
+                            color: isActive
+                                ? const Color(0xFF8CC63F)
+                                : const Color(0xFFDDE2D8),
+                          ),
+                        );
+                      }),
                     ),
-                  ],
-                ),
+                  ),
+                  Row(
+                    children: List.generate(kOvaTicketStepLabels.length, (
+                      index,
+                    ) {
+                      final isCompleted = index < storedStep - 1;
+                      final isCurrent = index == currentStep;
+                      final isReachable = locked || index <= accessibleStep;
+                      final circleColor = isCurrent || isCompleted
+                          ? const Color(0xFF8CC63F)
+                          : Colors.white;
+                      final borderColor = isReachable
+                          ? const Color(0xFF8CC63F)
+                          : const Color(0xFFD4D8CF);
+
+                      return Expanded(
+                        child: Center(
+                          child: InkWell(
+                            onTap: isReachable ? () => onTap(index) : null,
+                            borderRadius: BorderRadius.circular(999),
+                            child: Container(
+                              width: circleSize,
+                              height: circleSize,
+                              decoration: BoxDecoration(
+                                color: circleColor,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: borderColor,
+                                  width: 2,
+                                ),
+                              ),
+                              child: isCompleted
+                                  ? Icon(
+                                      Icons.check_rounded,
+                                      size: isCompact ? 12 : 14,
+                                      color: Colors.white,
+                                    )
+                                  : null,
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ],
               ),
             ),
-          );
-        }),
-      ),
+          ],
+        );
+      },
     );
   }
 }

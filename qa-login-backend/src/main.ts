@@ -4,6 +4,7 @@ import { AppModule } from './app.module';
 import { assertJwtConfiguration } from './auth/jwt.config';
 import japRouter from './routes/jap';
 import * as express from 'express';
+import gppRouter from './routes/gpp';
 
 async function bootstrap() {
   assertJwtConfiguration();
@@ -20,6 +21,7 @@ async function bootstrap() {
   app.use(express.urlencoded({ extended: true }));
   
   app.use('/jap', japRouter);
+  app.use('/gpp', gppRouter);
   
   const port = Number(process.env.PORT ?? 3001);
   await app.listen(port);

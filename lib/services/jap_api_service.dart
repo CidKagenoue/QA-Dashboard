@@ -109,4 +109,24 @@ class JapApiService {
       throw Exception(error['message'] ?? 'JAP verwijderen mislukt');
     }
   }
+
+  static Future<void> createGppEntry({
+    required String token,
+    required Map<String, dynamic> payload,
+  }) async {
+    final response = await http.post(
+      Uri.parse('${ApiService.baseUrl}/gpp'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(payload),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final error = jsonDecode(response.body);
+      throw Exception(error['message'] ?? 'GPP aanmaken mislukt');
+    }
+  }
 }
+

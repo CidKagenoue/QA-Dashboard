@@ -3,6 +3,10 @@
 import 'package:flutter/material.dart';
 import 'package:qa_dashboard/services/jap_api_service.dart';
 import '../models/jap_entry.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../services/api_service.dart';
+
 // ---------------------------------------------------------------------------
 // Screen
 // ---------------------------------------------------------------------------
@@ -33,14 +37,32 @@ class _JapGppScreenState extends State<JapGppScreen> {
 
   // ── active tab (JAP | GPP) ────────────────────────────────────────────────
   int _tabIndex = 0;
+  List<dynamic> _allGppEntries = [];
 
-  @override
-  void initState() {
-    super.initState();
-    _loadEntries();
-    _searchController.addListener(_applyFilter);
+  Future<void> _loadGppEntries() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiService.baseUrl}/gpp'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${widget.token}',
+        },
+      );
+      final payload = jsonDecode(response.body);
+      setState(() {
+        _allGppEntries = payload['entries'] ?? [];
+      });
+    } catch (e) {
+      // ignore voor nu
+    }
   }
-
+  @override
+    void initState() {
+      super.initState();
+      _loadEntries();
+      _loadGppEntries(); // ← toevoegen
+      _searchController.addListener(_applyFilter);
+    }
   @override
   void dispose() {
     _searchController.dispose();
@@ -266,7 +288,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
           ),
           child: _CreateGppForm(
             token: widget.token,
-            onSaved: () {},
+            onSaved: _loadGppEntries,
           ),
         );
       },
@@ -470,19 +492,68 @@ class _JapGppScreenState extends State<JapGppScreen> {
                     children: [
                       TableRow(
                         decoration: const BoxDecoration(
-                          border: Border(
-                            bottom: BorderSide(color: Color(0xFFE4E9DD)),
-                          ),
+                          border: Border(bottom: BorderSide(color: Color(0xFFE4E9DD))),
                         ),
                         children: [
                           const SizedBox(height: 44),
                           _buildHeaderCell('Jaar'),
-                          _buildHeaderCell('Product – omschrijving'),
-                          _buildHeaderCell('Categorie'),
-                          _buildHeaderCell('Status'),
-                          _buildHeaderCell('Vervaldatum', isLast: true),
+                          _buildHeaderCell('Doelstelling – maatregel'),
+                          _buildHeaderCell('Domein'),
+                          _buildHeaderCell('Prioriteit'),
+                          _buildHeaderCell('Realisatie', isLast: true),
                         ],
                       ),
+                      ..._allGppEntries.map((e) {
+                        final entry = e as Map<String, dynamic>;
+                        return TableRow(
+                          decoration: const BoxDecoration(
+                            border: Border(bottom: BorderSide(color: Color(0xFFF0F2EC))),
+                          ),
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(left: 12, top: 14, bottom: 14),
+                              child: Icon(Icons.insert_drive_file_outlined, size: 18, color: Colors.grey[400]),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+                              child: Text(
+                                entry['jaar']?.toString() ?? '',
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF243022)),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+                              child: Text(
+                                entry['doelstellingMaatregel'] ?? '',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 13, color: Color(0xFF2F382E)),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+                              child: Text(
+                                entry['domein'] ?? '',
+                                style: const TextStyle(fontSize: 13, color: Color(0xFF4D5548)),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+                              child: Text(
+                                entry['prioriteit'] ?? '',
+                                style: const TextStyle(fontSize: 13, color: Color(0xFF4D5548)),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+                              child: Text(
+                                entry['realisatie'] ?? '',
+                                style: const TextStyle(fontSize: 13, color: Color(0xFF4D5548)),
+                              ),
+                            ),
+                          ],
+                        );
+                      }),
                     ],
                   ),
                 ),
@@ -1113,6 +1184,22 @@ class _CreateGppFormState extends State<_CreateGppForm> {
   DateTime? _startDate;
   DateTime? _endDate;
 
+  String _prioriteitToApiString(String label) {
+    switch (label) {
+      case 'Hoge prioriteit': return 'hoog';
+      case 'Middelhoge prioriteit': return 'middel';
+      default: return 'laag';
+    }
+  }
+
+  String _realisatieToApiString(String label) {
+    switch (label) {
+      case 'In uitvoering': return 'in_uitvoering';
+      case 'Nog niet uitgevoerd': return 'neg_niet_uitgevoerd';
+      default: return 'uitgevoerd';
+    }
+  }
+
   @override
   void dispose() {
     _doelstellingController.dispose();
@@ -1242,9 +1329,41 @@ class _CreateGppFormState extends State<_CreateGppForm> {
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
-                  onPressed: () {
-                    // TODO: save logic
-                    Navigator.pop(context);
+                  onPressed: () async {
+                    final doelstelling = _doelstellingController.text.trim();
+                    if (_startDate == null || doelstelling.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Vul alle verplichte velden in.')),
+                      );
+                      return;
+                    }
+
+                    try {
+                      await JapApiService.createGppEntry(
+                        token: widget.token,
+                        payload: {
+                          'doelstellingMaatregel': doelstelling,
+                          'domein': _domein,
+                          'jaar': _startDate!.year,
+                          'eindJaar': _endDate?.year,
+                          'prioriteit': _prioriteitToApiString(_prioriteit),
+                          'realisatie': _realisatieToApiString(_realisatie),
+                          'uitvoerder': _uitvoerder,
+                          'opmerking': _opmerkingController.text.trim(),
+                        },
+                      );
+
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                        widget.onSaved();
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Fout: ${e.toString()}')),
+                        );
+                      }
+                    }
                   },
                   child: const Text('Opslaan'),
                 ),

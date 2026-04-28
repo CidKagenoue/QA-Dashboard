@@ -232,11 +232,22 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
   }
 
   Future<void> _saveDraft() async {
+    if (!_validateMinimumTicketDetailsForSave()) {
+      return;
+    }
+
     await _persistTicket();
   }
 
   Future<void> _goToNextStep() async {
     if (!_validateCurrentStep()) {
+      return;
+    }
+
+    if (_currentStep < 2) {
+      setState(() {
+        _currentStep += 1;
+      });
       return;
     }
 
@@ -329,24 +340,21 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
           : _recordedStepForSave(),
     };
 
+    if (_shouldIncludeMinimumTicketDetails) {
+      payload['findingDate'] = _findingDate.toUtc().toIso8601String();
+      payload['ovaType'] = _normalizedText(_ovaType);
+      payload['reasons'] = _selectedReasons.toList()..sort();
+      payload['otherReason'] = _normalizedText(_otherReasonController.text);
+      payload['incidentDescription'] = _normalizedText(
+        _incidentController.text,
+      );
+    }
+
     if (_currentStep >= 4 || _actions.isNotEmpty) {
       payload['actions'] = _actions.map((action) => action.toJson()).toList();
     }
 
     switch (_currentStep) {
-      case 0:
-        payload['findingDate'] = _findingDate.toUtc().toIso8601String();
-        payload['ovaType'] = _normalizedText(_ovaType);
-        break;
-      case 1:
-        payload['reasons'] = _selectedReasons.toList()..sort();
-        payload['otherReason'] = _normalizedText(_otherReasonController.text);
-        break;
-      case 2:
-        payload['incidentDescription'] = _normalizedText(
-          _incidentController.text,
-        );
-        break;
       case 3:
         payload['causeAnalysisMethod'] = _normalizedText(_causeMethod);
         payload['causeAnalysisNotes'] = _normalizedText(
@@ -374,6 +382,10 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
     return payload;
   }
 
+  bool get _shouldIncludeMinimumTicketDetails {
+    return _currentStep >= 2 || _ticket != null;
+  }
+
   int _recordedStepForSave() {
     final minimumStep = _currentStep + 1;
     final storedStep = _ticket?.currentStep ?? 1;
@@ -387,21 +399,45 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
         : normalizedValue;
   }
 
+  bool get _hasReasonInput {
+    return _selectedReasons.isNotEmpty ||
+        (_normalizedText(_otherReasonController.text) ?? '').isNotEmpty;
+  }
+
+  bool get _hasIncidentDescription {
+    return (_normalizedText(_incidentController.text) ?? '').isNotEmpty;
+  }
+
+  bool _validateMinimumTicketDetailsForSave() {
+    if (!_hasReasonInput) {
+      _showValidationMessage(
+        'Vul eerst de aanleiding en vaststelling in voordat je opslaat.',
+      );
+      return false;
+    }
+
+    if (!_hasIncidentDescription) {
+      _showValidationMessage(
+        'Vul eerst de vaststelling in voordat je opslaat.',
+      );
+      return false;
+    }
+
+    return true;
+  }
+
   bool _validateCurrentStep() {
     switch (_currentStep) {
       case 0:
         return true;
       case 1:
-        final hasReasons = _selectedReasons.isNotEmpty;
-        final hasOtherReason =
-            (_normalizedText(_otherReasonController.text) ?? '').isNotEmpty;
-        if (hasReasons || hasOtherReason) {
+        if (_hasReasonInput) {
           return true;
         }
         _showValidationMessage('Selecteer minstens een aanleiding.');
         return false;
       case 2:
-        if ((_normalizedText(_incidentController.text) ?? '').isNotEmpty) {
+        if (_hasIncidentDescription) {
           return true;
         }
         _showValidationMessage('Omschrijf eerst de vaststelling.');
@@ -1552,22 +1588,12 @@ class _WizardStepper extends StatelessWidget {
                 alignment: Alignment.center,
                 children: [
                   Positioned.fill(
-                    left: circleSize / 2,
-                    right: circleSize / 2,
-                    child: Row(
-                      children: List.generate(kOvaTicketStepLabels.length - 1, (
-                        index,
-                      ) {
-                        final isActive = index < activeProgressStep;
-                        return Expanded(
-                          child: Container(
-                            height: 2,
-                            color: isActive
-                                ? const Color(0xFF8CC63F)
-                                : const Color(0xFFDDE2D8),
-                          ),
-                        );
-                      }),
+                    child: CustomPaint(
+                      painter: _StepperConnectorPainter(
+                        itemCount: kOvaTicketStepLabels.length,
+                        activeProgressStep: activeProgressStep,
+                        circleRadius: circleSize / 2,
+                      ),
                     ),
                   ),
                   Row(
@@ -1620,6 +1646,49 @@ class _WizardStepper extends StatelessWidget {
         );
       },
     );
+  }
+}
+
+class _StepperConnectorPainter extends CustomPainter {
+  const _StepperConnectorPainter({
+    required this.itemCount,
+    required this.activeProgressStep,
+    required this.circleRadius,
+  });
+
+  final int itemCount;
+  final int activeProgressStep;
+  final double circleRadius;
+
+  static const Color _activeColor = Color(0xFF8CC63F);
+  static const Color _inactiveColor = Color(0xFFDDE2D8);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (itemCount < 2) {
+      return;
+    }
+
+    final y = size.height / 2;
+    final segmentWidth = size.width / itemCount;
+    final paint = Paint()
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.square;
+
+    for (var index = 0; index < itemCount - 1; index += 1) {
+      final startX = segmentWidth * (index + 0.5) + circleRadius;
+      final endX = segmentWidth * (index + 1.5) - circleRadius;
+      paint.color = index < activeProgressStep ? _activeColor : _inactiveColor;
+      canvas.drawLine(Offset(startX, y), Offset(endX, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_StepperConnectorPainter oldDelegate) {
+    return oldDelegate.itemCount != itemCount ||
+        oldDelegate.activeProgressStep != activeProgressStep ||
+        oldDelegate.circleRadius != circleRadius;
   }
 }
 

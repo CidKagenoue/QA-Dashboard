@@ -255,6 +255,24 @@ class _JapGppScreenState extends State<JapGppScreen> {
     );
   }
 
+  void _showCreateGppDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: _CreateGppForm(
+            token: widget.token,
+            onSaved: () {},
+          ),
+        );
+      },
+    );
+  }
+
   // ── build ─────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
@@ -414,7 +432,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
               ),
               const SizedBox(width: 4),
               ElevatedButton.icon(
-                onPressed: null,
+                onPressed: _showCreateGppDialog,
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text('Nieuw'),
                 style: ElevatedButton.styleFrom(
@@ -530,18 +548,14 @@ class _JapGppScreenState extends State<JapGppScreen> {
 
         // New entry button
         ElevatedButton.icon(
-          onPressed: _showCreateJapDialog,
+          onPressed: _showCreateGppDialog,  // was: null
           icon: const Icon(Icons.add, size: 18),
           label: const Text('Nieuw'),
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF8CC63F),
             foregroundColor: Colors.white,
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            textStyle: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(999),
             ),
@@ -1061,6 +1075,176 @@ class _CreateJapFormState extends State<_CreateJapForm> {
                         );
                       }
                     }
+                  },
+                  child: const Text('Opslaan'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CreateGppForm extends StatefulWidget {
+  final String token;
+  final VoidCallback onSaved;
+
+  const _CreateGppForm({
+    required this.token,
+    required this.onSaved,
+  });
+
+  @override
+  State<_CreateGppForm> createState() => _CreateGppFormState();
+}
+
+class _CreateGppFormState extends State<_CreateGppForm> {
+  final _doelstellingController = TextEditingController();
+  final _opmerkingController = TextEditingController();
+
+  String _domein = 'Arbeidsveiligheid';
+  String _risico = 'Algemeen';
+  String _uitvoerder = '';
+  String _prioriteit = 'Lage prioriteit';
+  String _realisatie = 'Uitgevoerd';
+
+  DateTime? _startDate;
+  DateTime? _endDate;
+
+  @override
+  void dispose() {
+    _doelstellingController.dispose();
+    _opmerkingController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Nieuw GPP Aanmaken',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            TextField(
+              controller: _doelstellingController,
+              decoration: const InputDecoration(
+                labelText: 'Doelstelling - maatregel *',
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            DropdownButtonFormField<String>(
+              value: _domein,
+              items: ['Arbeidsveiligheid', 'Welzijnbeleid']
+                  .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                  .toList(),
+              onChanged: (v) => setState(() => _domein = v!),
+              decoration: const InputDecoration(labelText: 'Domein *'),
+            ),
+            const SizedBox(height: 12),
+
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: _risico,
+                    items: ['Algemeen']
+                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                        .toList(),
+                    onChanged: (v) => setState(() => _risico = v!),
+                    decoration: const InputDecoration(labelText: 'Risicoveld *'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    decoration: const InputDecoration(labelText: 'Uitvoerder *'),
+                    onChanged: (v) => _uitvoerder = v,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: _prioriteit,
+                    items: ['Hoge prioriteit', 'Middelhoge prioriteit', 'Lage prioriteit']
+                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                        .toList(),
+                    onChanged: (v) => setState(() => _prioriteit = v!),
+                    decoration: const InputDecoration(labelText: 'Prioriteit *'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: _realisatie,
+                    items: ['Uitgevoerd', 'In uitvoering', 'Nog niet uitgevoerd']
+                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                        .toList(),
+                    onChanged: (v) => setState(() => _realisatie = v!),
+                    decoration: const InputDecoration(labelText: 'Realisatie *'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            TextField(
+              controller: _opmerkingController,
+              maxLines: 3,
+              decoration: const InputDecoration(labelText: 'Opmerking'),
+            ),
+            const SizedBox(height: 12),
+
+            Row(
+              children: [
+                Expanded(
+                  child: _DateField(
+                    label: 'Startdatum *',
+                    date: _startDate,
+                    onPick: (date) => setState(() => _startDate = date),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _DateField(
+                    label: 'Einddatum',
+                    date: _endDate,
+                    onPick: (date) => setState(() => _endDate = date),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Annuleren'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: () {
+                    // TODO: save logic
+                    Navigator.pop(context);
                   },
                   child: const Text('Opslaan'),
                 ),

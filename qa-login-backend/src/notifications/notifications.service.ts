@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Prisma, NotificationType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationSettingsService } from '../notification-settings/notification-settings.service';
 
 const notificationSelect = {
   id: true,
@@ -19,7 +20,12 @@ type NotificationRecord = Prisma.NotificationGetPayload<{
 
 @Injectable()
 export class NotificationService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(NotificationService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationSettingsService: NotificationSettingsService,
+  ) {}
 
   async listForUser(userId: number, options?: { limit?: number }) {
     const notifications = (await this.prisma.notification.findMany({
@@ -98,14 +104,23 @@ export class NotificationService {
     title: string;
     body: string;
     metadata?: Prisma.InputJsonValue;
-  }) {
+  }): Promise<boolean> {
+    const shouldSend = await this.shouldSendInAppNotification(
+      params.recipientUserId,
+      params.type,
+    );
+
+    if (!shouldSend) {
+      return false;
+    }
+
     const recipientExists = await this.prisma.user.findUnique({
       where: { id: params.recipientUserId },
       select: { id: true },
     });
 
     if (!recipientExists) {
-      return;
+      return false;
     }
 
     await this.prisma.notification.create({
@@ -117,6 +132,8 @@ export class NotificationService {
         metadata: params.metadata,
       },
     });
+
+    return true;
   }
 
   async notifyUsers(params: {
@@ -138,8 +155,17 @@ export class NotificationService {
       return;
     }
 
+    const allowedRecipients = await this.filterRecipientsByPreference(
+      recipientUserIds,
+      params.type,
+    );
+
+    if (allowedRecipients.length === 0) {
+      return;
+    }
+
     await this.prisma.notification.createMany({
-      data: recipientUserIds.map((recipientUserId) => ({
+      data: allowedRecipients.map((recipientUserId) => ({
         recipientUserId,
         type: params.type,
         title: params.title,
@@ -147,6 +173,45 @@ export class NotificationService {
         metadata: params.metadata,
       })),
     });
+  }
+
+  private async filterRecipientsByPreference(
+    recipientUserIds: number[],
+    type: NotificationType,
+  ) {
+    const results = await Promise.all(
+      recipientUserIds.map(async (recipientUserId) => ({
+        recipientUserId,
+        shouldSend: await this.shouldSendInAppNotification(
+          recipientUserId,
+          type,
+        ),
+      })),
+    );
+
+    return results
+      .filter((result) => result.shouldSend)
+      .map((result) => result.recipientUserId);
+  }
+
+  private async shouldSendInAppNotification(
+    userId: number,
+    type: NotificationType,
+  ) {
+    try {
+      return await this.notificationSettingsService.shouldSendNotification(
+        userId,
+        type,
+        'IN_APP',
+        'inApp',
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Unable to read notification settings for user ${userId} and type ${type}; skipping in-app notification.`,
+      );
+      this.logger.debug(error);
+      return false;
+    }
   }
 
   private serialize(record: NotificationRecord) {

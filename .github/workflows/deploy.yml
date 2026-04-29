@@ -22,6 +22,8 @@ jobs:
           port: ${{ secrets.VPS_PORT || 22 }}
           script: |
             set -e
+            git config --global http.version HTTP/1.1
             cd ~/QA-Dashboard
-            git pull --ff-only origin main
+            git pull --ff-only origin main || (sleep 5 && git pull --ff-only origin main)
+            docker system prune -f
             docker compose up -d --build --remove-orphans

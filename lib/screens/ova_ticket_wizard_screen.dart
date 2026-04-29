@@ -33,6 +33,13 @@ const List<String> _kReasonOptions = [
 
 const List<String> _kCauseMethodOptions = ['5 Why', 'Fishbone', 'Andere'];
 
+String _requiredLabel(String label) => '$label *';
+
+String _stepLabel(int index) {
+  final label = kOvaTicketStepLabels[index];
+  return index <= 2 ? _requiredLabel(label) : label;
+}
+
 String formatOvaDate(DateTime value) {
   final localValue = value.toLocal();
   final day = localValue.day.toString().padLeft(2, '0');
@@ -503,9 +510,9 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Niet alle opvolgacties zijn afgerond'),
+          title: const Text('Doorgaan naar effectiviteitscontrole?'),
           content: const Text(
-            'Niet alle opvolgacties zijn afgerond. Weet u zeker dat u wilt doorgaan?',
+            'Er staan nog opvolgacties op NOK. Je kunt doorgaan, maar controleer later of deze acties effectief afgerond zijn.',
           ),
           actions: [
             TextButton(
@@ -772,7 +779,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                kOvaTicketStepLabels[_currentStep],
+                                _stepLabel(_currentStep),
                                 style: Theme.of(context).textTheme.headlineSmall
                                     ?.copyWith(fontWeight: FontWeight.w700),
                               ),
@@ -887,12 +894,14 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
             label: const Text('Vorige'),
           ),
         const Spacer(),
-        OutlinedButton.icon(
-          onPressed: _isSaving ? null : _saveDraft,
-          icon: const Icon(Icons.save_outlined),
-          label: const Text('Opslaan'),
-        ),
-        const SizedBox(width: 12),
+        if (_currentStep >= 2) ...[
+          OutlinedButton.icon(
+            onPressed: _isSaving ? null : _saveDraft,
+            icon: const Icon(Icons.save_outlined),
+            label: const Text('Opslaan'),
+          ),
+          const SizedBox(width: 12),
+        ],
         ElevatedButton.icon(
           onPressed: _isSaving
               ? null
@@ -945,7 +954,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _SectionCard(
-          title: 'Datum vaststelling',
+          title: _requiredLabel('Datum vaststelling'),
           subtitle:
               'De datum is standaard ingevuld. Je kunt ze aanpassen wanneer nodig.',
           child: Row(
@@ -1041,7 +1050,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
       minLines: 8,
       maxLines: 10,
       decoration: const InputDecoration(
-        labelText: 'Omschrijving incident',
+        labelText: 'Omschrijving incident *',
         alignLabelWithHint: true,
         hintText: 'Beschrijf wat er precies is vastgesteld...',
       ),
@@ -1053,7 +1062,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _SectionCard(
-          title: 'Analysemethode',
+          title: _requiredLabel('Analysemethode'),
           subtitle:
               'Kies de methode waarmee de onderliggende oorzaak onderzocht werd.',
           child: Wrap(
@@ -1100,6 +1109,20 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Text(
+          _requiredLabel('Minstens een opvolgactie'),
+          style: const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF2B3424),
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Voeg minstens een corrigerende of preventieve opvolgactie toe.',
+          style: TextStyle(color: Color(0xFF5D6656), height: 1.45),
+        ),
+        const SizedBox(height: 18),
         _ActionSection(
           title: 'Corrigerende acties',
           subtitle: 'Acties om de vastgestelde afwijking direct aan te pakken.',
@@ -1122,24 +1145,6 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
           onDelete: _deleteAction,
           onStatusChanged: _updateActionStatus,
         ),
-        if (_actions.isNotEmpty) ...[
-          const SizedBox(height: 20),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAF4),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFDCE6C7)),
-            ),
-            child: Text(
-              _actions.any((action) => !action.isOk)
-                  ? 'Niet alle opvolgacties staan op OK. Bij doorgaan tonen we eerst een waarschuwing.'
-                  : 'Alle opvolgacties staan op OK. Je kunt zonder waarschuwing verder naar de effectiviteitscontrole.',
-              style: const TextStyle(color: Color(0xFF53604A), height: 1.4),
-            ),
-          ),
-        ],
       ],
     );
   }
@@ -1178,7 +1183,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
           minLines: 6,
           maxLines: 8,
           decoration: const InputDecoration(
-            labelText: 'Toelichting',
+            labelText: 'Toelichting *',
             alignLabelWithHint: true,
             hintText:
                 'Beschrijf waarom de opvolgacties al dan niet voldoende effect hebben gehad.',
@@ -1562,7 +1567,7 @@ class _WizardStepper extends StatelessWidget {
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
                         child: Text(
-                          kOvaTicketStepLabels[index],
+                          _stepLabel(index),
                           maxLines: 1,
                           textAlign: TextAlign.center,
                           style: TextStyle(

@@ -12,6 +12,8 @@ String formatOvaActionDate(DateTime value) {
   return '$day/$month/$year';
 }
 
+String _requiredLabel(String label) => '$label *';
+
 class EditableOvaFollowUpAction {
   const EditableOvaFollowUpAction({
     this.id,
@@ -356,9 +358,9 @@ class _OvaFollowUpActionEditorDialogState
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Sectie',
-                style: TextStyle(fontWeight: FontWeight.w700),
+              Text(
+                _requiredLabel('Sectie'),
+                style: const TextStyle(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 10),
               Wrap(
@@ -390,8 +392,8 @@ class _OvaFollowUpActionEditorDialogState
                 controller: _descriptionController,
                 minLines: 3,
                 maxLines: 5,
-                decoration: const InputDecoration(
-                  labelText: 'Omschrijving',
+                decoration: InputDecoration(
+                  labelText: _requiredLabel('Omschrijving'),
                   alignLabelWithHint: true,
                 ),
               ),
@@ -400,7 +402,7 @@ class _OvaFollowUpActionEditorDialogState
                 children: [
                   Expanded(
                     child: Text(
-                      'Deadline: ${formatOvaActionDate(_dueDate)}',
+                      '${_requiredLabel('Deadline')}: ${formatOvaActionDate(_dueDate)}',
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
                         color: Color(0xFF2B3424),
@@ -415,9 +417,9 @@ class _OvaFollowUpActionEditorDialogState
                 ],
               ),
               const SizedBox(height: 18),
-              const Text(
-                'Verantwoordelijke',
-                style: TextStyle(fontWeight: FontWeight.w700),
+              Text(
+                _requiredLabel('Verantwoordelijke'),
+                style: const TextStyle(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 10),
               Wrap(
@@ -451,8 +453,8 @@ class _OvaFollowUpActionEditorDialogState
               if (_assigneeType == 'internal')
                 DropdownButtonFormField<OvaTicketUser>(
                   initialValue: _selectedInternalUser,
-                  decoration: const InputDecoration(
-                    labelText: 'Dashboard gebruiker',
+                  decoration: InputDecoration(
+                    labelText: _requiredLabel('Dashboard gebruiker'),
                   ),
                   items: widget.assignableUsers
                       .map(
@@ -471,12 +473,16 @@ class _OvaFollowUpActionEditorDialogState
               if (_assigneeType == 'external') ...[
                 TextField(
                   controller: _firstNameController,
-                  decoration: const InputDecoration(labelText: 'Voornaam'),
+                  decoration: InputDecoration(
+                    labelText: _requiredLabel('Voornaam'),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _lastNameController,
-                  decoration: const InputDecoration(labelText: 'Achternaam'),
+                  decoration: InputDecoration(
+                    labelText: _requiredLabel('Achternaam'),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(

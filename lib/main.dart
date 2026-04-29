@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:qa_dashboard/screens/account_management_screen.dart';
-
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/reset_password_screen.dart';
@@ -9,6 +8,7 @@ import 'services/account_management_service.dart';
 import 'services/auth_service.dart';
 import 'theme/app_theme.dart';
 import 'services/notification_service.dart';
+
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();

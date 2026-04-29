@@ -1013,7 +1013,7 @@ class _CreateJapFormState extends State<_CreateJapForm> {
             const SizedBox(height: 12),
 
             DropdownButtonFormField<String>(
-              value: _domein,
+              initialValue: _domein,
               items: ['Arbeidsveiligheid', 'Welzijnbeleid']
                   .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                   .toList(),
@@ -1026,7 +1026,7 @@ class _CreateJapFormState extends State<_CreateJapForm> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _risico,
+                    initialValue: _risico,
                     items: ['Algemeen']
                         .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                         .toList(),
@@ -1049,7 +1049,7 @@ class _CreateJapFormState extends State<_CreateJapForm> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _prioriteit,
+                    initialValue: _prioriteit,
                     items: ['Hoge prioriteit', 'Middelhoge prioriteit', 'Lage prioriteit']
                         .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                         .toList(),
@@ -1060,7 +1060,7 @@ class _CreateJapFormState extends State<_CreateJapForm> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _realisatie,
+                    initialValue: _realisatie,
                     items: ['Uitgevoerd', 'In uitvoering', 'Nog niet uitgevoerd']
                         .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                         .toList(),
@@ -1233,7 +1233,7 @@ class _CreateGppFormState extends State<_CreateGppForm> {
             const SizedBox(height: 12),
 
             DropdownButtonFormField<String>(
-              value: _domein,
+              initialValue: _domein,
               items: ['Arbeidsveiligheid', 'Welzijnbeleid']
                   .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                   .toList(),
@@ -1246,7 +1246,7 @@ class _CreateGppFormState extends State<_CreateGppForm> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _risico,
+                    initialValue: _risico,
                     items: ['Algemeen']
                         .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                         .toList(),
@@ -1269,7 +1269,7 @@ class _CreateGppFormState extends State<_CreateGppForm> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _prioriteit,
+                    initialValue: _prioriteit,
                     items: ['Hoge prioriteit', 'Middelhoge prioriteit', 'Lage prioriteit']
                         .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                         .toList(),
@@ -1280,7 +1280,7 @@ class _CreateGppFormState extends State<_CreateGppForm> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _realisatie,
+                    initialValue: _realisatie,
                     items: ['Uitgevoerd', 'In uitvoering', 'Nog niet uitgevoerd']
                         .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                         .toList(),

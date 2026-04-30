@@ -231,9 +231,18 @@ class _DashboardBodyState extends State<_DashboardBody> {
 
   @override
   Widget build(BuildContext context) {
-    final user = widget.authService.user!;
-    final hasOvaAccess =
-        user.isAdmin || user.access.ova || user.access.basis;
+    final user = widget.authService.user;
+    if (user == null) {
+      // Auth state not yet initialized or user not available — show loader
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 60),
+          child: CircularProgressIndicator(color: Color(0xFF8CC63F)),
+        ),
+      );
+    }
+
+    final hasOvaAccess = user.isAdmin || user.access.ova || user.access.basis;
 
     return RefreshIndicator(
       onRefresh: _loadData,

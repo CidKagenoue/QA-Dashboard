@@ -495,6 +495,19 @@ class ApiService {
     );
   }
 
+  static Future<void> markNotificationsAsRead({
+    required String token,
+    required List<int> notificationIds,
+  }) async {
+    await _requestObject(
+      () => http.patch(
+        Uri.parse('$baseUrl/notifications/mark-read'),
+        headers: _headers(token: token),
+        body: json.encode({'notificationIds': notificationIds}),
+      ),
+    );
+  }
+
   static Future<void> markAllNotificationsAsRead({
     required String token,
   }) async {

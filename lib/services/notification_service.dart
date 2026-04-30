@@ -112,9 +112,10 @@ class NotificationService extends ChangeNotifier {
   Future<void> markAsRead(List<int> notificationIds) async {
     if (notificationIds.isEmpty) return;
     final token = await _requireToken();
-    for (final id in notificationIds) {
-      await ApiService.markNotificationAsRead(token: token, notificationId: id);
-    }
+    await ApiService.markNotificationsAsRead(
+      token: token,
+      notificationIds: notificationIds,
+    );
     final ids = notificationIds.toSet();
     _notifications = _notifications
         .map(

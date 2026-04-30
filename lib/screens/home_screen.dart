@@ -7,6 +7,7 @@ import '../models/ova_ticket.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import 'ova_dashboard_screen.dart';
+import 'maintenance_inspections_screen.dart';
 
 enum _HomeSection {
   dashboard,
@@ -105,7 +106,7 @@ class _HomeScreenState extends State<HomeScreen> {
       case _HomeSection.ova:
         return const OvaDashboardScreen();
       case _HomeSection.onderhoud:
-        return const Center(child: Text('Onderhoud & Keuringen'));
+        return const MaintenanceInspectionsScreen();
       case _HomeSection.japGpp:
         return const Center(child: Text('JAP & GPP'));
     }
@@ -231,9 +232,18 @@ class _DashboardBodyState extends State<_DashboardBody> {
 
   @override
   Widget build(BuildContext context) {
-    final user = widget.authService.user!;
-    final hasOvaAccess =
-        user.isAdmin || user.access.ova || user.access.basis;
+    final user = widget.authService.user;
+    if (user == null) {
+      // Auth state not yet initialized or user not available — show loader
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 60),
+          child: CircularProgressIndicator(color: Color(0xFF8CC63F)),
+        ),
+      );
+    }
+
+    final hasOvaAccess = user.isAdmin || user.access.ova || user.access.basis;
 
     return RefreshIndicator(
       onRefresh: _loadData,

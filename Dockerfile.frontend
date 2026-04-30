@@ -1,5 +1,5 @@
 # Build stage
-FROM dart:3.11 as builder
+FROM dart:3.11 AS builder
 
 WORKDIR /app
 

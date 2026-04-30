@@ -1,9 +1,10 @@
 // lib/screens/jap_detail_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:qa_dashboard/services/jap_gpp_api_service.dart';
 import '../models/jap_gpp_entry.dart';
 
-class JapDetailScreen extends StatelessWidget {
+class JapDetailScreen extends StatefulWidget {
   final JapEntry entry;
   final String token;
 
@@ -12,6 +13,37 @@ class JapDetailScreen extends StatelessWidget {
     required this.entry,
     required this.token,
   });
+
+  @override
+  State<JapDetailScreen> createState() => _JapDetailScreenState();
+}
+
+class _JapDetailScreenState extends State<JapDetailScreen> {
+  late final TextEditingController _remarkController;
+  late final TextEditingController _goalController;
+  late final TextEditingController _executorController;
+  bool _editingRemark = false;
+  bool _editingAll = false;
+  late JapRealisation _selectedRealisation;
+  late JapPriority _selectedPriority;
+
+  @override
+  void initState() {
+    super.initState();
+    _remarkController = TextEditingController(text: widget.entry.remark);
+    _goalController = TextEditingController(text: widget.entry.goalMeasure);
+    _executorController = TextEditingController(text: widget.entry.executor);
+    _selectedRealisation = widget.entry.realisation;
+    _selectedPriority = widget.entry.priority;
+  }
+
+  @override
+  void dispose() {
+    _remarkController.dispose();
+    _goalController.dispose();
+    _executorController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -178,14 +210,21 @@ class JapDetailScreen extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
-          'ID ${entry.id.toString().padLeft(4, '0')}',
+          'ID ${widget.entry.id.toString().padLeft(4, '0')}',
           style: const TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w700,
             color: Color(0xFF243022),
           ),
         ),
-        Icon(Icons.edit_outlined, size: 18, color: Colors.grey[400]),
+        GestureDetector(
+          onTap: () => setState(() => _editingAll = !_editingAll),
+          child: Icon(
+            _editingAll ? Icons.edit : Icons.edit_outlined,
+            size: 18,
+            color: _editingAll ? const Color(0xFF8CC63F) : Colors.grey[400],
+          ),
+        ),
       ],
     );
   }
@@ -197,40 +236,22 @@ class JapDetailScreen extends StatelessWidget {
         Text('Doelstelling – maatregel',
             style: TextStyle(fontSize: 12, color: Colors.grey[500])),
         const SizedBox(height: 4),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Text(
-                entry.goalMeasure,
+        _editingAll
+            ? TextField(
+                controller: _goalController,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  hintText: 'Doelstelling – maatregel',
+                ),
+              )
+            : Text(
+                _goalController.text,
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                   color: Color(0xFF243022),
                 ),
               ),
-            ),
-            const SizedBox(width: 24),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '01.01.${entry.year}',
-                  style: const TextStyle(fontSize: 13, color: Color(0xFF2F382E)),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Uitvoerder',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                ),
-                Text(
-                  '31.12.${entry.year}',
-                  style: const TextStyle(fontSize: 13, color: Color(0xFF2F382E)),
-                ),
-              ],
-            ),
-          ],
-        ),
       ],
     );
   }
@@ -239,15 +260,9 @@ class JapDetailScreen extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: _buildLabelValue('Domein', entry.domain, bold: true),
-        ),
-        Expanded(
-          child: _buildLabelValue('Start datum', '01/01/${entry.year}'),
-        ),
-        Expanded(
-          child: _buildLabelValue('Einddatum', '31/12/${entry.year}'),
-        ),
+        Expanded(child: _buildLabelValue('Domein', widget.entry.domain, bold: true)),
+        Expanded(child: _buildLabelValue('Start datum', '01/01/${widget.entry.year}')),
+        Expanded(child: _buildLabelValue('Einddatum', '31/12/${widget.entry.year}')),
       ],
     );
   }
@@ -256,13 +271,20 @@ class JapDetailScreen extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Expanded(child: _buildLabelValue('Risicoveld', 'Algemeen', bold: true)),
         Expanded(
-          child: _buildLabelValue('Risicoveld', 'Algemeen', bold: true),
-        ),
-        Expanded(
-          child: _buildLabelValue(
-            'Uitvoerder',
-            entry.executor.isNotEmpty ? entry.executor : '—',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Uitvoerder', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+              const SizedBox(height: 4),
+              _editingAll
+                  ? TextField(controller: _executorController)
+                  : Text(
+                      _executorController.text.isNotEmpty ? _executorController.text : '—',
+                      style: const TextStyle(fontSize: 13, color: Color(0xFF243022)),
+                    ),
+            ],
           ),
         ),
         const Expanded(child: SizedBox()),
@@ -280,7 +302,18 @@ class JapDetailScreen extends StatelessWidget {
             children: [
               Text('Prioriteit', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
               const SizedBox(height: 6),
-              _buildPriorityBadge(),
+              _editingAll
+                  ? DropdownButton<JapPriority>(
+                      value: _selectedPriority,
+                      isExpanded: true,
+                      items: const [
+                        DropdownMenuItem(value: JapPriority.high, child: Text('Hoge prioriteit')),
+                        DropdownMenuItem(value: JapPriority.medium, child: Text('Middelhoge prioriteit')),
+                        DropdownMenuItem(value: JapPriority.low, child: Text('Lage prioriteit')),
+                      ],
+                      onChanged: (v) => setState(() => _selectedPriority = v!),
+                    )
+                  : _buildPriorityBadge(),
             ],
           ),
         ),
@@ -290,7 +323,19 @@ class JapDetailScreen extends StatelessWidget {
             children: [
               Text('Realisatie', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
               const SizedBox(height: 6),
-              _buildRealisationLabel(),
+              _editingAll
+                  ? DropdownButton<JapRealisation>(
+                      value: _selectedRealisation,
+                      isExpanded: true,
+                      items: const [
+                        DropdownMenuItem(value: JapRealisation.completed, child: Text('Uitgevoerd')),
+                        DropdownMenuItem(value: JapRealisation.inProgress, child: Text('In uitvoering')),
+                        DropdownMenuItem(value: JapRealisation.notYetCompleted, child: Text('Nog niet uitgevoerd')),
+                        DropdownMenuItem(value: JapRealisation.fillIn, child: Text('Vul aan')),
+                      ],
+                      onChanged: (v) => setState(() => _selectedRealisation = v!),
+                    )
+                  : _buildRealisationLabel(),
             ],
           ),
         ),
@@ -323,30 +368,126 @@ class JapDetailScreen extends StatelessWidget {
       children: [
         Text('Opmerkingen', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
         const SizedBox(height: 8),
-        entry.remark.isNotEmpty
-            ? Text(
-                entry.remark,
-                style: const TextStyle(fontSize: 13, color: Color(0xFF2F382E)),
-              )
-            : GestureDetector(
-                onTap: () {},
-                child: Row(
-                  children: [
-                    Icon(Icons.add, size: 14, color: Colors.grey[500]),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Toevoegen',
-                      style: TextStyle(fontSize: 13, color: Colors.grey[500]),
-                    ),
-                  ],
+        if (_editingRemark)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: _remarkController,
+                autofocus: true,
+                maxLines: 4,
+                decoration: InputDecoration(
+                  hintText: 'Voeg een opmerking toe...',
+                  hintStyle: TextStyle(fontSize: 13, color: Colors.grey[400]),
                 ),
               ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => setState(() => _editingRemark = false),
+                    child: const Text('Annuleren',
+                        style: TextStyle(color: Color(0xFF6B7A62))),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () async {
+                      try {
+                        await JapApiService.updateRemark(
+                          token: widget.token,
+                          id: widget.entry.id,
+                          remark: _remarkController.text.trim(),
+                        );
+                        setState(() => _editingRemark = false);
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Fout bij opslaan: ${e.toString()}')),
+                          );
+                        }
+                      }
+                    },
+                    child: const Text('Opslaan'),
+                  ),
+                ],
+              ),
+            ],
+          )
+        else if (_remarkController.text.isNotEmpty)
+          GestureDetector(
+            onTap: () => setState(() => _editingRemark = true),
+            child: Text(
+              _remarkController.text,
+              style: const TextStyle(fontSize: 13, color: Color(0xFF2F382E)),
+            ),
+          )
+        else
+          GestureDetector(
+            onTap: () => setState(() => _editingRemark = true),
+            child: Row(
+              children: [
+                Icon(Icons.add, size: 14, color: Colors.grey[500]),
+                const SizedBox(width: 4),
+                Text('Toevoegen',
+                    style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+              ],
+            ),
+          ),
+        if (_editingAll) ...[
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: () {
+                  _goalController.text = widget.entry.goalMeasure;
+                  _executorController.text = widget.entry.executor;
+                  setState(() {
+                    _editingAll = false;
+                    _selectedPriority = widget.entry.priority;
+                    _selectedRealisation = widget.entry.realisation;
+                  });
+                },
+                child: const Text('Annuleren',
+                    style: TextStyle(color: Color(0xFF6B7A62))),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: () async {
+                  try {
+                    await JapApiService.updateJapEntry(
+                      token: widget.token,
+                      id: widget.entry.id,
+                      payload: {
+                        'doelstellingMaatregel': _goalController.text.trim(),
+                        'uitvoerder': _executorController.text.trim(),
+                        'prioriteit': _priorityToString(_selectedPriority),
+                        'realisatie': _realisationToString(_selectedRealisation),
+                        'opmerking': _remarkController.text.trim(),
+                      },
+                    );
+                    setState(() => _editingAll = false);
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Fout bij opslaan: ${e.toString()}')),
+                      );
+                    }
+                  }
+                },
+                child: const Text('Opslaan'),
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }
+  
 
   Widget _buildStatusBadge() {
-    final (label, backgroundColor, foregroundColor) = switch (entry.realisation) {
+    final (label, backgroundColor, foregroundColor) = switch (widget.entry.realisation) {
       JapRealisation.completed => ('Actief', const Color(0xFFEAF4D9), const Color(0xFF4A7A1E)),
       JapRealisation.inProgress => ('In uitvoering', const Color(0xFFE3F0FF), const Color(0xFF1565C0)),
       JapRealisation.notYetCompleted => ('Niet uitgevoerd', const Color(0xFFFFEDED), const Color(0xFFD32F2F)),
@@ -362,14 +503,11 @@ class JapDetailScreen extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: foregroundColor,
-            ),
-          ),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: foregroundColor)),
           const SizedBox(width: 4),
           Icon(Icons.keyboard_arrow_down, size: 16, color: foregroundColor),
         ],
@@ -378,7 +516,7 @@ class JapDetailScreen extends StatelessWidget {
   }
 
   Widget _buildPriorityBadge() {
-    final (label, backgroundColor, foregroundColor) = switch (entry.priority) {
+    final (label, backgroundColor, foregroundColor) = switch (widget.entry.priority) {
       JapPriority.high => ('Hoge prioriteit', const Color(0xFFFFEDED), const Color(0xFFD32F2F)),
       JapPriority.medium => ('Middelhoge prioriteit', const Color(0xFFFFF8E1), const Color(0xFFF57F17)),
       JapPriority.low => ('Lage prioriteit', const Color(0xFFF1F1F1), const Color(0xFF757575)),
@@ -390,28 +528,40 @@ class JapDetailScreen extends StatelessWidget {
         color: backgroundColor,
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: foregroundColor,
-        ),
-      ),
+      child: Text(label,
+          style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: foregroundColor)),
     );
   }
 
   Widget _buildRealisationLabel() {
-    final (label, color) = switch (entry.realisation) {
+    final (label, color) = switch (widget.entry.realisation) {
       JapRealisation.inProgress => ('In Uitvoering', const Color(0xFF1565C0)),
       JapRealisation.completed => ('Uitgevoerd', const Color(0xFF2E7D32)),
       JapRealisation.notYetCompleted => ('Nog niet uitgevoerd', const Color(0xFFD32F2F)),
       JapRealisation.fillIn => ('Vul aan', const Color(0xFF6B7A62)),
     };
 
-    return Text(
-      label,
-      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color),
-    );
+    return Text(label,
+        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color));
+  }
+
+  String _priorityToString(JapPriority p) {
+    switch (p) {
+      case JapPriority.high: return 'hoog';
+      case JapPriority.medium: return 'middel';
+      case JapPriority.low: return 'laag';
+    }
+  }
+
+  String _realisationToString(JapRealisation r) {
+    switch (r) {
+      case JapRealisation.completed: return 'uitgevoerd';
+      case JapRealisation.inProgress: return 'in_uitvoering';
+      case JapRealisation.notYetCompleted: return 'neg_niet_uitgevoerd';
+      case JapRealisation.fillIn: return 'vul_aan';
+    }
   }
 }

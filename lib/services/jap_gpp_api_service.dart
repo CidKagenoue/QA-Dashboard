@@ -64,6 +64,25 @@ class JapApiService {
 
   // ── JAP ──────────────────────────────────────────────────────────────────
 
+  static Future<void> updateJapEntry({
+    required String token,
+    required int id,
+    required Map<String, dynamic> payload,
+  }) async {
+    final response = await http.patch(
+      Uri.parse('${ApiService.baseUrl}/jap/$id'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode(payload),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Opslaan mislukt: ${response.statusCode}');
+    }
+  }
+
   static Future<List<JapEntry>> fetchJapEntries({
     required String token,
     String? search,
@@ -116,5 +135,24 @@ class JapApiService {
     }
     final error = jsonDecode(response.body);
     throw Exception(error['message'] ?? 'JAP aanmaken mislukt');
+  }
+
+  static Future<void> updateRemark({
+    required String token,
+    required int id,
+    required String remark,
+  }) async {
+    final response = await http.patch(
+      Uri.parse('${ApiService.baseUrl}/jap/$id'),  // ← dit was $baseUrl
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'opmerking': remark}),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Opmerking opslaan mislukt: ${response.statusCode}');
+    }
   }
 }

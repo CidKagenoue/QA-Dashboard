@@ -43,7 +43,10 @@ class NotificationService extends ChangeNotifier {
 
     _authService = authService;
 
+    debugPrint('[NotificationService] bindAuth called. prevUser=$previousUserId prevTokenPresent=${previousToken!=null} isAuthenticated=${authService.isAuthenticated}');
+
     if (!authService.isAuthenticated) {
+      debugPrint('[NotificationService] User not authenticated — resetting notifications');
       _reset();
       return;
     }
@@ -53,6 +56,7 @@ class NotificationService extends ChangeNotifier {
         previousToken != authService.token;
 
     if (authChanged) {
+      debugPrint('[NotificationService] Auth changed (prev=$previousUserId -> now=${authService.user?.id}). Scheduling initial load.');
       _hasLoaded = false;
       _notifications = const [];
       _unreadCount = 0;
@@ -67,7 +71,18 @@ class NotificationService extends ChangeNotifier {
   }
 
   Future<void> loadNotifications({int limit = 50}) async {
-    final token = await _requireToken();
+    debugPrint('[NotificationService] loadNotifications called (limit=$limit)');
+    String token;
+    try {
+      token = await _requireToken();
+      debugPrint('[NotificationService] loadNotifications got token (len=${token.length})');
+    } catch (e) {
+      debugPrint('[NotificationService] loadNotifications failed to get token: $e');
+      _isLoading = false;
+      notifyListeners();
+      return;
+    }
+
     _isLoading = true;
     notifyListeners();
 
@@ -77,6 +92,8 @@ class NotificationService extends ChangeNotifier {
         limit: limit,
       );
 
+      debugPrint('[NotificationService] fetchNotifications returned ${response.length} items');
+
       _notifications = response.map(AppNotification.fromJson).toList();
       // DEBUG LOGGING
       debugPrint('[NOTIFICATIONS] Opgehaald: ${_notifications.length}');
@@ -85,6 +102,9 @@ class NotificationService extends ChangeNotifier {
       }
       _unreadCount = _notifications.where((item) => !item.isRead).length;
       _hasLoaded = true;
+    } catch (e) {
+      debugPrint('[NotificationService] loadNotifications FAILED: $e');
+      _hasLoaded = false;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -94,18 +114,22 @@ class NotificationService extends ChangeNotifier {
   Future<void> refreshUnreadCount() async {
     final authService = _authService;
     if (authService == null || !authService.isAuthenticated) {
+      debugPrint('[NotificationService] refreshUnreadCount: authService null or not authenticated');
       _unreadCount = 0;
       notifyListeners();
       return;
     }
-
+    debugPrint('[NotificationService] refreshUnreadCount called for user ${authService.user?.id}');
+    
     try {
       final token = await _requireToken();
       final count = await ApiService.fetchUnreadNotificationCount(token: token);
       _unreadCount = count;
+      debugPrint('[NotificationService] refreshUnreadCount -> $count');
       notifyListeners();
-    } catch (_) {
-      // Avoid surfacing badge refresh failures globally.
+    } catch (e) {
+      debugPrint('[NotificationService] refreshUnreadCount FAILED: $e');
+      notifyListeners();
     }
   }
 
@@ -163,6 +187,7 @@ class NotificationService extends ChangeNotifier {
   Future<String> _requireToken() async {
     final authService = _authService;
     if (authService == null || !authService.isAuthenticated) {
+      debugPrint('[NotificationService] _requireToken: no authService or not authenticated');
       throw Exception('Not authenticated');
     }
 

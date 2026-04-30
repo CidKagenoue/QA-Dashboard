@@ -16,23 +16,48 @@ class JapDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6F2),
       body: Column(
         children: [
+          _buildAppBar(context),
           _buildBreadcrumb(context),
+          _buildTabBar(),
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeader(context),
-                  const SizedBox(height: 16),
-                  _buildCard(context),
-                ],
-              ),
+              padding: const EdgeInsets.all(24),
+              child: _buildCard(context),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAppBar(BuildContext context) {
+    return Container(
+      color: const Color(0xFF8CC63F),
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + 8,
+        left: 16,
+        right: 16,
+        bottom: 12,
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.menu, color: Colors.white, size: 24),
+          const SizedBox(width: 12),
+          const Text(
+            'Vlotter',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const Spacer(),
+          const Icon(Icons.notifications_outlined, color: Colors.white, size: 24),
+          const SizedBox(width: 16),
+          const Icon(Icons.settings_outlined, color: Colors.white, size: 24),
         ],
       ),
     );
@@ -41,42 +66,34 @@ class JapDetailScreen extends StatelessWidget {
   Widget _buildBreadcrumb(BuildContext context) {
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 12),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
       child: Row(
         children: [
-          Row(
-            children: [
-              GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: Text(
-                  'Dashboard',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Icon(Icons.chevron_right, size: 14, color: Colors.grey[400]),
-              ),
-              GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: Text(
-                  'JAP & GPP',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Icon(Icons.chevron_right, size: 14, color: Colors.grey[400]),
-              ),
-              Text(
-                'JAP',
-                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-              ),
-            ],
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Text('Dashboard', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
           ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Icon(Icons.chevron_right, size: 16, color: Colors.grey[400]),
+          ),
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Text('JAP & GPP', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Icon(Icons.chevron_right, size: 16, color: Colors.grey[400]),
+          ),
+          Text('JAP', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
           const Spacer(),
           TextButton(
             onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
             child: const Text(
               'Sluiten',
               style: TextStyle(
@@ -91,22 +108,10 @@ class JapDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
-    return Container(
-      color: Colors.white,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 4),
-          _buildTabBar(),
-        ],
-      ),
-    );
-  }
-
   Widget _buildTabBar() {
     return Container(
       color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
       child: Row(
         children: [
           _buildTab('Basisinformatie', isSelected: true),
@@ -144,7 +149,7 @@ class JapDetailScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE4E9DD)),
       ),
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -152,8 +157,8 @@ class JapDetailScreen extends StatelessWidget {
           const SizedBox(height: 12),
           _buildStatusBadge(),
           const SizedBox(height: 20),
-          _buildGoalRow(),
-          const SizedBox(height: 24),
+          _buildGoalSection(),
+          const SizedBox(height: 20),
           const Divider(color: Color(0xFFE4E9DD)),
           const SizedBox(height: 16),
           _buildDomainDateRow(),
@@ -180,25 +185,23 @@ class JapDetailScreen extends StatelessWidget {
             color: Color(0xFF243022),
           ),
         ),
-        Icon(Icons.edit_outlined, size: 18, color: Colors.grey[500]),
+        Icon(Icons.edit_outlined, size: 18, color: Colors.grey[400]),
       ],
     );
   }
 
-  Widget _buildGoalRow() {
-    return Row(
+  Widget _buildGoalSection() {
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Doelstelling – maatregel',
-                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-              ),
-              const SizedBox(height: 4),
-              Text(
+        Text('Doelstelling – maatregel',
+            style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+        const SizedBox(height: 4),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Text(
                 entry.goalMeasure,
                 style: const TextStyle(
                   fontSize: 15,
@@ -206,25 +209,25 @@ class JapDetailScreen extends StatelessWidget {
                   color: Color(0xFF243022),
                 ),
               ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 24),
-        Text(
-          '01.01.${entry.year}',
-          style: const TextStyle(fontSize: 13, color: Color(0xFF2F382E)),
-        ),
-        const SizedBox(width: 24),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Uitvoerder',
-              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
             ),
-            Text(
-              '31.12.${entry.year}',
-              style: const TextStyle(fontSize: 13, color: Color(0xFF2F382E)),
+            const SizedBox(width: 24),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '01.01.${entry.year}',
+                  style: const TextStyle(fontSize: 13, color: Color(0xFF2F382E)),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Uitvoerder',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                ),
+                Text(
+                  '31.12.${entry.year}',
+                  style: const TextStyle(fontSize: 13, color: Color(0xFF2F382E)),
+                ),
+              ],
             ),
           ],
         ),
@@ -237,47 +240,13 @@ class JapDetailScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Domein', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-              const SizedBox(height: 4),
-              Text(
-                entry.domain,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF243022),
-                ),
-              ),
-            ],
-          ),
+          child: _buildLabelValue('Domein', entry.domain, bold: true),
         ),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Start datum', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-              const SizedBox(height: 4),
-              Text(
-                '01/01/${entry.year}',
-                style: const TextStyle(fontSize: 13, color: Color(0xFF2F382E)),
-              ),
-            ],
-          ),
+          child: _buildLabelValue('Start datum', '01/01/${entry.year}'),
         ),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Einddatum', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-              const SizedBox(height: 4),
-              Text(
-                '31/12/${entry.year}',
-                style: const TextStyle(fontSize: 13, color: Color(0xFF2F382E)),
-              ),
-            ],
-          ),
+          child: _buildLabelValue('Einddatum', '31/12/${entry.year}'),
         ),
       ],
     );
@@ -288,37 +257,12 @@ class JapDetailScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Risicoveld', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-              const SizedBox(height: 4),
-              const Text(
-                'Algemeen',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF243022),
-                ),
-              ),
-            ],
-          ),
+          child: _buildLabelValue('Risicoveld', 'Algemeen', bold: true),
         ),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Uitvoerder', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-              const SizedBox(height: 4),
-              Text(
-                entry.executor.isNotEmpty ? entry.executor : '—',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF243022),
-                ),
-              ),
-            ],
+          child: _buildLabelValue(
+            'Uitvoerder',
+            entry.executor.isNotEmpty ? entry.executor : '—',
           ),
         ),
         const Expanded(child: SizedBox()),
@@ -335,7 +279,7 @@ class JapDetailScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Prioriteit', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               _buildPriorityBadge(),
             ],
           ),
@@ -345,12 +289,30 @@ class JapDetailScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Realisatie', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               _buildRealisationLabel(),
             ],
           ),
         ),
         const Expanded(child: SizedBox()),
+      ],
+    );
+  }
+
+  Widget _buildLabelValue(String label, String value, {bool bold = false}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: bold ? 15 : 13,
+            fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
+            color: const Color(0xFF243022),
+          ),
+        ),
       ],
     );
   }
@@ -368,13 +330,13 @@ class JapDetailScreen extends StatelessWidget {
               )
             : GestureDetector(
                 onTap: () {},
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(Icons.add, size: 14, color: Color(0xFF6B7A62)),
-                    SizedBox(width: 4),
+                    Icon(Icons.add, size: 14, color: Colors.grey[500]),
+                    const SizedBox(width: 4),
                     Text(
                       'Toevoegen',
-                      style: TextStyle(fontSize: 13, color: Color(0xFF6B7A62)),
+                      style: TextStyle(fontSize: 13, color: Colors.grey[500]),
                     ),
                   ],
                 ),

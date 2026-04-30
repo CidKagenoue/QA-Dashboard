@@ -729,69 +729,47 @@ class _JapGppScreenState extends State<JapGppScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => JapDetailScreen(
-            entry: entry,
-            token: widget.token,
-          ),
+          builder: (_) => JapDetailScreen(entry: entry, token: widget.token),
         ),
       );
     }
+
+    Widget tappable(Widget child) => GestureDetector(onTap: openDetail, child: child);
 
     return TableRow(
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: Color(0xFFF0F2EC))),
       ),
       children: [
-        GestureDetector(
-          onTap: openDetail,
-          child: Padding(
-            padding: const EdgeInsets.only(left: 12, top: 14, bottom: 14),
-            child: Icon(Icons.insert_drive_file_outlined, size: 18, color: Colors.grey[400]),
-          ),
-        ),
-        GestureDetector(
-          onTap: openDetail,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-            child: Text(
-              entry.yearLabel,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF243022)),
-            ),
-          ),
-        ),
-        GestureDetector(
-          onTap: openDetail,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-            child: Text(
-              entry.goalMeasure,
+        tappable(Padding(
+          padding: const EdgeInsets.only(left: 12, top: 14, bottom: 14),
+          child: Icon(Icons.insert_drive_file_outlined, size: 18, color: Colors.grey[400]),
+        )),
+        tappable(Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+          child: Text(entry.yearLabel,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF243022))),
+        )),
+        tappable(Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+          child: Text(entry.goalMeasure,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 13, color: Color(0xFF2F382E)),
-            ),
-          ),
-        ),
-        GestureDetector(
-          onTap: openDetail,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-            child: Text(entry.domain, style: const TextStyle(fontSize: 13, color: Color(0xFF4D5548))),
-          ),
-        ),
-        GestureDetector(
-          onTap: openDetail,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-            child: _PriorityBadge(priority: entry.priority),
-          ),
-        ),
-        GestureDetector(
-          onTap: openDetail,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-            child: _RealisatieLabel(realisatie: entry.realisation),
-          ),
-        ),
+              style: const TextStyle(fontSize: 13, color: Color(0xFF2F382E))),
+        )),
+        tappable(Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+          child: Text(entry.domain,
+              style: const TextStyle(fontSize: 13, color: Color(0xFF4D5548))),
+        )),
+        tappable(Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+          child: _PriorityBadge(priority: entry.priority),
+        )),
+        tappable(Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+          child: _RealisatieLabel(realisatie: entry.realisation),
+        )),
       ],
     );
   }

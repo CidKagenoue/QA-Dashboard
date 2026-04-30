@@ -213,6 +213,7 @@ enum NotificationModule {
     JAP_COMMENT
     JAP_STATUS_CHANGE
     MAINTENANCE_DUE
+    MAINTENANCE_STATUS_CHANGE
   }
 
 model NotificationSetting {

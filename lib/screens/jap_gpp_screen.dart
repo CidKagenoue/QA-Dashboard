@@ -2,10 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:qa_dashboard/services/jap_api_service.dart';
-import '../models/jap_entry.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import '../services/api_service.dart';
+import '../models/jap_gpp_entry.dart';
 
 // ---------------------------------------------------------------------------
 // Screen
@@ -31,41 +28,40 @@ class _JapGppScreenState extends State<JapGppScreen> {
 
   // ── search ────────────────────────────────────────────────────────────────
   final _searchController = TextEditingController();
+  final _gppSearchController = TextEditingController();
+  List<GppEntry> _filteredGpp = [];
+  String? _filterGppDomein;
 
-  String? _filterPriority; // 'hoog' | 'middel' | 'laag' | null
+  String? _filterPriority;
   int? _filterYear;
 
   // ── active tab (JAP | GPP) ────────────────────────────────────────────────
   int _tabIndex = 0;
-  List<dynamic> _allGppEntries = [];
+  List<GppEntry> _allGppEntries = [];
 
   Future<void> _loadGppEntries() async {
     try {
-      final response = await http.get(
-        Uri.parse('${ApiService.baseUrl}/gpp'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${widget.token}',
-        },
-      );
-      final payload = jsonDecode(response.body);
-      setState(() {
-        _allGppEntries = payload['entries'] ?? [];
-      });
+      final entries = await JapApiService.fetchGppEntries(token: widget.token);
+      setState(() => _allGppEntries = entries);
+      _applyGppFilter(); // ← voeg toe
     } catch (e) {
-      // ignore voor nu
+      // optioneel: fout tonen
     }
   }
+
   @override
-    void initState() {
-      super.initState();
-      _loadEntries();
-      _loadGppEntries(); // ← toevoegen
-      _searchController.addListener(_applyFilter);
-    }
+  void initState() {
+    super.initState();
+    _loadEntries();
+    _loadGppEntries();
+    _searchController.addListener(_applyFilter);
+    _gppSearchController.addListener(_applyGppFilter); // ← voeg toe
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
+    _gppSearchController.dispose(); // ← voeg toe
     super.dispose();
   }
 
@@ -101,7 +97,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
         final matchesQuery =
             e.doelstellingMaatregel.toLowerCase().contains(query) ||
             e.domein.toLowerCase().contains(query) ||
-            e.jaarLabel.contains(query);
+            e.jaar.toString().contains(query);
         if (!matchesQuery) return false;
       }
       if (_filterPriority != null) {
@@ -118,6 +114,23 @@ class _JapGppScreenState extends State<JapGppScreen> {
     }).toList();
 
     setState(() => _filtered = result);
+  }
+
+  void _applyGppFilter() {
+    final query = _gppSearchController.text.toLowerCase();
+    var result = _allGppEntries.where((e) {
+      if (query.isNotEmpty) {
+        final matchesQuery =
+            e.doelstellingMaatregel.toLowerCase().contains(query) ||
+            e.domein.toLowerCase().contains(query) ||
+            e.jaarLabel.toLowerCase().contains(query);
+        if (!matchesQuery) return false;
+      }
+      if (_filterGppDomein != null && e.domein != _filterGppDomein) return false;
+      return true;
+    }).toList();
+
+    setState(() => _filteredGpp = result);
   }
 
   void _showFilterSheet() {
@@ -137,7 +150,6 @@ class _JapGppScreenState extends State<JapGppScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -166,8 +178,6 @@ class _JapGppScreenState extends State<JapGppScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
-
-                  // Priority filter
                   const Text(
                     'Prioriteit',
                     style: TextStyle(
@@ -213,8 +223,6 @@ class _JapGppScreenState extends State<JapGppScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
-
-                  // Year filter
                   const Text(
                     'Jaar',
                     style: TextStyle(
@@ -240,8 +248,6 @@ class _JapGppScreenState extends State<JapGppScreen> {
                     }).toList(),
                   ),
                   const SizedBox(height: 24),
-
-                  // Apply button
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -258,6 +264,86 @@ class _JapGppScreenState extends State<JapGppScreen> {
     );
   }
 
+  void _showGppFilterSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Filteren',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF243022),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          setState(() => _filterGppDomein = null);
+                          _applyGppFilter();
+                          setSheetState(() {});
+                        },
+                        child: const Text(
+                          'Wis filters',
+                          style: TextStyle(color: Color(0xFF6B7A62)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Domein',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF4D5548),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: ['Arbeidsveiligheid', 'Welzijnbeleid'].map((domein) {
+                      return _FilterChip(
+                        label: domein,
+                        selected: _filterGppDomein == domein,
+                        onTap: () {
+                          setState(() => _filterGppDomein =
+                              _filterGppDomein == domein ? null : domein);
+                          _applyGppFilter();
+                          setSheetState(() {});
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Toepassen'),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 
   void _showCreateJapDialog() {
     showDialog(
@@ -315,19 +401,12 @@ class _JapGppScreenState extends State<JapGppScreen> {
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
       child: Row(
         children: [
-          Text(
-            'Dashboard',
-            style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-          ),
+          Text('Dashboard', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
-            child:
-                Icon(Icons.chevron_right, size: 14, color: Colors.grey[400]),
+            child: Icon(Icons.chevron_right, size: 14, color: Colors.grey[400]),
           ),
-          Text(
-            'JAP & GPP',
-            style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-          ),
+          Text('JAP & GPP', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
         ],
       ),
     );
@@ -336,10 +415,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
   Widget _buildHeader() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
-      child: Text(
-        'JAP & GPP',
-        style: Theme.of(context).textTheme.headlineMedium,
-      ),
+      child: Text('JAP & GPP', style: Theme.of(context).textTheme.headlineMedium),
     );
   }
 
@@ -417,15 +493,13 @@ class _JapGppScreenState extends State<JapGppScreen> {
               SizedBox(
                 width: 260,
                 child: TextField(
+                  controller: _gppSearchController,
                   decoration: InputDecoration(
                     hintText: 'Zoeken',
                     hintStyle: const TextStyle(fontSize: 14),
                     prefixIcon: const Icon(Icons.search, size: 20),
                     isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(999),
                       borderSide: const BorderSide(color: Color(0xFFD7DBD2)),
@@ -436,10 +510,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(999),
-                      borderSide: const BorderSide(
-                        color: Color(0xFF8CC63F),
-                        width: 1.5,
-                      ),
+                      borderSide: const BorderSide(color: Color(0xFF8CC63F), width: 1.5),
                     ),
                     filled: true,
                     fillColor: Colors.white,
@@ -448,7 +519,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
               ),
               const SizedBox(width: 8),
               IconButton(
-                onPressed: null,
+                onPressed: _showGppFilterSheet,
                 icon: const Icon(Icons.filter_alt_outlined),
                 color: const Color(0xFF6B7A62),
               ),
@@ -462,9 +533,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(999),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
                 ),
               ),
             ],
@@ -483,11 +552,9 @@ class _JapGppScreenState extends State<JapGppScreen> {
                   child: Table(
                     columnWidths: const {
                       0: FixedColumnWidth(32),
-                      1: FixedColumnWidth(90),
+                      1: FixedColumnWidth(120),
                       2: FlexColumnWidth(3),
                       3: FlexColumnWidth(2),
-                      4: FlexColumnWidth(1.6),
-                      5: FlexColumnWidth(1.6),
                     },
                     children: [
                       TableRow(
@@ -496,64 +563,45 @@ class _JapGppScreenState extends State<JapGppScreen> {
                         ),
                         children: [
                           const SizedBox(height: 44),
-                          _buildHeaderCell('Jaar'),
+                          _buildHeaderCell('Periode'),
                           _buildHeaderCell('Doelstelling – maatregel'),
-                          _buildHeaderCell('Domein'),
-                          _buildHeaderCell('Prioriteit'),
-                          _buildHeaderCell('Realisatie', isLast: true),
+                          _buildHeaderCell('Domein', isLast: true),
                         ],
                       ),
-                      ..._allGppEntries.map((e) {
-                        final entry = e as Map<String, dynamic>;
-                        return TableRow(
-                          decoration: const BoxDecoration(
-                            border: Border(bottom: BorderSide(color: Color(0xFFF0F2EC))),
+                      ..._filteredGpp.map((entry) => TableRow(
+                        decoration: const BoxDecoration(
+                          border: Border(bottom: BorderSide(color: Color(0xFFF0F2EC))),
+                        ),
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(left: 12, top: 14, bottom: 14),
+                            child: Icon(Icons.insert_drive_file_outlined, size: 18, color: Colors.grey[400]),
                           ),
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(left: 12, top: 14, bottom: 14),
-                              child: Icon(Icons.insert_drive_file_outlined, size: 18, color: Colors.grey[400]),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+                            child: Text(
+                              entry.jaarLabel,
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF243022)),
                             ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-                              child: Text(
-                                entry['jaar']?.toString() ?? '',
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF243022)),
-                              ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+                            child: Text(
+                              entry.doelstellingMaatregel,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 13, color: Color(0xFF2F382E)),
                             ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-                              child: Text(
-                                entry['doelstellingMaatregel'] ?? '',
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 13, color: Color(0xFF2F382E)),
-                              ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+                            child: Text(
+                              entry.domein,
+                              style: const TextStyle(fontSize: 13, color: Color(0xFF4D5548)),
                             ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-                              child: Text(
-                                entry['domein'] ?? '',
-                                style: const TextStyle(fontSize: 13, color: Color(0xFF4D5548)),
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-                              child: Text(
-                                entry['prioriteit'] ?? '',
-                                style: const TextStyle(fontSize: 13, color: Color(0xFF4D5548)),
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-                              child: Text(
-                                entry['realisatie'] ?? '',
-                                style: const TextStyle(fontSize: 13, color: Color(0xFF4D5548)),
-                              ),
-                            ),
-                          ],
-                        );
-                      }),
+                          ),
+                        ],
+                      )),
                     ],
                   ),
                 ),
@@ -569,8 +617,6 @@ class _JapGppScreenState extends State<JapGppScreen> {
     return Row(
       children: [
         const Spacer(),
-
-        // Search bar
         SizedBox(
           width: 260,
           child: TextField(
@@ -580,10 +626,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
               hintStyle: const TextStyle(fontSize: 14),
               prefixIcon: const Icon(Icons.search, size: 20),
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 10,
-              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(999),
                 borderSide: const BorderSide(color: Color(0xFFD7DBD2)),
@@ -594,32 +637,23 @@ class _JapGppScreenState extends State<JapGppScreen> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(999),
-                borderSide: const BorderSide(
-                  color: Color(0xFF8CC63F),
-                  width: 1.5,
-                ),
+                borderSide: const BorderSide(color: Color(0xFF8CC63F), width: 1.5),
               ),
               filled: true,
               fillColor: Colors.white,
             ),
           ),
         ),
-
         const SizedBox(width: 8),
-
-        // Filter icon button
         IconButton(
           onPressed: _showFilterSheet,
           icon: const Icon(Icons.filter_alt_outlined),
           tooltip: 'Filteren',
           color: const Color(0xFF6B7A62),
         ),
-
         const SizedBox(width: 4),
-
-        // New entry button
         ElevatedButton.icon(
-          onPressed: _showCreateGppDialog,  // was: null
+          onPressed: _showCreateJapDialog,
           icon: const Icon(Icons.add, size: 18),
           label: const Text('Nieuw'),
           style: ElevatedButton.styleFrom(
@@ -627,9 +661,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(999),
-            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
           ),
         ),
       ],
@@ -648,12 +680,12 @@ class _JapGppScreenState extends State<JapGppScreen> {
         child: SingleChildScrollView(
           child: Table(
             columnWidths: const {
-              0: FixedColumnWidth(32),  // icon
-              1: FixedColumnWidth(90),  // jaar
-              2: FlexColumnWidth(3),    // doelstelling
-              3: FlexColumnWidth(2),    // domein
-              4: FlexColumnWidth(1.6),  // prioriteit
-              5: FlexColumnWidth(1.6),  // realisatie
+              0: FixedColumnWidth(32),
+              1: FixedColumnWidth(90),
+              2: FlexColumnWidth(3),
+              3: FlexColumnWidth(2),
+              4: FlexColumnWidth(1.6),
+              5: FlexColumnWidth(1.6),
             },
             children: [
               _buildHeaderRow(),
@@ -668,9 +700,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
   TableRow _buildHeaderRow() {
     return TableRow(
       decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Color(0xFFE4E9DD)),
-        ),
+        border: Border(bottom: BorderSide(color: Color(0xFFE4E9DD))),
       ),
       children: [
         const SizedBox(height: 44),
@@ -685,19 +715,10 @@ class _JapGppScreenState extends State<JapGppScreen> {
 
   Widget _buildHeaderCell(String label, {bool isLast = false}) {
     return Padding(
-      padding: EdgeInsets.only(
-        left: 8,
-        right: isLast ? 16 : 8,
-        top: 12,
-        bottom: 12,
-      ),
+      padding: EdgeInsets.only(left: 8, right: isLast ? 16 : 8, top: 12, bottom: 12),
       child: Text(
         label,
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: Color(0xFF6B7A62),
-        ),
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6B7A62)),
       ),
     );
   }
@@ -705,33 +726,20 @@ class _JapGppScreenState extends State<JapGppScreen> {
   TableRow _buildDataRow(JapEntry entry) {
     return TableRow(
       decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Color(0xFFF0F2EC)),
-        ),
+        border: Border(bottom: BorderSide(color: Color(0xFFF0F2EC))),
       ),
       children: [
-        // document icon
         Padding(
           padding: const EdgeInsets.only(left: 12, top: 14, bottom: 14),
-          child: Icon(
-            Icons.insert_drive_file_outlined,
-            size: 18,
-            color: Colors.grey[400],
-          ),
+          child: Icon(Icons.insert_drive_file_outlined, size: 18, color: Colors.grey[400]),
         ),
-        // jaar
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
           child: Text(
-            entry.jaarLabel,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF243022),
-            ),
+            entry.jaar.toString(),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF243022)),
           ),
         ),
-        // doelstelling
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
           child: Text(
@@ -741,20 +749,14 @@ class _JapGppScreenState extends State<JapGppScreen> {
             style: const TextStyle(fontSize: 13, color: Color(0xFF2F382E)),
           ),
         ),
-        // domein
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-          child: Text(
-            entry.domein,
-            style: const TextStyle(fontSize: 13, color: Color(0xFF4D5548)),
-          ),
+          child: Text(entry.domein, style: const TextStyle(fontSize: 13, color: Color(0xFF4D5548))),
         ),
-        // prioriteit badge
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
           child: _PriorityBadge(priority: entry.prioriteit),
         ),
-        // realisatie
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
           child: _RealisatieLabel(realisatie: entry.realisatie),
@@ -773,11 +775,7 @@ class _TabButton extends StatelessWidget {
   final bool selected;
   final VoidCallback? onTap;
 
-  const _TabButton({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
+  const _TabButton({required this.label, required this.selected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -788,8 +786,7 @@ class _TabButton extends StatelessWidget {
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
-              color:
-                  selected ? const Color(0xFF8CC63F) : Colors.transparent,
+              color: selected ? const Color(0xFF8CC63F) : Colors.transparent,
               width: 2,
             ),
           ),
@@ -801,9 +798,7 @@ class _TabButton extends StatelessWidget {
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
             color: selected
                 ? const Color(0xFF243022)
-                : (onTap == null
-                    ? const Color(0xFFBBC3B4)
-                    : const Color(0xFF6B7A62)),
+                : (onTap == null ? const Color(0xFFBBC3B4) : const Color(0xFF6B7A62)),
           ),
         ),
       ),
@@ -819,37 +814,15 @@ class _PriorityBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, bg, fg) = switch (priority) {
-      JapPriority.hoog => (
-          'Hoge prioriteit',
-          const Color(0xFFFFEDED),
-          const Color(0xFFD32F2F),
-        ),
-      JapPriority.middel => (
-          'Middelhoge prioriteit',
-          const Color(0xFFFFF8E1),
-          const Color(0xFFF57F17),
-        ),
-      JapPriority.laag => (
-          'Lage prioriteit',
-          const Color(0xFFF1F1F1),
-          const Color(0xFF757575),
-        ),
+      JapPriority.hoog => ('Hoge prioriteit', const Color(0xFFFFEDED), const Color(0xFFD32F2F)),
+      JapPriority.middel => ('Middelhoge prioriteit', const Color(0xFFFFF8E1), const Color(0xFFF57F17)),
+      JapPriority.laag => ('Lage prioriteit', const Color(0xFFF1F1F1), const Color(0xFF757575)),
     };
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: fg,
-        ),
-      ),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
+      child: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: fg)),
     );
   }
 }
@@ -862,32 +835,13 @@ class _RealisatieLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, color) = switch (realisatie) {
-      JapRealisatie.inUitvoering => (
-          'In Uitvoering',
-          const Color(0xFF1565C0),
-        ),
-      JapRealisatie.uitgevoerd => (
-          'Uitgevoerd',
-          const Color(0xFF2E7D32),
-        ),
-      JapRealisatie.negNietUitgevoerd => (
-          'Nog niet uitgevoerd',
-          const Color(0xFFD32F2F),
-        ),
-      JapRealisatie.vulAan => (
-          'Vul aan',
-          const Color(0xFF6B7A62),
-        ),
+      JapRealisatie.inUitvoering => ('In Uitvoering', const Color(0xFF1565C0)),
+      JapRealisatie.uitgevoerd => ('Uitgevoerd', const Color(0xFF2E7D32)),
+      JapRealisatie.negNietUitgevoerd => ('Nog niet uitgevoerd', const Color(0xFFD32F2F)),
+      JapRealisatie.vulAan => ('Vul aan', const Color(0xFF6B7A62)),
     };
 
-    return Text(
-      label,
-      style: TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-        color: color,
-      ),
-    );
+    return Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color));
   }
 }
 
@@ -896,11 +850,7 @@ class _FilterChip extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  const _FilterChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
+  const _FilterChip({required this.label, required this.selected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -911,20 +861,14 @@ class _FilterChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected ? const Color(0xFFEAF4D9) : Colors.white,
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: selected
-                ? const Color(0xFF8CC63F)
-                : const Color(0xFFD7DBD2),
-          ),
+          border: Border.all(color: selected ? const Color(0xFF8CC63F) : const Color(0xFFD7DBD2)),
         ),
         child: Text(
           label,
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w500,
-            color: selected
-                ? const Color(0xFF4A7A1E)
-                : const Color(0xFF4D5548),
+            color: selected ? const Color(0xFF4A7A1E) : const Color(0xFF4D5548),
           ),
         ),
       ),
@@ -932,14 +876,15 @@ class _FilterChip extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Forms
+// ---------------------------------------------------------------------------
+
 class _CreateJapForm extends StatefulWidget {
   final String token;
   final VoidCallback onSaved;
 
-  const _CreateJapForm({
-    required this.token,
-    required this.onSaved,
-  });
+  const _CreateJapForm({required this.token, required this.onSaved});
 
   @override
   State<_CreateJapForm> createState() => _CreateJapFormState();
@@ -954,9 +899,7 @@ class _CreateJapFormState extends State<_CreateJapForm> {
   String _uitvoerder = '';
   String _prioriteit = 'Lage prioriteit';
   String _realisatie = 'Uitgevoerd';
-
   DateTime? _startDate;
-  DateTime? _endDate;
 
   @override
   void dispose() {
@@ -967,23 +910,17 @@ class _CreateJapFormState extends State<_CreateJapForm> {
 
   String _prioriteitToApiString(String label) {
     switch (label) {
-      case 'Hoge prioriteit':
-        return 'hoog';
-      case 'Middelhoge prioriteit':
-        return 'middel';
-      default:
-        return 'laag';
+      case 'Hoge prioriteit': return 'hoog';
+      case 'Middelhoge prioriteit': return 'middel';
+      default: return 'laag';
     }
   }
 
   String _realisatieToApiString(String label) {
     switch (label) {
-      case 'In uitvoering':
-        return 'in_uitvoering';
-      case 'Nog niet uitgevoerd':
-        return 'neg_niet_uitgevoerd';
-      default:
-        return 'uitgevoerd';
+      case 'In uitvoering': return 'in_uitvoering';
+      case 'Nog niet uitgevoerd': return 'neg_niet_uitgevoerd';
+      default: return 'uitgevoerd';
     }
   }
 
@@ -997,21 +934,14 @@ class _CreateJapFormState extends State<_CreateJapForm> {
           children: [
             const Align(
               alignment: Alignment.centerLeft,
-              child: Text(
-                'Nieuw JAP Aanmaken',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-              ),
+              child: Text('Nieuw JAP Aanmaken', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
             ),
             const SizedBox(height: 16),
-
             TextField(
               controller: _doelstellingController,
-              decoration: const InputDecoration(
-                labelText: 'Doelstelling - maatregel *',
-              ),
+              decoration: const InputDecoration(labelText: 'Doelstelling - maatregel *'),
             ),
             const SizedBox(height: 12),
-
             DropdownButtonFormField<String>(
               initialValue: _domein,
               items: ['Arbeidsveiligheid', 'Welzijnbeleid']
@@ -1021,7 +951,6 @@ class _CreateJapFormState extends State<_CreateJapForm> {
               decoration: const InputDecoration(labelText: 'Domein *'),
             ),
             const SizedBox(height: 12),
-
             Row(
               children: [
                 Expanded(
@@ -1044,7 +973,6 @@ class _CreateJapFormState extends State<_CreateJapForm> {
               ],
             ),
             const SizedBox(height: 12),
-
             Row(
               children: [
                 Expanded(
@@ -1071,35 +999,18 @@ class _CreateJapFormState extends State<_CreateJapForm> {
               ],
             ),
             const SizedBox(height: 12),
-
             TextField(
               controller: _opmerkingController,
               maxLines: 3,
               decoration: const InputDecoration(labelText: 'Opmerking'),
             ),
             const SizedBox(height: 12),
-
-            Row(
-              children: [
-                Expanded(
-                  child: _DateField(
-                    label: 'Startdatum *',
-                    date: _startDate,
-                    onPick: (date) => setState(() => _startDate = date),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _DateField(
-                    label: 'Einddatum',
-                    date: _endDate,
-                    onPick: (date) => setState(() => _endDate = date),
-                  ),
-                ),
-              ],
+            _DateField(
+              label: 'Jaar (startdatum) *',
+              date: _startDate,
+              onPick: (date) => setState(() => _startDate = date),
             ),
             const SizedBox(height: 20),
-
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -1113,13 +1024,10 @@ class _CreateJapFormState extends State<_CreateJapForm> {
                     final doelstelling = _doelstellingController.text.trim();
                     if (_startDate == null || doelstelling.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Vul alle verplichte velden in.'),
-                        ),
+                        const SnackBar(content: Text('Vul alle verplichte velden in.')),
                       );
                       return;
                     }
-
                     try {
                       await JapApiService.createJapEntry(
                         token: widget.token,
@@ -1127,14 +1035,12 @@ class _CreateJapFormState extends State<_CreateJapForm> {
                           'doelstellingMaatregel': doelstelling,
                           'domein': _domein,
                           'jaar': _startDate!.year,
-                          'eindJaar': _endDate?.year,
                           'prioriteit': _prioriteitToApiString(_prioriteit),
                           'realisatie': _realisatieToApiString(_realisatie),
                           'uitvoerder': _uitvoerder,
                           'opmerking': _opmerkingController.text.trim(),
                         },
                       );
-
                       if (context.mounted) {
                         Navigator.pop(context);
                         widget.onSaved();
@@ -1162,10 +1068,7 @@ class _CreateGppForm extends StatefulWidget {
   final String token;
   final VoidCallback onSaved;
 
-  const _CreateGppForm({
-    required this.token,
-    required this.onSaved,
-  });
+  const _CreateGppForm({required this.token, required this.onSaved});
 
   @override
   State<_CreateGppForm> createState() => _CreateGppFormState();
@@ -1178,27 +1081,9 @@ class _CreateGppFormState extends State<_CreateGppForm> {
   String _domein = 'Arbeidsveiligheid';
   String _risico = 'Algemeen';
   String _uitvoerder = '';
-  String _prioriteit = 'Lage prioriteit';
-  String _realisatie = 'Uitgevoerd';
 
   DateTime? _startDate;
   DateTime? _endDate;
-
-  String _prioriteitToApiString(String label) {
-    switch (label) {
-      case 'Hoge prioriteit': return 'hoog';
-      case 'Middelhoge prioriteit': return 'middel';
-      default: return 'laag';
-    }
-  }
-
-  String _realisatieToApiString(String label) {
-    switch (label) {
-      case 'In uitvoering': return 'in_uitvoering';
-      case 'Nog niet uitgevoerd': return 'neg_niet_uitgevoerd';
-      default: return 'uitgevoerd';
-    }
-  }
 
   @override
   void dispose() {
@@ -1217,21 +1102,14 @@ class _CreateGppFormState extends State<_CreateGppForm> {
           children: [
             const Align(
               alignment: Alignment.centerLeft,
-              child: Text(
-                'Nieuw GPP Aanmaken',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-              ),
+              child: Text('Nieuw GPP Aanmaken', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
             ),
             const SizedBox(height: 16),
-
             TextField(
               controller: _doelstellingController,
-              decoration: const InputDecoration(
-                labelText: 'Doelstelling - maatregel *',
-              ),
+              decoration: const InputDecoration(labelText: 'Doelstelling - maatregel *'),
             ),
             const SizedBox(height: 12),
-
             DropdownButtonFormField<String>(
               initialValue: _domein,
               items: ['Arbeidsveiligheid', 'Welzijnbeleid']
@@ -1241,7 +1119,6 @@ class _CreateGppFormState extends State<_CreateGppForm> {
               decoration: const InputDecoration(labelText: 'Domein *'),
             ),
             const SizedBox(height: 12),
-
             Row(
               children: [
                 Expanded(
@@ -1264,46 +1141,17 @@ class _CreateGppFormState extends State<_CreateGppForm> {
               ],
             ),
             const SizedBox(height: 12),
-
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _prioriteit,
-                    items: ['Hoge prioriteit', 'Middelhoge prioriteit', 'Lage prioriteit']
-                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                        .toList(),
-                    onChanged: (v) => setState(() => _prioriteit = v!),
-                    decoration: const InputDecoration(labelText: 'Prioriteit *'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _realisatie,
-                    items: ['Uitgevoerd', 'In uitvoering', 'Nog niet uitgevoerd']
-                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                        .toList(),
-                    onChanged: (v) => setState(() => _realisatie = v!),
-                    decoration: const InputDecoration(labelText: 'Realisatie *'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
             TextField(
               controller: _opmerkingController,
               maxLines: 3,
               decoration: const InputDecoration(labelText: 'Opmerking'),
             ),
             const SizedBox(height: 12),
-
             Row(
               children: [
                 Expanded(
                   child: _DateField(
-                    label: 'Startdatum *',
+                    label: 'Startjaar *',
                     date: _startDate,
                     onPick: (date) => setState(() => _startDate = date),
                   ),
@@ -1311,7 +1159,7 @@ class _CreateGppFormState extends State<_CreateGppForm> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _DateField(
-                    label: 'Einddatum',
+                    label: 'Eindjaar *',
                     date: _endDate,
                     onPick: (date) => setState(() => _endDate = date),
                   ),
@@ -1319,7 +1167,6 @@ class _CreateGppFormState extends State<_CreateGppForm> {
               ],
             ),
             const SizedBox(height: 20),
-
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -1331,28 +1178,24 @@ class _CreateGppFormState extends State<_CreateGppForm> {
                 ElevatedButton(
                   onPressed: () async {
                     final doelstelling = _doelstellingController.text.trim();
-                    if (_startDate == null || doelstelling.isEmpty) {
+                    if (_startDate == null || _endDate == null || doelstelling.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Vul alle verplichte velden in.')),
                       );
                       return;
                     }
-
                     try {
                       await JapApiService.createGppEntry(
                         token: widget.token,
                         payload: {
                           'doelstellingMaatregel': doelstelling,
                           'domein': _domein,
-                          'jaar': _startDate!.year,
-                          'eindJaar': _endDate?.year,
-                          'prioriteit': _prioriteitToApiString(_prioriteit),
-                          'realisatie': _realisatieToApiString(_realisatie),
+                          'startJaar': _startDate!.year,
+                          'eindJaar': _endDate!.year,
                           'uitvoerder': _uitvoerder,
                           'opmerking': _opmerkingController.text.trim(),
                         },
                       );
-
                       if (context.mounted) {
                         Navigator.pop(context);
                         widget.onSaved();
@@ -1381,11 +1224,7 @@ class _DateField extends StatelessWidget {
   final DateTime? date;
   final Function(DateTime) onPick;
 
-  const _DateField({
-    required this.label,
-    required this.date,
-    required this.onPick,
-  });
+  const _DateField({required this.label, required this.date, required this.onPick});
 
   @override
   Widget build(BuildContext context) {
@@ -1402,9 +1241,7 @@ class _DateField extends StatelessWidget {
       child: InputDecorator(
         decoration: InputDecoration(labelText: label),
         child: Text(
-          date != null
-              ? "${date!.day}/${date!.month}/${date!.year}"
-              : 'Selecteer datum',
+          date != null ? "${date!.day}/${date!.month}/${date!.year}" : 'Selecteer datum',
         ),
       ),
     );

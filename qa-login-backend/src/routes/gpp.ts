@@ -23,8 +23,9 @@ router.get('/', (req: Request, res: Response) => {
 router.post('/', (req: Request, res: Response) => {
   const entry = {
     id: Date.now(),
-    jaar: new Date().getFullYear(),
-    ...req.body,
+    startJaar: new Date().getFullYear(),      // was: jaar
+    eindJaar: new Date().getFullYear() + 5,   // standaard 5 jaar
+    ...req.body,                              // overschrijft als meegegeven
   };
   gppEntries.push(entry);
   res.status(201).json({ entry });

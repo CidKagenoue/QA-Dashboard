@@ -1,146 +1,154 @@
 // lib/models/jap_gpp_entry.dart
 
-enum JapPriority { laag, middel, hoog }
+enum JapPriority { low, medium, high }
 
-enum JapRealisatie { inUitvoering, uitgevoerd, negNietUitgevoerd, vulAan }
+enum JapRealisation { inProgress, completed, notYetCompleted, fillIn }
 
 // ---------------------------------------------------------------------------
-// JAP — Jaaractieplan (1 jaar, met prioriteit & realisatie)
+// JAP — Annual Action Plan (1 year, with priority & realisation)
 // ---------------------------------------------------------------------------
 class JapEntry {
   final int id;
-  final int jaar;
-  final String doelstellingMaatregel;
-  final String domein;
-  final JapPriority prioriteit;
-  final JapRealisatie realisatie;
+  final int year;
+  final String goalMeasure;
+  final String domain;
+  final JapPriority priority;
+  final JapRealisation realisation;
+  final String executor;
+  final String remark;
 
   const JapEntry({
     required this.id,
-    required this.jaar,
-    required this.doelstellingMaatregel,
-    required this.domein,
-    required this.prioriteit,
-    required this.realisatie,
+    required this.year,
+    required this.goalMeasure,
+    required this.domain,
+    required this.priority,
+    required this.realisation,
+    this.executor = '',
+    this.remark = '',
   });
 
-  // JAP = 1 enkel jaar
-  String get jaarLabel => jaar.toString();
+  // JAP = single year
+  String get yearLabel => year.toString();
 
   factory JapEntry.fromJson(Map<String, dynamic> json) {
     return JapEntry(
       id: (json['id'] as num?)?.toInt() ?? 0,
-      jaar: (json['jaar'] as num?)?.toInt() ?? DateTime.now().year,
-      doelstellingMaatregel: json['doelstellingMaatregel'] as String? ?? '',
-      domein: json['domein'] as String? ?? '',
-      prioriteit: _parsePriority(json['prioriteit'] as String? ?? 'laag'),
-      realisatie: _parseRealisatie(json['realisatie'] as String? ?? 'uitgevoerd'),
+      year: (json['jaar'] as num?)?.toInt() ?? DateTime.now().year,
+      goalMeasure: json['doelstellingMaatregel'] as String? ?? '',
+      domain: json['domein'] as String? ?? '',
+      priority: _parsePriority(json['prioriteit'] as String? ?? 'laag'),
+      realisation: _parseRealisation(json['realisatie'] as String? ?? 'uitgevoerd'),
+      executor: json['uitvoerder'] as String? ?? '',
+      remark: json['opmerking'] as String? ?? '',
     );
   }
 
   Map<String, dynamic> toJson() => {
         'id': id,
-        'jaar': jaar,
-        'doelstellingMaatregel': doelstellingMaatregel,
-        'domein': domein,
-        'prioriteit': _priorityToString(prioriteit),
-        'realisatie': _realisatieToString(realisatie),
+        'jaar': year,
+        'doelstellingMaatregel': goalMeasure,
+        'domein': domain,
+        'prioriteit': _priorityToString(priority),
+        'realisatie': _realisationToString(realisation),
+        'uitvoerder': executor,
+        'opmerking': remark,
       };
 
   static JapPriority _parsePriority(String value) {
     switch (value.toLowerCase()) {
       case 'hoog':
-        return JapPriority.hoog;
+        return JapPriority.high;
       case 'middel':
       case 'middelhoog':
       case 'middelmatig':
-        return JapPriority.middel;
+        return JapPriority.medium;
       case 'laag':
-        return JapPriority.laag;
+        return JapPriority.low;
       default:
-        return JapPriority.laag;
+        return JapPriority.low;
     }
   }
 
-  static String _priorityToString(JapPriority p) {
-    switch (p) {
-      case JapPriority.hoog:
+  static String _priorityToString(JapPriority priority) {
+    switch (priority) {
+      case JapPriority.high:
         return 'hoog';
-      case JapPriority.middel:
+      case JapPriority.medium:
         return 'middel';
-      case JapPriority.laag:
+      case JapPriority.low:
         return 'laag';
     }
   }
 
-  static JapRealisatie _parseRealisatie(String value) {
-    final v = value.toLowerCase().replaceAll(' ', '_');
-    switch (v) {
+  static JapRealisation _parseRealisation(String value) {
+    final normalised = value.toLowerCase().replaceAll(' ', '_');
+    switch (normalised) {
       case 'in_uitvoering':
       case 'inuitvoering':
-        return JapRealisatie.inUitvoering;
+        return JapRealisation.inProgress;
       case 'uitgevoerd':
-        return JapRealisatie.uitgevoerd;
+        return JapRealisation.completed;
       case 'nog_niet_uitgevoerd':
       case 'neg_niet_uitgevoerd':
-        return JapRealisatie.negNietUitgevoerd;
+        return JapRealisation.notYetCompleted;
       case 'vul_aan':
-        return JapRealisatie.vulAan;
+        return JapRealisation.fillIn;
       default:
-        return JapRealisatie.vulAan;
+        return JapRealisation.fillIn;
     }
   }
 
-  static String _realisatieToString(JapRealisatie r) {
-    switch (r) {
-      case JapRealisatie.inUitvoering:
+  static String _realisationToString(JapRealisation realisation) {
+    switch (realisation) {
+      case JapRealisation.inProgress:
         return 'in_uitvoering';
-      case JapRealisatie.uitgevoerd:
+      case JapRealisation.completed:
         return 'uitgevoerd';
-      case JapRealisatie.negNietUitgevoerd:
+      case JapRealisation.notYetCompleted:
         return 'neg_niet_uitgevoerd';
-      case JapRealisatie.vulAan:
+      case JapRealisation.fillIn:
         return 'vul_aan';
     }
   }
 }
 
 // ---------------------------------------------------------------------------
-// GPP — Globaal Preventieplan (meerdere jaren, enkel doelstellingen)
+// GPP — Global Prevention Plan (multiple years, goals only)
 // ---------------------------------------------------------------------------
 class GppEntry {
   final int id;
-  final int startJaar;  // bv. 2021
-  final int eindJaar;   // bv. 2026
-  final String doelstellingMaatregel;
-  final String domein;
+  final int startYear;
+  final int endYear;
+  final String goalMeasure;
+  final String domain;
 
   const GppEntry({
     required this.id,
-    required this.startJaar,
-    required this.eindJaar,
-    required this.doelstellingMaatregel,
-    required this.domein,
+    required this.startYear,
+    required this.endYear,
+    required this.goalMeasure,
+    required this.domain,
   });
 
-  // GPP = jaarbereik "2021–2026"
-  String get jaarLabel => '$startJaar–$eindJaar';
+  // GPP = year range "2021–2026"
+  String get yearLabel => '$startYear–$endYear';
 
   factory GppEntry.fromJson(Map<String, dynamic> json) {
     return GppEntry(
       id: (json['id'] as num?)?.toInt() ?? 0,
-      startJaar: (json['startJaar'] as num?)?.toInt() ?? DateTime.now().year,
-      eindJaar: (json['eindJaar'] as num?)?.toInt() ?? DateTime.now().year + 5,
-      doelstellingMaatregel: json['doelstellingMaatregel'] as String? ?? '',
-      domein: json['domein'] as String? ?? '',
+      startYear: (json['startJaar'] as num?)?.toInt() ?? DateTime.now().year,
+      endYear: (json['eindJaar'] as num?)?.toInt() ?? DateTime.now().year + 5,
+      goalMeasure: json['doelstellingMaatregel'] as String? ?? '',
+      domain: json['domein'] as String? ?? '',
     );
   }
 
   Map<String, dynamic> toJson() => {
         'id': id,
-        'startJaar': startJaar,
-        'eindJaar': eindJaar,
-        'doelstellingMaatregel': doelstellingMaatregel,
-        'domein': domein,
+        'startJaar': startYear,
+        'eindJaar': endYear,
+        'doelstellingMaatregel': goalMeasure,
+        'domein': domain,
       };
 }

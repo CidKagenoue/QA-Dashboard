@@ -1,7 +1,7 @@
 // lib/screens/jap_gpp_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:qa_dashboard/services/jap_api_service.dart';
+import 'package:qa_dashboard/services/jap_gpp_api_service.dart';
 import '../models/jap_gpp_entry.dart';
 
 // ---------------------------------------------------------------------------
@@ -95,21 +95,21 @@ class _JapGppScreenState extends State<JapGppScreen> {
     var result = _allEntries.where((e) {
       if (query.isNotEmpty) {
         final matchesQuery =
-            e.doelstellingMaatregel.toLowerCase().contains(query) ||
-            e.domein.toLowerCase().contains(query) ||
-            e.jaar.toString().contains(query);
+            e.goalMeasure.toLowerCase().contains(query) ||
+            e.domain.toLowerCase().contains(query) ||
+            e.year.toString().contains(query);
         if (!matchesQuery) return false;
       }
       if (_filterPriority != null) {
         final priorityMatch = switch (_filterPriority) {
-          'hoog' => e.prioriteit == JapPriority.hoog,
-          'middel' => e.prioriteit == JapPriority.middel,
-          'laag' => e.prioriteit == JapPriority.laag,
+          'hoog' => e.priority == JapPriority.high,
+          'middel' => e.priority == JapPriority.medium,
+          'laag' => e.priority == JapPriority.low,
           _ => true,
         };
         if (!priorityMatch) return false;
       }
-      if (_filterYear != null && e.jaar != _filterYear) return false;
+      if (_filterYear != null && e.year != _filterYear) return false;
       return true;
     }).toList();
 
@@ -121,12 +121,12 @@ class _JapGppScreenState extends State<JapGppScreen> {
     var result = _allGppEntries.where((e) {
       if (query.isNotEmpty) {
         final matchesQuery =
-            e.doelstellingMaatregel.toLowerCase().contains(query) ||
-            e.domein.toLowerCase().contains(query) ||
-            e.jaarLabel.toLowerCase().contains(query);
+            e.goalMeasure.toLowerCase().contains(query) ||
+            e.domain.toLowerCase().contains(query) ||
+            e.yearLabel.toLowerCase().contains(query);
         if (!matchesQuery) return false;
       }
-      if (_filterGppDomein != null && e.domein != _filterGppDomein) return false;
+      if (_filterGppDomein != null && e.domain != _filterGppDomein) return false;
       return true;
     }).toList();
 
@@ -134,7 +134,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
   }
 
   void _showFilterSheet() {
-    final years = _allEntries.map((e) => e.jaar).toSet().toList()..sort();
+    final years = _allEntries.map((e) => e.year).toSet().toList()..sort();
 
     showModalBottomSheet(
       context: context,
@@ -580,14 +580,14 @@ class _JapGppScreenState extends State<JapGppScreen> {
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
                             child: Text(
-                              entry.jaarLabel,
+                              entry.yearLabel,
                               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF243022)),
                             ),
                           ),
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
                             child: Text(
-                              entry.doelstellingMaatregel,
+                              entry.goalMeasure,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(fontSize: 13, color: Color(0xFF2F382E)),
@@ -596,7 +596,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
                             child: Text(
-                              entry.domein,
+                              entry.domain,
                               style: const TextStyle(fontSize: 13, color: Color(0xFF4D5548)),
                             ),
                           ),
@@ -736,14 +736,14 @@ class _JapGppScreenState extends State<JapGppScreen> {
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
           child: Text(
-            entry.jaar.toString(),
+            entry.yearLabel,
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF243022)),
           ),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
           child: Text(
-            entry.doelstellingMaatregel,
+            entry.goalMeasure,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontSize: 13, color: Color(0xFF2F382E)),
@@ -751,15 +751,15 @@ class _JapGppScreenState extends State<JapGppScreen> {
         ),
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-          child: Text(entry.domein, style: const TextStyle(fontSize: 13, color: Color(0xFF4D5548))),
+          child: Text(entry.domain, style: const TextStyle(fontSize: 13, color: Color(0xFF4D5548))),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-          child: _PriorityBadge(priority: entry.prioriteit),
+          child: _PriorityBadge(priority: entry.priority),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-          child: _RealisatieLabel(realisatie: entry.realisatie),
+          child: _RealisatieLabel(realisatie: entry.realisation),
         ),
       ],
     );
@@ -814,9 +814,9 @@ class _PriorityBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, bg, fg) = switch (priority) {
-      JapPriority.hoog => ('Hoge prioriteit', const Color(0xFFFFEDED), const Color(0xFFD32F2F)),
-      JapPriority.middel => ('Middelhoge prioriteit', const Color(0xFFFFF8E1), const Color(0xFFF57F17)),
-      JapPriority.laag => ('Lage prioriteit', const Color(0xFFF1F1F1), const Color(0xFF757575)),
+      JapPriority.high => ('Hoge prioriteit', const Color(0xFFFFEDED), const Color(0xFFD32F2F)),
+      JapPriority.medium => ('Middelhoge prioriteit', const Color(0xFFFFF8E1), const Color(0xFFF57F17)),
+      JapPriority.low => ('Lage prioriteit', const Color(0xFFF1F1F1), const Color(0xFF757575)),
     };
 
     return Container(
@@ -828,17 +828,17 @@ class _PriorityBadge extends StatelessWidget {
 }
 
 class _RealisatieLabel extends StatelessWidget {
-  final JapRealisatie realisatie;
+  final JapRealisation realisatie;
 
   const _RealisatieLabel({required this.realisatie});
 
   @override
   Widget build(BuildContext context) {
     final (label, color) = switch (realisatie) {
-      JapRealisatie.inUitvoering => ('In Uitvoering', const Color(0xFF1565C0)),
-      JapRealisatie.uitgevoerd => ('Uitgevoerd', const Color(0xFF2E7D32)),
-      JapRealisatie.negNietUitgevoerd => ('Nog niet uitgevoerd', const Color(0xFFD32F2F)),
-      JapRealisatie.vulAan => ('Vul aan', const Color(0xFF6B7A62)),
+      JapRealisation.inProgress => ('In Uitvoering', const Color(0xFF1565C0)),
+      JapRealisation.completed => ('Uitgevoerd', const Color(0xFF2E7D32)),
+      JapRealisation.notYetCompleted => ('Nog niet uitgevoerd', const Color(0xFFD32F2F)),
+      JapRealisation.fillIn => ('Vul aan', const Color(0xFF6B7A62)),
     };
 
     return Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color));

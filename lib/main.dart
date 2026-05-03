@@ -40,7 +40,14 @@ class QADashboardApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthService()),
-        ChangeNotifierProvider(create: (_) => NotificationService()),
+        ChangeNotifierProxyProvider<AuthService, NotificationService>(
+          create: (_) => NotificationService(),
+          update: (_, authService, notificationService) {
+            final service = notificationService ?? NotificationService();
+            service.bindAuth(authService);
+            return service;
+          },
+        ),
         ChangeNotifierProxyProvider<AuthService, AccountManagementService>(
           create: (_) => AccountManagementService(),
           update: (_, authService, accountManagementService) {

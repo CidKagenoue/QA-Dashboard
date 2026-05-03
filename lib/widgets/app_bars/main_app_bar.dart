@@ -27,8 +27,17 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
               tooltip: 'Notificaties',
               offset: const Offset(0, 12),
               onOpened: () async {
-                // Markeer alles als gelezen zodra popover wordt geopend
-                await context.read<NotificationService>().markAllRead();
+                // Always refresh notifications so new items appear immediately.
+                final service = context.read<NotificationService>();
+                debugPrint('[MainAppBar] Notification popup opened. hasLoaded=${service.hasLoaded}, count=${service.notifications.length}');
+
+                try {
+                  await service.loadNotifications(limit: 50);
+                  await service.refreshUnreadCount();
+                  debugPrint('[MainAppBar] Refreshed notifications after popup open');
+                } catch (e) {
+                  debugPrint('[MainAppBar] Failed to refresh notifications: $e');
+                }
               },
               onSelected: (value) async {
                 if (value == 'open-all') {

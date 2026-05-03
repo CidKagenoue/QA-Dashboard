@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Param,
   Patch,
   Query,
   Req,
@@ -30,6 +31,18 @@ export class NotificationsController {
   @Get('unread-count')
   async unreadCount(@Req() req: AuthenticatedRequest) {
     return this.notificationService.getUnreadCount(this.readActorId(req));
+  }
+
+  @Patch(':id/read')
+  async markAsRead(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') notificationId: string,
+  ) {
+    const id = parseInt(notificationId, 10);
+    if (!Number.isInteger(id) || id <= 0) {
+      return { success: false, message: 'Invalid notification ID' };
+    }
+    return this.notificationService.markRead(this.readActorId(req), [id]);
   }
 
   @Patch('mark-read')

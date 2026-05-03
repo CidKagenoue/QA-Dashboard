@@ -3,7 +3,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { NotificationType } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { NotificationService } from 'src/notifications/notifications.service';
 import {
   CreateMaintenanceInspectionDto,
   UpdateMaintenanceInspectionDto,
@@ -28,7 +30,10 @@ interface MaintenanceInspectionRecord {
 
 @Injectable()
 export class MaintenanceInspectionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationService: NotificationService,
+  ) {}
 
   private get maintenanceInspectionModel(): any {
     return this.prisma as any;
@@ -84,7 +89,10 @@ export class MaintenanceInspectionsService {
     const record = await this.maintenanceInspectionModel.maintenanceInspection.create({
       data: payload,
     });
-    return this.serialize(record, await this.getLocationLookup());
+    const branchLookup = await this.getLocationLookup();
+    const serialized = this.serialize(record, branchLookup);
+    await this.notifyMaintenanceCreated(serialized);
+    return serialized;
   }
 
   async update(id: number, dto: UpdateMaintenanceInspectionDto) {
@@ -203,5 +211,36 @@ export class MaintenanceInspectionsService {
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
     };
+  }
+
+  private async notifyMaintenanceCreated(record: {
+    id: number;
+    equipment: string;
+    inspectionType: string;
+    inspectionInstitution: string;
+    locations: string[];
+    dueDate: Date;
+  }) {
+    const recipients = await this.prisma.user.findMany({
+      where: {
+        OR: [{ isAdmin: true }, { maintenanceInspectionsAccess: true }],
+      },
+      select: { id: true },
+    });
+
+    await this.notificationService.notifyUsers({
+      recipientUserIds: recipients.map((user) => user.id),
+      type: NotificationType.MAINTENANCE_NEW,
+      title: 'Nieuwe onderhoud/keuring aangemaakt',
+      body: `${record.equipment} (${record.inspectionType}) is aangemaakt voor ${record.locations.join(', ') || 'onbekende vestiging'} en is gepland tegen ${record.dueDate.toLocaleDateString('nl-BE')}.`,
+      metadata: {
+        maintenanceInspectionId: record.id,
+        equipment: record.equipment,
+        inspectionType: record.inspectionType,
+        inspectionInstitution: record.inspectionInstitution,
+        dueDate: record.dueDate,
+        locations: record.locations,
+      },
+    });
   }
 }

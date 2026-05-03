@@ -6,6 +6,7 @@ import '../models/ova_assigned_action.dart';
 import '../models/ova_ticket.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import 'jap_gpp_screen.dart';
 import 'ova_dashboard_screen.dart';
 import 'maintenance_inspections_screen.dart';
 
@@ -91,13 +92,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildSectionContent(_HomeSection section) {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final token = authService.token;
+
     switch (section) {
       case _HomeSection.dashboard:
         return _DashboardBody(
-          authService: Provider.of<AuthService>(context, listen: false),
+          authService: authService,
           onNavigate: (section) {
             setState(() {
-              _selected = section as _HomeSection;
+              _selected = section;
             });
           },
         );
@@ -108,7 +112,7 @@ class _HomeScreenState extends State<HomeScreen> {
       case _HomeSection.onderhoud:
         return const MaintenanceInspectionsScreen();
       case _HomeSection.japGpp:
-        return const Center(child: Text('JAP & GPP'));
+        return JapGppScreen(token: token ?? '');
     }
   }
 }
@@ -742,10 +746,9 @@ class _RecentActionsCard extends StatelessWidget {
           const SizedBox(height: 6),
           const Divider(color: Color(0xFFE8EBE3), height: 1),
           const SizedBox(height: 12),
-          // Use spread without unnecessary toList()
           ...actions.map((a) {
-            final titleText = (a.actionTitle!.isNotEmpty ? a.actionTitle : (a.action.title ?? ''))?.trim();
-            final assignedByText = (a.assignedBy)?.trim();
+            final titleText = ((a.actionTitle?.isNotEmpty ?? false) ? a.actionTitle : (a.action.title ?? ''))?.trim() ?? 'Untitled';
+            final assignedByText = (a.assignedBy)?.trim() ?? 'Unknown';
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
@@ -773,14 +776,14 @@ class _RecentActionsCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          titleText!,
+                          titleText,
                           style: const TextStyle(
                               fontWeight: FontWeight.w700,
                               color: Color(0xFF2B3424)),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          assignedByText!,
+                          assignedByText,
                           style: const TextStyle(
                               fontSize: 12, color: Color(0xFF6B7A62)),
                         ),
@@ -1029,60 +1032,3 @@ class _UpcomingMaintenanceCard extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-//  No access body
-// ─────────────────────────────────────────────
-
-class _NoAccessBody extends StatelessWidget {
-  const _NoAccessBody({required this.moduleName});
-  final String moduleName;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 520),
-        margin: const EdgeInsets.all(32),
-        padding: const EdgeInsets.all(36),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0xFFE4E9DD)),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x0A000000),
-              blurRadius: 16,
-              offset: Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.lock_outline_rounded,
-                size: 48, color: Color(0xFF8CC63F)),
-            const SizedBox(height: 24),
-            Text(
-              'Geen toegang tot $moduleName',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF1E2A18),
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Je hebt geen rechten om deze module te bekijken.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 15,
-                color: Color(0xFF6B7A62),
-                height: 1.5,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

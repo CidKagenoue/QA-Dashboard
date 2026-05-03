@@ -41,14 +41,14 @@ export class NotificationService {
   }
 
   async getUnreadCount(userId: number) {
-    const unreadCount = await this.prisma.notification.count({
+    const count = await this.prisma.notification.count({
       where: {
         recipientUserId: userId,
         isRead: false,
       },
     });
 
-    return { unreadCount };
+    return { count };
   }
 
   async markRead(userId: number, notificationIds: number[]) {
@@ -110,7 +110,14 @@ export class NotificationService {
       params.type,
     );
 
+    this.logger.debug(
+      `[NotifyUser] userId=${params.recipientUserId}, type=${params.type}, shouldSend=${shouldSend}`,
+    );
+
     if (!shouldSend) {
+      this.logger.debug(
+        `[NotifyUser] Skipped: user preferences disabled notifications`,
+      );
       return false;
     }
 
@@ -120,6 +127,9 @@ export class NotificationService {
     });
 
     if (!recipientExists) {
+      this.logger.warn(
+        `[NotifyUser] Recipient user ${params.recipientUserId} not found`,
+      );
       return false;
     }
 
@@ -132,6 +142,11 @@ export class NotificationService {
         metadata: params.metadata,
       },
     });
+
+    this.logger.debug(
+      `[NotifyUser] Successfully created notification for user ${params.recipientUserId}`,
+    );
+
 
     return true;
   }

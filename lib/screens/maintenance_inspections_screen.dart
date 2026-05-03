@@ -6,6 +6,7 @@ import '../models/maintenance_inspection_form.dart';
 import '../models/maintenance_inspections.dart';
 import '../services/auth_service.dart';
 import '../services/maintenance_api_service.dart';
+import '../services/notification_service.dart';
 
 class MaintenanceInspectionsScreen extends StatefulWidget {
   const MaintenanceInspectionsScreen({super.key});
@@ -149,6 +150,8 @@ class _MaintenanceInspectionsScreenState
           return;
         }
         await _loadData();
+        await context.read<NotificationService>().loadNotifications(limit: 50);
+        await context.read<NotificationService>().refreshUnreadCount();
         messenger.showSnackBar(
           const SnackBar(content: Text('Onderhoud/keuring aangemaakt.')),
         );
@@ -551,7 +554,8 @@ class _MaintenanceInspectionDialogState
   Future<void> _pickDate(TextEditingController controller) async {
     final pickedDate = await showDatePicker(
       context: context,
-      initialDate: DateTime(2025, 10, 26),
+      // initialDate: DateTime(2025, 10, 26),
+      initialDate: DateTime.now(),
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
@@ -994,8 +998,9 @@ class _MaintenanceInspectionDialogState
   }
 
   InputDecoration _dateDecoration({required VoidCallback onTap}) {
+    final now = DateTime.now();
     return InputDecoration(
-      hintText: '26/10/2025',
+      hintText: '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}',
       filled: true,
       fillColor: Colors.white,
       suffixIcon: IconButton(

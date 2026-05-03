@@ -27,7 +27,8 @@ export class NotificationSettingsService {
         },
       },
     });
-    if (!setting) return false; // Alleen expliciet opgeslagen toggles mogen notificaties toelaten
+    // If no setting exists, default to enabled for inApp (opt-out model)
+    if (!setting) return channel === 'inApp' ? true : false;
     if (channel === 'inApp') return !!setting.enabled;
     if (channel === 'email') return !!setting.email;
     return false;

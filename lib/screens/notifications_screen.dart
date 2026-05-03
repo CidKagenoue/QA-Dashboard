@@ -47,7 +47,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       // Altijd layout tonen: dummy data als basis, status uit backend indien aanwezig
       setState(() {
         _settings = _dummySettings.map((dummy) {
-          final key = '${_enumModule(dummy.module)}_${_enumType(dummy.type)}';
+          final key =
+              '${_enumModule(dummy.module)}_${_enumType(dummy.module, dummy.type)}';
           if (backendMap[key] != null) {
             return dummy.copyWith(
               enabled: backendMap[key]!.enabled,
@@ -83,7 +84,30 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
-  String _enumType(String label) {
+  String _enumType(String module, String label) {
+    switch (module) {
+      case 'JAP':
+        switch (label) {
+          case 'Nieuwe JAP/GPP':
+            return 'JAP_NEW';
+          case 'Comentaar':
+            return 'JAP_COMMENT';
+          case 'Status verandering':
+            return 'JAP_STATUS_CHANGE';
+        }
+        break;
+      case 'Onderhoud Keuringen':
+        switch (label) {
+          case 'Nieuwe onderhoud/keuring':
+            return 'MAINTENANCE_NEW';
+          case 'Keuren vóór nadert':
+            return 'MAINTENANCE_DUE';
+          case 'Status verandering':
+            return 'MAINTENANCE_STATUS_CHANGE';
+        }
+        break;
+    }
+
     switch (label) {
       case 'Nieuwe Taak':
         return 'WHS_NEW_TASK';
@@ -107,8 +131,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         return 'JAP_NEW';
       case 'Comentaar':
         return 'JAP_COMMENT';
-      case 'Status verandering':
-        return 'JAP_STATUS_CHANGE';
       case 'Nieuwe onderhoud/keuring':
         return 'MAINTENANCE_NEW';
       case 'Keuren vóór nadert':
@@ -126,14 +148,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     try {
       final uniqueSettings = <String, NotificationSetting>{};
       for (var e in _uiSettings) {
-        uniqueSettings['${_enumModule(e.module)}_${_enumType(e.type)}'] = e;
+        uniqueSettings['${_enumModule(e.module)}_${_enumType(e.module, e.type)}'] =
+            e;
       }
       await _service.updateSettings({
         'settings': uniqueSettings.values
             .map(
               (e) => {
                 'module': _enumModule(e.module),
-                'type': _enumType(e.type),
+                'type': _enumType(e.module, e.type),
                 'enabled': e.enabled,
                 'email': e.email,
               },
@@ -418,6 +441,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       enabled: true,
       email: false,
     ),
+    NotificationSetting(
+      module: 'Onderhoud Keuringen',
+      type: 'Status verandering',
+      enabled: true,
+      email: false,
+    ),
   ];
 
   IconData _moduleIcon(String module) {
@@ -452,6 +481,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
     if (s.module == 'Onderhoud Keuringen' && s.type == 'Keuren vóór nadert') {
       return 'Keuren vóór nadert';
+    }
+    if (s.module == 'Onderhoud Keuringen' && s.type == 'Status verandering') {
+      return 'Status verandering';
     }
     return s.type;
   }

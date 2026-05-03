@@ -67,36 +67,6 @@ class _JapDetailScreenState extends State<JapDetailScreen> {
     );
   }
 
-  Widget _buildAppBar(BuildContext context) {
-    return Container(
-      color: const Color(0xFF8CC63F),
-      padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + 8,
-        left: 16,
-        right: 16,
-        bottom: 12,
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.menu, color: Colors.white, size: 24),
-          const SizedBox(width: 12),
-          const Text(
-            'Vlotter',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const Spacer(),
-          const Icon(Icons.notifications_outlined, color: Colors.white, size: 24),
-          const SizedBox(width: 16),
-          const Icon(Icons.settings_outlined, color: Colors.white, size: 24),
-        ],
-      ),
-    );
-  }
 
   Widget _buildBreadcrumb(BuildContext context) {
     return Container(

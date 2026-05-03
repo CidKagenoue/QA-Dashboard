@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:qa_dashboard/screens/login_screen.dart';
 import 'package:qa_dashboard/screens/profile_screen.dart';
 import 'package:qa_dashboard/screens/departments_screen.dart';
 import 'package:qa_dashboard/screens/locations_screen.dart';
 import 'package:qa_dashboard/screens/account_management_screen.dart';
-import 'package:qa_dashboard/services/auth_service.dart';
 import 'package:qa_dashboard/screens/notifications_screen.dart';
 import '../widgets/app_bars/main_app_bar.dart';
 

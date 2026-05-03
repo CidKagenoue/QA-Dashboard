@@ -13,6 +13,8 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isSettingsRoute = ModalRoute.of(context)?.settings.name == '/settings';
+
     return AppBar(
       backgroundColor: const Color(0xFF8BC34A),
       foregroundColor: Colors.white,
@@ -198,9 +200,14 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
         IconButton(
           icon: const Icon(Icons.settings_outlined, color: Colors.white),
-          onPressed: () {
+          onPressed: isSettingsRoute
+              ? null
+              : () {
             Navigator.of(context).push(
-              MaterialPageRoute(builder: (context) => const SettingsScreen()),
+              MaterialPageRoute(
+                settings: const RouteSettings(name: '/settings'),
+                builder: (context) => const SettingsScreen(),
+              ),
             );
           },
         ),

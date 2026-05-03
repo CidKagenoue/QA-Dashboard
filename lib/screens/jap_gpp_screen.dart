@@ -2,6 +2,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:qa_dashboard/services/jap_gpp_api_service.dart';
+import 'package:provider/provider.dart';
+import '../services/notification_service.dart';
 import '../models/jap_gpp_entry.dart';
 import 'jap_detail_screen.dart';
 
@@ -357,7 +359,13 @@ class _JapGppScreenState extends State<JapGppScreen> {
           ),
           child: _CreateJapForm(
             token: widget.token,
-            onSaved: _loadEntries,
+            onSaved: () async {
+              await _loadEntries();
+              try {
+                await context.read<NotificationService>().loadNotifications(limit: 50);
+                await context.read<NotificationService>().refreshUnreadCount();
+              } catch (_) {}
+            },
           ),
         );
       },
@@ -375,7 +383,13 @@ class _JapGppScreenState extends State<JapGppScreen> {
           ),
           child: _CreateGppForm(
             token: widget.token,
-            onSaved: _loadGppEntries,
+            onSaved: () async {
+              await _loadGppEntries();
+              try {
+                await context.read<NotificationService>().loadNotifications(limit: 50);
+                await context.read<NotificationService>().refreshUnreadCount();
+              } catch (_) {}
+            },
           ),
         );
       },

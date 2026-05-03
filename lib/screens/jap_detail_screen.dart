@@ -1,6 +1,8 @@
 // lib/screens/jap_detail_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../services/notification_service.dart';
 import 'package:qa_dashboard/services/jap_gpp_api_service.dart';
 import '../models/jap_gpp_entry.dart';
 
@@ -399,7 +401,12 @@ class _JapDetailScreenState extends State<JapDetailScreen> {
                           id: widget.entry.id,
                           remark: _remarkController.text.trim(),
                         );
-                        setState(() => _editingRemark = false);
+                          setState(() => _editingRemark = false);
+                          // Refresh notifications immediately
+                          try {
+                            await context.read<NotificationService>().loadNotifications(limit: 50);
+                            await context.read<NotificationService>().refreshUnreadCount();
+                          } catch (_) {}
                       } catch (e) {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -468,6 +475,11 @@ class _JapDetailScreenState extends State<JapDetailScreen> {
                       },
                     );
                     setState(() => _editingAll = false);
+                    // Refresh notifications immediately
+                    try {
+                      await context.read<NotificationService>().loadNotifications(limit: 50);
+                      await context.read<NotificationService>().refreshUnreadCount();
+                    } catch (_) {}
                   } catch (e) {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(

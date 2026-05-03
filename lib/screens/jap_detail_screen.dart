@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/notification_service.dart';
+import '../widgets/app_bars/main_app_bar.dart';
 import 'package:qa_dashboard/services/jap_gpp_api_service.dart';
 import '../models/jap_gpp_entry.dart';
 
@@ -50,9 +51,9 @@ class _JapDetailScreenState extends State<JapDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: const MainAppBar(title: 'Vlotter'),
       body: Column(
         children: [
-          _buildAppBar(context),
           _buildBreadcrumb(context),
           _buildTabBar(),
           Expanded(

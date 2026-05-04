@@ -32,9 +32,9 @@ export default function createJapRouter(
   // POST /jap - maak nieuwe entry aan
   router.post('/', async (req: Request, res: Response) => {
     const entry = {
-      id: Date.now(),
       jaar: new Date().getFullYear(),
       ...req.body,
+      id: Date.now(),
     };
     japEntries.push(entry);
 
@@ -67,7 +67,7 @@ export default function createJapRouter(
 
   // PATCH /jap/:id - update een entry
   router.patch('/:id', async (req: Request, res: Response) => {
-    const id = parseInt(req.params.id);
+    const id = Number(req.params.id);
     const index = japEntries.findIndex((e) => e.id === id);
 
     if (index === -1) {
@@ -135,7 +135,7 @@ export default function createJapRouter(
 
   // DELETE /jap/:id - verwijder een entry
   router.delete('/:id', (req: Request, res: Response) => {
-    const id = parseInt(req.params.id);
+    const id = Number(req.params.id);
     japEntries = japEntries.filter((e) => e.id !== id);
     res.status(204).send();
   });

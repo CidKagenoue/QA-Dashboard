@@ -22,7 +22,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
       final notificationService = context.read<NotificationService>();
       await notificationService.loadNotifications();
-      await notificationService.markAllRead();
     });
   }
 

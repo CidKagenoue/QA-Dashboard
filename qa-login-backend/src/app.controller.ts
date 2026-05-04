@@ -21,6 +21,9 @@ export class AppController {
         'PATCH /accounts/:id/access': 'Toegangsrechten van account aanpassen',
         'DELETE /accounts/:id': 'Account verwijderen',
         'GET /departments': 'Afdelingen opvragen',
+        'GET /maintenance-inspections': 'Onderhoud en keuringen opvragen',
+        'GET /maintenance-inspections/form-data': 'Vestigingen voor onderhoudsformulier opvragen',
+        'POST /maintenance-inspections': 'Onderhoud/keuring aanmaken',
       },
       timestamp: new Date().toISOString(),
     };

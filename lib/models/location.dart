@@ -1,7 +1,7 @@
 class Location {
   final int id;
   final String name;
-  final int branchId;
+  final int? branchId;
 
   Location({
     required this.id,
@@ -11,9 +11,9 @@ class Location {
 
   factory Location.fromJson(Map<String, dynamic> json) {
     return Location(
-      id: json['id'],
-      name: json['name'],
-      branchId: json['branchId'],
+      id: json['id'] as int,
+      name: json['name'] as String,
+      branchId: json['branchId'] as int?,
     );
   }
 

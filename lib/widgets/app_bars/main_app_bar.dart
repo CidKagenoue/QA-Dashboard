@@ -13,6 +13,8 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isSettingsRoute = ModalRoute.of(context)?.settings.name == '/settings';
+
     return AppBar(
       backgroundColor: const Color(0xFF8BC34A),
       foregroundColor: Colors.white,
@@ -27,8 +29,17 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
               tooltip: 'Notificaties',
               offset: const Offset(0, 12),
               onOpened: () async {
-                // Markeer alles als gelezen zodra popover wordt geopend
-                await context.read<NotificationService>().markAllRead();
+                // Always refresh notifications so new items appear immediately.
+                final service = context.read<NotificationService>();
+                debugPrint('[MainAppBar] Notification popup opened. hasLoaded=${service.hasLoaded}, count=${service.notifications.length}');
+
+                try {
+                  await service.loadNotifications(limit: 50);
+                  await service.refreshUnreadCount();
+                  debugPrint('[MainAppBar] Refreshed notifications after popup open');
+                } catch (e) {
+                  debugPrint('[MainAppBar] Failed to refresh notifications: $e');
+                }
               },
               onSelected: (value) async {
                 if (value == 'open-all') {
@@ -189,9 +200,14 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
         IconButton(
           icon: const Icon(Icons.settings_outlined, color: Colors.white),
-          onPressed: () {
+          onPressed: isSettingsRoute
+              ? null
+              : () {
             Navigator.of(context).push(
-              MaterialPageRoute(builder: (context) => const SettingsScreen()),
+              MaterialPageRoute(
+                settings: const RouteSettings(name: '/settings'),
+                builder: (context) => const SettingsScreen(),
+              ),
             );
           },
         ),

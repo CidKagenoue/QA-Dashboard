@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:qa_dashboard/screens/login_screen.dart';
 import 'package:qa_dashboard/screens/profile_screen.dart';
 import 'package:qa_dashboard/screens/departments_screen.dart';
 import 'package:qa_dashboard/screens/locations_screen.dart';
 import 'package:qa_dashboard/screens/account_management_screen.dart';
-import 'package:qa_dashboard/services/auth_service.dart';
 import 'package:qa_dashboard/screens/notifications_screen.dart';
+import '../widgets/app_bars/main_app_bar.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -29,43 +27,7 @@ class _SettingsScreenNavigationState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF8BC34A),
-        foregroundColor: Colors.white,
-        title: const Text('Vlotter', style: TextStyle(color: Colors.white)),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined, color: Colors.white),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => const SettingsScreen()),
-              );
-            },
-          ),
-          Consumer<AuthService>(
-            builder: (context, authService, child) {
-              return IconButton(
-                icon: const Icon(Icons.logout, color: Colors.white),
-                onPressed: () async {
-                  await authService.logout();
-                  if (context.mounted) {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(
-                        builder: (context) => const LoginScreen(),
-                      ),
-                      (route) => false,
-                    );
-                  }
-                },
-              );
-            },
-          ),
-        ],
-      ),
+      appBar: const MainAppBar(title: 'Vlotter'),
       body: Row(
         children: [
           Container(

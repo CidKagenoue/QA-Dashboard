@@ -15,8 +15,8 @@ class NotificationsScreen extends StatefulWidget {
 class _NotificationsScreenState extends State<NotificationsScreen> {
   late NotificationNavigationService _service;
   String? _error;
-    List<NotificationSetting> _settings = [];
-    List<NotificationSetting> _uiSettings = [];
+  List<NotificationSetting> _settings = [];
+  List<NotificationSetting> _uiSettings = [];
   bool _saving = false;
 
   @override
@@ -40,12 +40,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       // Map backend data naar een map voor snelle lookup
       final backendMap = {
         for (var e in settingsList)
-          '${e['module']}_${e['type']}': NotificationSetting.fromJson(e as Map<String, dynamic>)
+          '${e['module']}_${e['type']}': NotificationSetting.fromJson(
+            e as Map<String, dynamic>,
+          ),
       };
       // Altijd layout tonen: dummy data als basis, status uit backend indien aanwezig
       setState(() {
         _settings = _dummySettings.map((dummy) {
-          final key = '${_enumModule(dummy.module)}_${_enumType(dummy.type)}';
+          final key =
+              '${_enumModule(dummy.module)}_${_enumType(dummy.module, dummy.type)}';
           if (backendMap[key] != null) {
             return dummy.copyWith(
               enabled: backendMap[key]!.enabled,
@@ -54,8 +57,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           }
           return dummy;
         }).toList();
-          // Maak een kopie voor de UI die direct aangepast mag worden
-          _uiSettings = List<NotificationSetting>.from(_settings);
+        // Maak een kopie voor de UI die direct aangepast mag worden
+        _uiSettings = List<NotificationSetting>.from(_settings);
       });
     } catch (e) {
       // Alleen bij netwerkfout een foutmelding tonen, layout blijft altijd zichtbaar
@@ -68,30 +71,72 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   // Helper om frontend label naar backend enum te mappen
   String _enumModule(String label) {
     switch (label) {
-      case 'WHS-Tours': return 'WHS_TOURS';
-      case 'OVA': return 'OVA';
-      case 'JAP': return 'JAP';
-      case 'Onderhoud Keuringen': return 'MAINTENANCE';
-      default: return label;
+      case 'WHS-Tours':
+        return 'WHS_TOURS';
+      case 'OVA':
+        return 'OVA';
+      case 'JAP':
+        return 'JAP';
+      case 'Onderhoud Keuringen':
+        return 'MAINTENANCE';
+      default:
+        return label;
     }
   }
-  String _enumType(String label) {
+
+  String _enumType(String module, String label) {
+    switch (module) {
+      case 'JAP':
+        switch (label) {
+          case 'Nieuwe JAP/GPP':
+            return 'JAP_NEW';
+          case 'Comentaar':
+            return 'JAP_COMMENT';
+          case 'Status verandering':
+            return 'JAP_STATUS_CHANGE';
+        }
+        break;
+      case 'Onderhoud Keuringen':
+        switch (label) {
+          case 'Nieuwe onderhoud/keuring':
+            return 'MAINTENANCE_NEW';
+          case 'Keuren vóór nadert':
+            return 'MAINTENANCE_DUE';
+          case 'Status verandering':
+            return 'MAINTENANCE_STATUS_CHANGE';
+        }
+        break;
+    }
+
     switch (label) {
-      case 'Nieuwe Taak': return 'WHS_NEW_TASK';
-      case 'Commentaar op Taak': return 'WHS_COMMENT';
-      case 'Nieuwe Melding': return 'WHS_NEW_REPORT';
-      case 'Naderende deadline': return 'OVA_DEADLINE';
-      case 'Nieuwe actie toegewezen': return 'OVA_NEW_ACTION';
-      case 'Ticket aangemaakt': return 'OVA_TICKET_CREATED';
-      case 'OVA 1': return 'OVA_1';
-      case 'OVA 2': return 'OVA_2';
-      case 'OVA 3': return 'OVA_3';
-      case 'Nieuwe JAP/GPP': return 'JAP_NEW';
-      case 'Comentaar': return 'JAP_COMMENT';
-      case 'Status verandering': return 'JAP_STATUS_CHANGE';
-      case 'Keuren vóór nadert': return 'MAINTENANCE_DUE';
-      case 'Status verandering': return 'MAINTENANCE_STATUS_CHANGE';
-      default: return label;
+      case 'Nieuwe Taak':
+        return 'WHS_NEW_TASK';
+      case 'Commentaar op Taak':
+        return 'WHS_COMMENT';
+      case 'Nieuwe Melding':
+        return 'WHS_NEW_REPORT';
+      case 'Naderende deadline':
+        return 'OVA_DEADLINE';
+      case 'Nieuwe actie toegewezen':
+        return 'OVA_NEW_ACTION';
+      case 'Ticket aangemaakt':
+        return 'OVA_TICKET_CREATED';
+      case 'OVA 1':
+        return 'OVA_1';
+      case 'OVA 2':
+        return 'OVA_2';
+      case 'OVA 3':
+        return 'OVA_3';
+      case 'Nieuwe JAP/GPP':
+        return 'JAP_NEW';
+      case 'Comentaar':
+        return 'JAP_COMMENT';
+      case 'Nieuwe onderhoud/keuring':
+        return 'MAINTENANCE_NEW';
+      case 'Keuren vóór nadert':
+        return 'MAINTENANCE_DUE';
+      default:
+        return label;
     }
   }
 
@@ -103,22 +148,27 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     try {
       final uniqueSettings = <String, NotificationSetting>{};
       for (var e in _uiSettings) {
-        uniqueSettings['${_enumModule(e.module)}_${_enumType(e.type)}'] = e;
+        uniqueSettings['${_enumModule(e.module)}_${_enumType(e.module, e.type)}'] =
+            e;
       }
       await _service.updateSettings({
-        'settings': uniqueSettings.values.map((e) => {
-          'module': _enumModule(e.module),
-          'type': _enumType(e.type),
-          'enabled': e.enabled,
-          'email': e.email,
-        }).toList(),
+        'settings': uniqueSettings.values
+            .map(
+              (e) => {
+                'module': _enumModule(e.module),
+                'type': _enumType(e.module, e.type),
+                'enabled': e.enabled,
+                'email': e.email,
+              },
+            )
+            .toList(),
       });
       setState(() {
         _saving = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Instellingen opgeslagen')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Instellingen opgeslagen')));
     } catch (e) {
       setState(() {
         _error = 'Fout bij opslaan van instellingen';
@@ -130,7 +180,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     // Dummy data fallback als API faalt
-    final List<NotificationSetting> settings = _uiSettings.isEmpty ? _dummySettings : _uiSettings;
+    final List<NotificationSetting> settings = _uiSettings.isEmpty
+        ? _dummySettings
+        : _uiSettings;
 
     // Groepeer per module
     final Map<String, List<NotificationSetting>> moduleMap = {};
@@ -148,7 +200,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         final double minTileWidth = 220;
         final double spacing = 24;
         // Bereken hoeveel tegels er in de breedte passen
-        int tilesPerRow = (constraints.maxWidth / (minTileWidth + spacing)).floor();
+        int tilesPerRow = (constraints.maxWidth / (minTileWidth + spacing))
+            .floor();
         tilesPerRow = tilesPerRow.clamp(1, moduleCount);
 
         // Gebruik een Wrap zodat de cards automatisch afbreken naar een nieuwe regel
@@ -164,7 +217,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             return SizedBox(
               width: cardWidth,
               child: Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Colors.black12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: const BorderSide(color: Colors.black12),
+                ),
                 elevation: 0,
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -176,35 +232,50 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           Icon(icon, size: 28, color: Colors.grey[700]),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: Text(module, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                            child: Text(
+                              module,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
                         ],
                       ),
                       const Divider(height: 24),
-                      ...items.map((s) => Row(
-                        children: [
-                          Expanded(
-                            child: Text(_notificationTypeLabel(s), style: const TextStyle(fontSize: 15)),
-                          ),
-                          Switch(
-                            value: s.enabled,
-                            onChanged: (val) {
-                              setState(() {
-                                _uiSettings = List<NotificationSetting>.from(settings.map((item) =>
-                                  (item.module == s.module && item.type == s.type)
-                                    ? NotificationSetting(
-                                        module: item.module,
-                                        type: item.type,
-                                        enabled: val,
-                                        email: item.email,
-                                      )
-                                    : item
-                                ));
-                              });
-                            },
-                          ),
-                        ],
-                      )),
+                      ...items.map(
+                        (s) => Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _notificationTypeLabel(s),
+                                style: const TextStyle(fontSize: 15),
+                              ),
+                            ),
+                            Switch(
+                              value: s.enabled,
+                              onChanged: (val) {
+                                setState(() {
+                                  _uiSettings = List<NotificationSetting>.from(
+                                    settings.map(
+                                      (item) =>
+                                          (item.module == s.module &&
+                                              item.type == s.type)
+                                          ? NotificationSetting(
+                                              module: item.module,
+                                              type: item.type,
+                                              enabled: val,
+                                              email: item.email,
+                                            )
+                                          : item,
+                                    ),
+                                  );
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -219,29 +290,40 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 16),
-              const Text('Algemeen', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text(
+                'Algemeen',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
               Row(
                 children: [
                   Checkbox(
                     value: emailAll,
                     onChanged: (val) {
                       setState(() {
-                        _uiSettings = List<NotificationSetting>.from(settings.map((s) =>
-                          NotificationSetting(
-                            module: s.module,
-                            type: s.type,
-                            enabled: s.enabled,
-                            email: val ?? false,
-                          )
-                        ));
+                        _uiSettings = List<NotificationSetting>.from(
+                          settings.map(
+                            (s) => NotificationSetting(
+                              module: s.module,
+                              type: s.type,
+                              enabled: s.enabled,
+                              email: val ?? false,
+                            ),
+                          ),
+                        );
                       });
                     },
                   ),
-                  const Text('Stuur meldingen via E-Mail', style: TextStyle(fontSize: 16)),
+                  const Text(
+                    'Stuur meldingen via E-Mail',
+                    style: TextStyle(fontSize: 16),
+                  ),
                 ],
               ),
               const SizedBox(height: 24),
-              const Text('Dashboard', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text(
+                'Dashboard',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 12),
               dashboardTiles,
               const SizedBox(height: 16),
@@ -252,7 +334,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   children: [
                     ElevatedButton(
                       onPressed: _saving ? null : _saveSettings,
-                      child: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Opslaan'),
+                      child: _saving
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Opslaan'),
                     ),
                     const SizedBox(width: 16),
                     if (_error != null)
@@ -269,20 +357,96 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   // Dummy data voor layout preview
   List<NotificationSetting> get _dummySettings => [
-    NotificationSetting(module: 'WHS-Tours', type: 'Nieuwe Taak', enabled: true, email: false),
-    NotificationSetting(module: 'WHS-Tours', type: 'Commentaar op Taak', enabled: false, email: false),
-    NotificationSetting(module: 'WHS-Tours', type: 'Nieuwe Melding', enabled: true, email: false),
-    NotificationSetting(module: 'OVA', type: 'Naderende deadline', enabled: true, email: true),
-    NotificationSetting(module: 'OVA', type: 'Nieuwe actie toegewezen', enabled: true, email: false),
-    NotificationSetting(module: 'OVA', type: 'Ticket aangemaakt', enabled: false, email: false),
-    NotificationSetting(module: 'OVA', type: 'OVA 1', enabled: false, email: false),
-    NotificationSetting(module: 'OVA', type: 'OVA 2', enabled: false, email: false),
-    NotificationSetting(module: 'OVA', type: 'OVA 3', enabled: false, email: false),
-    NotificationSetting(module: 'JAP', type: 'Nieuwe JAP/GPP', enabled: true, email: false),
-    NotificationSetting(module: 'JAP', type: 'Comentaar', enabled: true, email: false),
-    NotificationSetting(module: 'JAP', type: 'Status verandering', enabled: true, email: false),
-    NotificationSetting(module: 'Onderhoud Keuringen', type: 'Keuren vóór nadert', enabled: true, email: false),
-    NotificationSetting(module: 'Onderhoud Keuringen', type: 'Status verandering', enabled: false, email: false),
+    NotificationSetting(
+      module: 'WHS-Tours',
+      type: 'Nieuwe Taak',
+      enabled: true,
+      email: false,
+    ),
+    NotificationSetting(
+      module: 'WHS-Tours',
+      type: 'Commentaar op Taak',
+      enabled: false,
+      email: false,
+    ),
+    NotificationSetting(
+      module: 'WHS-Tours',
+      type: 'Nieuwe Melding',
+      enabled: true,
+      email: false,
+    ),
+    NotificationSetting(
+      module: 'OVA',
+      type: 'Naderende deadline',
+      enabled: true,
+      email: true,
+    ),
+    NotificationSetting(
+      module: 'OVA',
+      type: 'Nieuwe actie toegewezen',
+      enabled: true,
+      email: false,
+    ),
+    NotificationSetting(
+      module: 'OVA',
+      type: 'Ticket aangemaakt',
+      enabled: false,
+      email: false,
+    ),
+    NotificationSetting(
+      module: 'OVA',
+      type: 'OVA 1',
+      enabled: false,
+      email: false,
+    ),
+    NotificationSetting(
+      module: 'OVA',
+      type: 'OVA 2',
+      enabled: false,
+      email: false,
+    ),
+    NotificationSetting(
+      module: 'OVA',
+      type: 'OVA 3',
+      enabled: false,
+      email: false,
+    ),
+    NotificationSetting(
+      module: 'JAP',
+      type: 'Nieuwe JAP/GPP',
+      enabled: true,
+      email: false,
+    ),
+    NotificationSetting(
+      module: 'JAP',
+      type: 'Comentaar',
+      enabled: true,
+      email: false,
+    ),
+    NotificationSetting(
+      module: 'JAP',
+      type: 'Status verandering',
+      enabled: true,
+      email: false,
+    ),
+    NotificationSetting(
+      module: 'Onderhoud Keuringen',
+      type: 'Nieuwe onderhoud/keuring',
+      enabled: true,
+      email: false,
+    ),
+    NotificationSetting(
+      module: 'Onderhoud Keuringen',
+      type: 'Keuren vóór nadert',
+      enabled: true,
+      email: false,
+    ),
+    NotificationSetting(
+      module: 'Onderhoud Keuringen',
+      type: 'Status verandering',
+      enabled: true,
+      email: false,
+    ),
   ];
 
   IconData _moduleIcon(String module) {
@@ -311,8 +475,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     if (s.module == 'JAP' && s.type == 'Status verandering') {
       return 'Status verandering (in afdeling)';
     }
+    if (s.module == 'Onderhoud Keuringen' &&
+        s.type == 'Nieuwe onderhoud/keuring') {
+      return 'Nieuwe onderhoud/keuring';
+    }
     if (s.module == 'Onderhoud Keuringen' && s.type == 'Keuren vóór nadert') {
       return 'Keuren vóór nadert';
+    }
+    if (s.module == 'Onderhoud Keuringen' && s.type == 'Status verandering') {
+      return 'Status verandering';
     }
     return s.type;
   }

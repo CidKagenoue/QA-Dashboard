@@ -181,6 +181,25 @@ model Location {
   branch    Branch? @relation(fields: [branchId], references: [id])
 }
 
+model MaintenanceInspection {
+  id                  Int      @id @default(autoincrement())
+  equipment           String
+  inspectionType      String
+  inspectionInstitution String
+  contactInfo         String?
+  locationIds         Int[]    @default([])
+  frequency           String
+  selfContact         Boolean  @default(false)
+  lastInspectionDate  DateTime?
+  dueDate             DateTime
+  status              String?  @default("Open")
+  notes               String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("maintenance_inspections")
+}
+
 // This is your Prisma schema file,
 // NotificationSetting: per-user, per-type notificatievoorkeuren
 
@@ -212,7 +231,9 @@ enum NotificationModule {
     JAP_NEW
     JAP_COMMENT
     JAP_STATUS_CHANGE
+    MAINTENANCE_NEW
     MAINTENANCE_DUE
+    MAINTENANCE_STATUS_CHANGE
   }
 
 model NotificationSetting {

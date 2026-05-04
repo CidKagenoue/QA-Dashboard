@@ -12,12 +12,16 @@ class Branch {
   });
 
   factory Branch.fromJson(Map<String, dynamic> json) {
+    final locationsJson = json['locations'];
     return Branch(
-      id: json['id'],
-      name: json['name'],
-      locations: (json['locations'] as List<dynamic>? ?? [])
-          .map((e) => Location.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      id: json['id'] as int,
+      name: json['name'] as String,
+      locations: locationsJson is List
+          ? locationsJson
+              .whereType<Map>()
+              .map((e) => Location.fromJson(Map<String, dynamic>.from(e)))
+              .toList()
+          : const [],
     );
   }
 

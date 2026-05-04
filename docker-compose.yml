@@ -1,4 +1,21 @@
 services:
+  traefik:
+    image: traefik:v2.10
+    container_name: qa-traefik
+    command:
+      - --configfile=/etc/traefik/traefik.yml
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/acme:/letsencrypt
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/traefik-dynamic.yml:/etc/traefik/traefik-dynamic.yml:ro
+    restart: unless-stopped
+    networks:
+      - qa_net
+
   db:
     image: postgres:16-alpine
     container_name: qa-db
@@ -33,8 +50,7 @@ services:
     environment:
       # OVERRIDE voor Docker: localhost werkt niet in containers.
       DATABASE_URL: postgresql://postgres:root@db:5432/qa_login_backend
-    ports:
-      - "3001:3001"
+    restart: unless-stopped
     networks:
       - qa_net
 
@@ -43,16 +59,11 @@ services:
       context: .
       dockerfile: Dockerfile.frontend
     container_name: qa-frontend
-    ports:
-      - "80:80"
-      - "443:443"
     environment:
-      ENABLE_HTTPS: "true"
+      ENABLE_HTTPS: "false"
     depends_on:
       - backend
-    volumes:
-      - ./certbot/conf:/etc/letsencrypt
-      - ./certbot/www:/var/www/certbot
+    restart: unless-stopped
     networks:
       - qa_net
 

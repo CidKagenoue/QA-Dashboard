@@ -408,21 +408,38 @@ class _JapGppScreenState extends State<JapGppScreen> {
   // ── build ─────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildBreadcrumb(),
-        _buildHeader(),
-        _buildTabBar(),
-        const SizedBox(height: 8),
-        Expanded(child: _buildBody()),
-      ],
+    return Container(
+      color: const Color(0xFFF6F6F3),
+      padding: const EdgeInsets.all(20),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x12000000),
+              blurRadius: 12,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildBreadcrumb(),
+            _buildHeader(),
+            _buildTabBar(),
+            const SizedBox(height: 8),
+            Expanded(child: _buildBody()),
+          ],
+        ),
+      ),
     );
   }
 
   Widget _buildBreadcrumb() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 0), 
       child: Row(
         children: [
           Text('Dashboard', style: TextStyle(fontSize: 12, color: Colors.grey[500])),

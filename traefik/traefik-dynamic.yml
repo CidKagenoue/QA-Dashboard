@@ -1,0 +1,46 @@
+http:
+  routers:
+    dashboard:
+      rule: "Host(`traefik.tst.vlotterqa.tech`)"
+      service: api@internal
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: le
+      middlewares:
+        - auth
+
+    frontend:
+      rule: "Host(`tst.vlotterqa.tech`) || Host(`www.tst.vlotterqa.tech`)"
+      service: frontend
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: le
+      priority: 10
+
+    backend:
+      rule: "(Host(`tst.vlotterqa.tech`) || Host(`www.tst.vlotterqa.tech`)) && (PathPrefix(`/auth`) || PathPrefix(`/users`) || PathPrefix(`/departments`) || PathPrefix(`/locations`) || PathPrefix(`/maintenance-inspections`) || PathPrefix(`/ova-tickets`) || PathPrefix(`/notifications`))"
+      service: backend
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: le
+      priority: 100
+
+  services:
+    frontend:
+      loadBalancer:
+        servers:
+          - url: "http://qa-frontend:80"
+
+    backend:
+      loadBalancer:
+        servers:
+          - url: "http://qa-login-backend:3001"
+
+  middlewares:
+    auth:
+      basicAuth:
+        users:
+          - "admin:$apr1$IEP2F0gK$phz4Dc6ruaNxXCCJxqVKr/"

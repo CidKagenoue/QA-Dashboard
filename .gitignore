@@ -115,3 +115,4 @@ node_modules/
 *.njsproj
 *.sln
 *.sw?
+traefik/acme/

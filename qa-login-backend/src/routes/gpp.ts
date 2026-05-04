@@ -27,10 +27,8 @@ export default function createGppRouter(
 
   router.post('/', async (req: Request, res: Response) => {
     const entry = {
-      id: Date.now(),
-      startJaar: new Date().getFullYear(),
-      eindJaar: new Date().getFullYear() + 5,
       ...req.body,
+      id: Date.now(),
     };
     gppEntries.push(entry);
 
@@ -59,7 +57,7 @@ export default function createGppRouter(
   });
 
   router.patch('/:id', async (req: Request, res: Response) => {
-    const id = parseInt(req.params.id);
+    const id = Number(req.params.id);
     const index = gppEntries.findIndex((e) => e.id === id);
     if (index === -1) return res.status(404).json({ message: 'Entry niet gevonden' });
     const previous = { ...gppEntries[index] };
@@ -117,7 +115,7 @@ export default function createGppRouter(
   });
 
   router.delete('/:id', (req: Request, res: Response) => {
-    const id = parseInt(req.params.id);
+    const id = Number(req.params.id);
     gppEntries = gppEntries.filter((e) => e.id !== id);
     res.status(204).send();
   });

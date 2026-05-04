@@ -22,6 +22,7 @@ async function bootstrap() {
   const expressApp = app.getHttpAdapter().getInstance();
   const notificationsService = app.get(NotificationService);
   const prismaService = app.get(PrismaService);
+  expressApp.use(require('express').json());
 
   expressApp.use('/jap', createJapRouter(notificationsService, prismaService));
   expressApp.use('/gpp', createGppRouter(notificationsService, prismaService));

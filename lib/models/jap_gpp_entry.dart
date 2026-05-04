@@ -28,13 +28,14 @@ class JapEntry {
     this.remark = '',
   });
 
+
   // JAP = single year
   String get yearLabel => year.toString();
 
   factory JapEntry.fromJson(Map<String, dynamic> json) {
     return JapEntry(
-      id: (json['id'] as num?)?.toInt() ?? 0,
-      year: (json['jaar'] as num?)?.toInt() ?? DateTime.now().year,
+      id: int.tryParse(json['id'].toString()) ?? 0,
+      year: int.tryParse(json['jaar'].toString()) ?? DateTime.now().year,
       goalMeasure: json['doelstellingMaatregel'] as String? ?? '',
       domain: json['domein'] as String? ?? '',
       priority: _parsePriority(json['prioriteit'] as String? ?? 'laag'),
@@ -136,9 +137,9 @@ class GppEntry {
 
   factory GppEntry.fromJson(Map<String, dynamic> json) {
     return GppEntry(
-      id: (json['id'] as num?)?.toInt() ?? 0,
-      startYear: (json['startJaar'] as num?)?.toInt() ?? DateTime.now().year,
-      endYear: (json['eindJaar'] as num?)?.toInt() ?? DateTime.now().year + 5,
+      id: int.tryParse(json['id'].toString()) ?? 0,
+      startYear: int.tryParse(json['startJaar'].toString()) ?? DateTime.now().year,
+      endYear: int.tryParse(json['eindJaar'].toString()) ?? DateTime.now().year + 5,
       goalMeasure: json['doelstellingMaatregel'] as String? ?? '',
       domain: json['domein'] as String? ?? '',
     );

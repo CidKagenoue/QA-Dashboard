@@ -28,6 +28,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
   List<JapEntry> _filtered = [];
   bool _loading = true;
   String? _error;
+  JapEntry? _selectedEntry;
 
   // ── search ────────────────────────────────────────────────────────────────
   final _searchController = TextEditingController();
@@ -357,15 +358,19 @@ class _JapGppScreenState extends State<JapGppScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          child: _CreateJapForm(
-            token: widget.token,
-            onSaved: () async {
-              await _loadEntries();
-              try {
-                await context.read<NotificationService>().loadNotifications(limit: 50);
-                await context.read<NotificationService>().refreshUnreadCount();
-              } catch (_) {}
-            },
+          insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 40),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 540, maxHeight: 560),
+            child: _CreateJapForm(
+              token: widget.token,
+              onSaved: () async {
+                await _loadEntries();
+                try {
+                  await context.read<NotificationService>().loadNotifications(limit: 50);
+                  await context.read<NotificationService>().refreshUnreadCount();
+                } catch (_) {}
+              },
+            ),
           ),
         );
       },
@@ -381,15 +386,19 @@ class _JapGppScreenState extends State<JapGppScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          child: _CreateGppForm(
-            token: widget.token,
-            onSaved: () async {
-              await _loadGppEntries();
-              try {
-                await context.read<NotificationService>().loadNotifications(limit: 50);
-                await context.read<NotificationService>().refreshUnreadCount();
-              } catch (_) {}
-            },
+          insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 40),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 540, maxHeight: 500),
+            child: _CreateGppForm(
+              token: widget.token,
+              onSaved: () async {
+                await _loadGppEntries();
+                try {
+                  await context.read<NotificationService>().loadNotifications(limit: 50);
+                  await context.read<NotificationService>().refreshUnreadCount();
+                } catch (_) {}
+              },
+            ),
           ),
         );
       },
@@ -462,6 +471,13 @@ class _JapGppScreenState extends State<JapGppScreen> {
   }
 
   Widget _buildBody() {
+    if (_selectedEntry != null) {
+      return JapDetailScreen(
+        entry: _selectedEntry!,
+        token: widget.token,
+        onClose: () => setState(() => _selectedEntry = null),
+      );
+    }
     if (_tabIndex == 1) return _buildGppBody();
 
     if (_loading) {
@@ -740,12 +756,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
 
   TableRow _buildDataRow(JapEntry entry) {
     void openDetail() {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => JapDetailScreen(entry: entry, token: widget.token),
-        ),
-      );
+      setState(() => _selectedEntry = entry);
     }
 
     Widget tappable(Widget child) => GestureDetector(onTap: openDetail, child: child);
@@ -950,7 +961,7 @@ class _CreateJapFormState extends State<_CreateJapForm> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -959,12 +970,12 @@ class _CreateJapFormState extends State<_CreateJapForm> {
               alignment: Alignment.centerLeft,
               child: Text('Nieuw JAP Aanmaken', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             TextField(
               controller: _doelstellingController,
               decoration: const InputDecoration(labelText: 'Doelstelling - maatregel *'),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             DropdownButtonFormField<String>(
               initialValue: _domein,
               items: ['Arbeidsveiligheid', 'Welzijnbeleid']
@@ -973,7 +984,7 @@ class _CreateJapFormState extends State<_CreateJapForm> {
               onChanged: (v) => setState(() => _domein = v!),
               decoration: const InputDecoration(labelText: 'Domein *'),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
@@ -986,7 +997,7 @@ class _CreateJapFormState extends State<_CreateJapForm> {
                     decoration: const InputDecoration(labelText: 'Risicoveld *'),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
                     decoration: const InputDecoration(labelText: 'Uitvoerder *'),
@@ -995,7 +1006,7 @@ class _CreateJapFormState extends State<_CreateJapForm> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
@@ -1008,7 +1019,7 @@ class _CreateJapFormState extends State<_CreateJapForm> {
                     decoration: const InputDecoration(labelText: 'Prioriteit *'),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
                   child: DropdownButtonFormField<String>(
                     initialValue: _realisatie,
@@ -1021,13 +1032,13 @@ class _CreateJapFormState extends State<_CreateJapForm> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             TextField(
               controller: _opmerkingController,
               maxLines: 3,
               decoration: const InputDecoration(labelText: 'Opmerking'),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             _DateField(
               label: 'Jaar (startdatum) *',
               date: _startDate,

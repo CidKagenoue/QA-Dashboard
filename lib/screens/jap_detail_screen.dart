@@ -10,11 +10,13 @@ import '../models/jap_gpp_entry.dart';
 class JapDetailScreen extends StatefulWidget {
   final JapEntry entry;
   final String token;
+  final VoidCallback onClose;
 
   const JapDetailScreen({
     super.key,
     required this.entry,
     required this.token,
+    required this.onClose,
   });
 
   @override
@@ -48,22 +50,21 @@ class _JapDetailScreenState extends State<JapDetailScreen> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: const MainAppBar(title: 'Vlotter'),
-      body: Column(
-        children: [
-          _buildBreadcrumb(context),
-          _buildTabBar(),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: _buildCard(context),
-            ),
+  // jap_detail_screen.dart
+
+@override
+Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _buildBreadcrumb(context),
+        _buildTabBar(),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: _buildCard(context),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -75,7 +76,7 @@ class _JapDetailScreenState extends State<JapDetailScreen> {
       child: Row(
         children: [
           GestureDetector(
-            onTap: () => Navigator.pop(context),
+            onTap: widget.onClose,
             child: Text('Dashboard', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
           ),
           Padding(
@@ -83,7 +84,7 @@ class _JapDetailScreenState extends State<JapDetailScreen> {
             child: Icon(Icons.chevron_right, size: 16, color: Colors.grey[400]),
           ),
           GestureDetector(
-            onTap: () => Navigator.pop(context),
+            onTap: widget.onClose,
             child: Text('JAP & GPP', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
           ),
           Padding(
@@ -93,7 +94,7 @@ class _JapDetailScreenState extends State<JapDetailScreen> {
           Text('JAP', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
           const Spacer(),
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: widget.onClose,
             style: TextButton.styleFrom(
               padding: EdgeInsets.zero,
               minimumSize: Size.zero,

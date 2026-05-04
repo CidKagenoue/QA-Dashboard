@@ -33,6 +33,13 @@ const List<String> _kReasonOptions = [
 
 const List<String> _kCauseMethodOptions = ['5 Why', 'Fishbone', 'Andere'];
 
+String _requiredLabel(String label) => '$label *';
+
+String _stepLabel(int index) {
+  final label = kOvaTicketStepLabels[index];
+  return index <= 2 ? _requiredLabel(label) : label;
+}
+
 String formatOvaDate(DateTime value) {
   final localValue = value.toLocal();
   final day = localValue.day.toString().padLeft(2, '0');
@@ -52,11 +59,7 @@ String formatOvaDateTime(DateTime value) {
 }
 
 class OvaTicketWizardScreen extends StatefulWidget {
-  const OvaTicketWizardScreen({
-    super.key,
-    this.ticketId,
-    this.onClose,
-  });
+  const OvaTicketWizardScreen({super.key, this.ticketId, this.onClose});
 
   final int? ticketId;
   final VoidCallback? onClose;
@@ -236,11 +239,22 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
   }
 
   Future<void> _saveDraft() async {
+    if (!_validateMinimumTicketDetailsForSave()) {
+      return;
+    }
+
     await _persistTicket();
   }
 
   Future<void> _goToNextStep() async {
     if (!_validateCurrentStep()) {
+      return;
+    }
+
+    if (_currentStep < 2) {
+      setState(() {
+        _currentStep += 1;
+      });
       return;
     }
 
@@ -333,24 +347,21 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
           : _recordedStepForSave(),
     };
 
+    if (_shouldIncludeMinimumTicketDetails) {
+      payload['findingDate'] = _findingDate.toUtc().toIso8601String();
+      payload['ovaType'] = _normalizedText(_ovaType);
+      payload['reasons'] = _selectedReasons.toList()..sort();
+      payload['otherReason'] = _normalizedText(_otherReasonController.text);
+      payload['incidentDescription'] = _normalizedText(
+        _incidentController.text,
+      );
+    }
+
     if (_currentStep >= 4 || _actions.isNotEmpty) {
       payload['actions'] = _actions.map((action) => action.toJson()).toList();
     }
 
     switch (_currentStep) {
-      case 0:
-        payload['findingDate'] = _findingDate.toUtc().toIso8601String();
-        payload['ovaType'] = _normalizedText(_ovaType);
-        break;
-      case 1:
-        payload['reasons'] = _selectedReasons.toList()..sort();
-        payload['otherReason'] = _normalizedText(_otherReasonController.text);
-        break;
-      case 2:
-        payload['incidentDescription'] = _normalizedText(
-          _incidentController.text,
-        );
-        break;
       case 3:
         payload['causeAnalysisMethod'] = _normalizedText(_causeMethod);
         payload['causeAnalysisNotes'] = _normalizedText(
@@ -378,6 +389,10 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
     return payload;
   }
 
+  bool get _shouldIncludeMinimumTicketDetails {
+    return _currentStep >= 2 || _ticket != null;
+  }
+
   int _recordedStepForSave() {
     final minimumStep = _currentStep + 1;
     final storedStep = _ticket?.currentStep ?? 1;
@@ -391,21 +406,45 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
         : normalizedValue;
   }
 
+  bool get _hasReasonInput {
+    return _selectedReasons.isNotEmpty ||
+        (_normalizedText(_otherReasonController.text) ?? '').isNotEmpty;
+  }
+
+  bool get _hasIncidentDescription {
+    return (_normalizedText(_incidentController.text) ?? '').isNotEmpty;
+  }
+
+  bool _validateMinimumTicketDetailsForSave() {
+    if (!_hasReasonInput) {
+      _showValidationMessage(
+        'Vul eerst de aanleiding en vaststelling in voordat je opslaat.',
+      );
+      return false;
+    }
+
+    if (!_hasIncidentDescription) {
+      _showValidationMessage(
+        'Vul eerst de vaststelling in voordat je opslaat.',
+      );
+      return false;
+    }
+
+    return true;
+  }
+
   bool _validateCurrentStep() {
     switch (_currentStep) {
       case 0:
         return true;
       case 1:
-        final hasReasons = _selectedReasons.isNotEmpty;
-        final hasOtherReason =
-            (_normalizedText(_otherReasonController.text) ?? '').isNotEmpty;
-        if (hasReasons || hasOtherReason) {
+        if (_hasReasonInput) {
           return true;
         }
         _showValidationMessage('Selecteer minstens een aanleiding.');
         return false;
       case 2:
-        if ((_normalizedText(_incidentController.text) ?? '').isNotEmpty) {
+        if (_hasIncidentDescription) {
           return true;
         }
         _showValidationMessage('Omschrijf eerst de vaststelling.');
@@ -471,9 +510,9 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Niet alle opvolgacties zijn afgerond'),
+          title: const Text('Doorgaan naar effectiviteitscontrole?'),
           content: const Text(
-            'Niet alle opvolgacties zijn afgerond. Weet u zeker dat u wilt doorgaan?',
+            'Er staan nog opvolgacties op NOK. Je kunt doorgaan, maar controleer later of deze acties effectief afgerond zijn.',
           ),
           actions: [
             TextButton(
@@ -684,6 +723,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
                           const SizedBox(height: 24),
                         ],
                         Container(
+                          width: double.infinity,
                           padding: const EdgeInsets.all(24),
                           decoration: BoxDecoration(
                             color: Colors.white,
@@ -722,6 +762,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
                         ),
                         const SizedBox(height: 24),
                         Container(
+                          width: double.infinity,
                           padding: const EdgeInsets.all(28),
                           decoration: BoxDecoration(
                             color: Colors.white,
@@ -738,7 +779,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                kOvaTicketStepLabels[_currentStep],
+                                _stepLabel(_currentStep),
                                 style: Theme.of(context).textTheme.headlineSmall
                                     ?.copyWith(fontWeight: FontWeight.w700),
                               ),
@@ -853,12 +894,14 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
             label: const Text('Vorige'),
           ),
         const Spacer(),
-        OutlinedButton.icon(
-          onPressed: _isSaving ? null : _saveDraft,
-          icon: const Icon(Icons.save_outlined),
-          label: const Text('Opslaan'),
-        ),
-        const SizedBox(width: 12),
+        if (_currentStep >= 2) ...[
+          OutlinedButton.icon(
+            onPressed: _isSaving ? null : _saveDraft,
+            icon: const Icon(Icons.save_outlined),
+            label: const Text('Opslaan'),
+          ),
+          const SizedBox(width: 12),
+        ],
         ElevatedButton.icon(
           onPressed: _isSaving
               ? null
@@ -911,7 +954,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _SectionCard(
-          title: 'Datum vaststelling',
+          title: _requiredLabel('Datum vaststelling'),
           subtitle:
               'De datum is standaard ingevuld. Je kunt ze aanpassen wanneer nodig.',
           child: Row(
@@ -1007,7 +1050,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
       minLines: 8,
       maxLines: 10,
       decoration: const InputDecoration(
-        labelText: 'Omschrijving incident',
+        labelText: 'Omschrijving incident *',
         alignLabelWithHint: true,
         hintText: 'Beschrijf wat er precies is vastgesteld...',
       ),
@@ -1019,7 +1062,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _SectionCard(
-          title: 'Analysemethode',
+          title: _requiredLabel('Analysemethode'),
           subtitle:
               'Kies de methode waarmee de onderliggende oorzaak onderzocht werd.',
           child: Wrap(
@@ -1066,6 +1109,20 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Text(
+          _requiredLabel('Minstens een opvolgactie'),
+          style: const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF2B3424),
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Voeg minstens een corrigerende of preventieve opvolgactie toe.',
+          style: TextStyle(color: Color(0xFF5D6656), height: 1.45),
+        ),
+        const SizedBox(height: 18),
         _ActionSection(
           title: 'Corrigerende acties',
           subtitle: 'Acties om de vastgestelde afwijking direct aan te pakken.',
@@ -1088,24 +1145,6 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
           onDelete: _deleteAction,
           onStatusChanged: _updateActionStatus,
         ),
-        if (_actions.isNotEmpty) ...[
-          const SizedBox(height: 20),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAF4),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFDCE6C7)),
-            ),
-            child: Text(
-              _actions.any((action) => !action.isOk)
-                  ? 'Niet alle opvolgacties staan op OK. Bij doorgaan tonen we eerst een waarschuwing.'
-                  : 'Alle opvolgacties staan op OK. Je kunt zonder waarschuwing verder naar de effectiviteitscontrole.',
-              style: const TextStyle(color: Color(0xFF53604A), height: 1.4),
-            ),
-          ),
-        ],
       ],
     );
   }
@@ -1144,7 +1183,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
           minLines: 6,
           maxLines: 8,
           decoration: const InputDecoration(
-            labelText: 'Toelichting',
+            labelText: 'Toelichting *',
             alignLabelWithHint: true,
             hintText:
                 'Beschrijf waarom de opvolgacties al dan niet voldoende effect hebben gehad.',
@@ -1498,71 +1537,163 @@ class _WizardStepper extends StatelessWidget {
     final accessibleStep = currentStep > (storedStep - 1)
         ? currentStep
         : (storedStep - 1);
+    final activeProgressStep = locked
+        ? kOvaTicketStepLabels.length - 1
+        : accessibleStep;
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: List.generate(kOvaTicketStepLabels.length, (index) {
-          final isCompleted = index < storedStep - 1;
-          final isCurrent = index == currentStep;
-          final isReachable = locked || index <= accessibleStep;
-          final circleColor = isCurrent || isCompleted
-              ? const Color(0xFF8CC63F)
-              : Colors.white;
-          final borderColor = isReachable
-              ? const Color(0xFF8CC63F)
-              : const Color(0xFFD4D8CF);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 760;
+        final labelFontSize = isCompact ? 11.0 : 13.0;
+        final circleSize = isCompact ? 20.0 : 22.0;
+        final horizontalPadding = isCompact ? 2.0 : 6.0;
 
-          return Padding(
-            padding: EdgeInsets.only(right: index == 6 ? 0 : 18),
-            child: InkWell(
-              onTap: isReachable ? () => onTap(index) : null,
-              borderRadius: BorderRadius.circular(18),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                child: Column(
-                  children: [
-                    SizedBox(
-                      width: 112,
-                      child: Text(
-                        kOvaTicketStepLabels[index],
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: isCurrent
-                              ? FontWeight.w700
-                              : FontWeight.w500,
-                          color: isReachable
-                              ? const Color(0xFF2B3424)
-                              : const Color(0xFF98A095),
+        return Column(
+          children: [
+            Row(
+              children: List.generate(kOvaTicketStepLabels.length, (index) {
+                final isCurrent = index == currentStep;
+                final isReachable = locked || index <= accessibleStep;
+
+                return Expanded(
+                  child: InkWell(
+                    onTap: isReachable ? () => onTap(index) : null,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: horizontalPadding,
+                        vertical: 6,
+                      ),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          _stepLabel(index),
+                          maxLines: 1,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: labelFontSize,
+                            fontWeight: isCurrent
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            color: isReachable
+                                ? const Color(0xFF2B3424)
+                                : const Color(0xFF98A095),
+                          ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    Container(
-                      width: 22,
-                      height: 22,
-                      decoration: BoxDecoration(
-                        color: circleColor,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: borderColor, width: 2),
+                  ),
+                );
+              }),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: circleSize,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: _StepperConnectorPainter(
+                        itemCount: kOvaTicketStepLabels.length,
+                        activeProgressStep: activeProgressStep,
+                        circleRadius: circleSize / 2,
                       ),
-                      child: isCompleted
-                          ? const Icon(
-                              Icons.check_rounded,
-                              size: 14,
-                              color: Colors.white,
-                            )
-                          : null,
                     ),
-                  ],
-                ),
+                  ),
+                  Row(
+                    children: List.generate(kOvaTicketStepLabels.length, (
+                      index,
+                    ) {
+                      final isCompleted = index < storedStep - 1;
+                      final isCurrent = index == currentStep;
+                      final isReachable = locked || index <= accessibleStep;
+                      final circleColor = isCurrent || isCompleted
+                          ? const Color(0xFF8CC63F)
+                          : Colors.white;
+                      final borderColor = isReachable
+                          ? const Color(0xFF8CC63F)
+                          : const Color(0xFFD4D8CF);
+
+                      return Expanded(
+                        child: Center(
+                          child: InkWell(
+                            onTap: isReachable ? () => onTap(index) : null,
+                            borderRadius: BorderRadius.circular(999),
+                            child: Container(
+                              width: circleSize,
+                              height: circleSize,
+                              decoration: BoxDecoration(
+                                color: circleColor,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: borderColor,
+                                  width: 2,
+                                ),
+                              ),
+                              child: isCompleted
+                                  ? Icon(
+                                      Icons.check_rounded,
+                                      size: isCompact ? 12 : 14,
+                                      color: Colors.white,
+                                    )
+                                  : null,
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ],
               ),
             ),
-          );
-        }),
-      ),
+          ],
+        );
+      },
     );
+  }
+}
+
+class _StepperConnectorPainter extends CustomPainter {
+  const _StepperConnectorPainter({
+    required this.itemCount,
+    required this.activeProgressStep,
+    required this.circleRadius,
+  });
+
+  final int itemCount;
+  final int activeProgressStep;
+  final double circleRadius;
+
+  static const Color _activeColor = Color(0xFF8CC63F);
+  static const Color _inactiveColor = Color(0xFFDDE2D8);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (itemCount < 2) {
+      return;
+    }
+
+    final y = size.height / 2;
+    final segmentWidth = size.width / itemCount;
+    final paint = Paint()
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.square;
+
+    for (var index = 0; index < itemCount - 1; index += 1) {
+      final startX = segmentWidth * (index + 0.5) + circleRadius;
+      final endX = segmentWidth * (index + 1.5) - circleRadius;
+      paint.color = index < activeProgressStep ? _activeColor : _inactiveColor;
+      canvas.drawLine(Offset(startX, y), Offset(endX, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_StepperConnectorPainter oldDelegate) {
+    return oldDelegate.itemCount != itemCount ||
+        oldDelegate.activeProgressStep != activeProgressStep ||
+        oldDelegate.circleRadius != circleRadius;
   }
 }
 

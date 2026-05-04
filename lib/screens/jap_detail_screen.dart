@@ -52,12 +52,41 @@ class _JapDetailScreenState extends State<JapDetailScreen> {
 
   // jap_detail_screen.dart
 
-@override
-Widget build(BuildContext context) {
+  @override
+  Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildBreadcrumb(context),
-        _buildTabBar(),
+        Container(
+          color: Colors.white,
+          padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
+          child: Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back, color: Color(0xFF243022)),
+                onPressed: widget.onClose,
+              ),
+              const Text(
+                'JAP Detail',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF243022),
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Tab bar
+        Container(
+          color: Colors.white,
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+          child: Row(
+            children: [
+              _buildTab('Basisinformatie', isSelected: true),
+            ],
+          ),
+        ),
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
@@ -65,64 +94,6 @@ Widget build(BuildContext context) {
           ),
         ),
       ],
-    );
-  }
-
-
-  Widget _buildBreadcrumb(BuildContext context) {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: widget.onClose,
-            child: Text('Dashboard', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Icon(Icons.chevron_right, size: 16, color: Colors.grey[400]),
-          ),
-          GestureDetector(
-            onTap: widget.onClose,
-            child: Text('JAP & GPP', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Icon(Icons.chevron_right, size: 16, color: Colors.grey[400]),
-          ),
-          Text('JAP', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
-          const Spacer(),
-          TextButton(
-            onPressed: widget.onClose,
-            style: TextButton.styleFrom(
-              padding: EdgeInsets.zero,
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            child: const Text(
-              'Sluiten',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF243022),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTabBar() {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-      child: Row(
-        children: [
-          _buildTab('Basisinformatie', isSelected: true),
-        ],
-      ),
     );
   }
 

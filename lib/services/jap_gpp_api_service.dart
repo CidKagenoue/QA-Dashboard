@@ -62,25 +62,6 @@ class JapApiService {
     throw Exception(error['message'] ?? 'GPP aanmaken mislukt');
   }
 
-  static Future<void> updateGppEntry({
-    required String token,
-    required int id,
-    required Map<String, dynamic> payload,
-  }) async {
-    final response = await http.patch(
-      Uri.parse('${ApiService.baseUrl}/gpp/$id'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode(payload),
-    );
-
-    if (response.statusCode != 200) {
-      throw Exception('Opslaan mislukt: ${response.statusCode}');
-    }
-  }
-
   // ── JAP ──────────────────────────────────────────────────────────────────
 
   static Future<void> updateJapEntry({

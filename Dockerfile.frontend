@@ -1,25 +1,20 @@
-# Build stage - Flutter SDK stage (cached separately)
-FROM dart:3.11 AS flutter-sdk
-
-# Install git and curl
-RUN apt-get update && apt-get install -y git curl unzip && rm -rf /var/lib/apt/lists/*
-
-# Install Flutter (this layer caches the flutter installation)
-RUN git clone https://github.com/flutter/flutter.git /flutter && \
-	cd /flutter && \
-	git checkout stable && \
-	/flutter/bin/flutter config --no-analytics && \
-	/flutter/bin/flutter precache && \
-	/flutter/bin/flutter doctor
-
-ENV PATH="/flutter/bin:/flutter/bin/cache/dart-sdk/bin:$PATH"
-
-# Build stage - Application build
-FROM flutter-sdk AS builder
+# Build stage
+FROM dart:3.11 AS builder
 
 WORKDIR /app
 
-# Copy pubspec files first (better layer caching)
+# Copy pubspec files
+# Install git and Flutter
+RUN apt-get update && apt-get install -y git && \
+	git clone https://github.com/flutter/flutter.git /flutter && \
+	/flutter/bin/flutter config --no-analytics && \
+	/flutter/bin/flutter precache
+
+ENV PATH="/flutter/bin:/flutter/bin/cache/dart-sdk/bin:$PATH"
+
+WORKDIR /app
+
+# Copy pubspec files
 COPY pubspec.yaml pubspec.lock* ./
 
 # Get dependencies
@@ -28,9 +23,12 @@ RUN flutter pub get
 # Copy source code
 COPY . .
 
-# Enable web support and build
-RUN flutter create . --platforms web || true && \
-	flutter build web --release
+# Build web app
+# Enable web support
+RUN flutter create . --platforms web || true
+
+# Build web app
+RUN flutter build web --release
 
 # Runtime stage
 FROM nginx:alpine

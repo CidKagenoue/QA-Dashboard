@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../services/notification_service.dart';
 import '../models/jap_gpp_entry.dart';
 import 'jap_detail_screen.dart';
+import 'gpp_detail_screen.dart';
 
 // ---------------------------------------------------------------------------
 // Screen
@@ -29,6 +30,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
   bool _loading = true;
   String? _error;
   JapEntry? _selectedEntry;
+  GppEntry? _selectedGppEntry;
 
   // ── search ────────────────────────────────────────────────────────────────
   final _searchController = TextEditingController();
@@ -495,6 +497,13 @@ class _JapGppScreenState extends State<JapGppScreen> {
         onClose: () => setState(() => _selectedEntry = null),
       );
     }
+    if (_selectedGppEntry != null) {
+      return GppDetailScreen(
+        entry: _selectedGppEntry!,
+        token: widget.token,
+        onClose: () => setState(() => _selectedGppEntry = null),
+      );
+    }
     if (_tabIndex == 1) return _buildGppBody();
 
     if (_loading) {
@@ -616,40 +625,44 @@ class _JapGppScreenState extends State<JapGppScreen> {
                           _buildHeaderCell('Domein', isLast: true),
                         ],
                       ),
-                      ..._filteredGpp.map((entry) => TableRow(
-                        decoration: const BoxDecoration(
-                          border: Border(bottom: BorderSide(color: Color(0xFFF0F2EC))),
-                        ),
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(left: 12, top: 14, bottom: 14),
-                            child: Icon(Icons.insert_drive_file_outlined, size: 18, color: Colors.grey[400]),
+                      ..._filteredGpp.map((entry) {
+                        void openGppDetail() => setState(() => _selectedGppEntry = entry);
+                        Widget tappable(Widget child) => GestureDetector(onTap: openGppDetail, child: child);
+                        return TableRow(
+                          decoration: const BoxDecoration(
+                            border: Border(bottom: BorderSide(color: Color(0xFFF0F2EC))),
                           ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-                            child: Text(
-                              entry.yearLabel,
-                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF243022)),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-                            child: Text(
-                              entry.goalMeasure,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 13, color: Color(0xFF2F382E)),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-                            child: Text(
-                              entry.domain,
-                              style: const TextStyle(fontSize: 13, color: Color(0xFF4D5548)),
-                            ),
-                          ),
-                        ],
-                      )),
+                          children: [
+                            tappable(Padding(
+                              padding: const EdgeInsets.only(left: 12, top: 14, bottom: 14),
+                              child: Icon(Icons.insert_drive_file_outlined, size: 18, color: Colors.grey[400]),
+                            )),
+                            tappable(Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+                              child: Text(
+                                entry.yearLabel,
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF243022)),
+                              ),
+                            )),
+                            tappable(Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+                              child: Text(
+                                entry.goalMeasure,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 13, color: Color(0xFF2F382E)),
+                              ),
+                            )),
+                            tappable(Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+                              child: Text(
+                                entry.domain,
+                                style: const TextStyle(fontSize: 13, color: Color(0xFF4D5548)),
+                              ),
+                            )),
+                          ],
+                        );
+                      }).toList(),
                     ],
                   ),
                 ),

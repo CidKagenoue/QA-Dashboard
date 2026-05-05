@@ -806,7 +806,10 @@ class _JapGppScreenState extends State<JapGppScreen> {
         )),
         tappable(Padding(
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-          child: _PriorityBadge(priority: entry.priority),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: _PriorityBadge(priority: entry.priority),
+          ),
         )),
         tappable(Padding(
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
@@ -815,11 +818,11 @@ class _JapGppScreenState extends State<JapGppScreen> {
       ],
     );
   }
-}
+} 
 
 // ---------------------------------------------------------------------------
 // Sub-widgets
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------- ---------------------------------------------------------------------------
 
 class _TabButton extends StatelessWidget {
   final String label;

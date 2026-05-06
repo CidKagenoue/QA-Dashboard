@@ -295,7 +295,6 @@ class _DashboardBodyState extends State<_DashboardBody> {
                       icon: Icons.warning_amber_rounded,
                       onTap: () => widget.onNavigate(_HomeSection.ova),
                     ),
-                    const _AfvalverwerkingCard(),
                   ],
                 ),
                 const SizedBox(height: 20),
@@ -646,66 +645,6 @@ class _StatCard extends StatelessWidget {
                 Text(subtitle,
                     style: const TextStyle(
                         fontSize: 12, color: Color(0xFF6B7A62))),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────
-//  Afvalverwerking kaart (voorbeeld)
-// ─────────────────────────────────────────────
-
-class _AfvalverwerkingCard extends StatelessWidget {
-  const _AfvalverwerkingCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return _BaseCard(
-      onTap: () async {
-        final url = Uri.parse('https://matis.example.com');
-
-        // Capture messenger before async gap to avoid use_build_context_synchronously
-        final messenger = ScaffoldMessenger.of(context);
-
-        if (await canLaunchUrl(url)) {
-          await launchUrl(url);
-        } else {
-          messenger.showSnackBar(
-            const SnackBar(content: Text('Kon MATIS website niet openen.')),
-          );
-        }
-      },
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF5F5F5),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.delete_outline_rounded,
-                color: Color(0xFF8CC63F)),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text('Afvalverwerking',
-                    style: TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF6B7A62),
-                        fontWeight: FontWeight.w600)),
-                SizedBox(height: 6),
-                Text('MATIS Website',
-                    style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF2B3424))),
               ],
             ),
           ),

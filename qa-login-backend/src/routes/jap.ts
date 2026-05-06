@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { NotificationType } from '@prisma/client';
+import { store } from './jap-gpp-store';
 
 // Export a factory so we can use Nest services (NotificationService + PrismaService)
 export default function createJapRouter(
@@ -8,22 +9,35 @@ export default function createJapRouter(
 ) {
   const router = Router();
 
-  // Tijdelijke in-memory opslag (later vervangen door database)
-  let japEntries: any[] = [];
-
   // GET /jap - haal alle entries op
   router.get('/', (req: Request, res: Response) => {
-    const { search } = req.query;
+    const { search, groupBy } = req.query;
 
-    let result = japEntries;
+    let result = [...store.japEntries];
 
     if (search && typeof search === 'string') {
       const q = search.toLowerCase();
-      result = japEntries.filter(
+      result = result.filter(
         (e) =>
           e.doelstellingMaatregel?.toLowerCase().includes(q) ||
           e.domein?.toLowerCase().includes(q),
       );
+    }
+
+    result.sort((a, b) => b.jaar - a.jaar || b.id - a.id);
+
+    if (groupBy === 'year') {
+      const groupsMap = new Map<number, any[]>();
+      for (const entry of result) {
+        const bucket = groupsMap.get(entry.jaar) ?? [];
+        bucket.push(entry);
+        groupsMap.set(entry.jaar, bucket);
+      }
+      const groups = Array.from(groupsMap.entries())
+        .sort((a, b) => b[0] - a[0])
+        .map(([year, entries]) => ({ year, entries }));
+
+      return res.json({ groups });
     }
 
     res.json({ entries: result });
@@ -36,7 +50,7 @@ export default function createJapRouter(
       ...req.body,
       id: Date.now(),
     };
-    japEntries.push(entry);
+    store.japEntries.push(entry);
 
     // Notify relevant users: admins + users with japGppAccess
     try {
@@ -68,15 +82,15 @@ export default function createJapRouter(
   // PATCH /jap/:id - update een entry
   router.patch('/:id', async (req: Request, res: Response) => {
     const id = Number(req.params.id);
-    const index = japEntries.findIndex((e) => e.id === id);
+    const index = store.japEntries.findIndex((e) => e.id === id);
 
     if (index === -1) {
       return res.status(404).json({ message: 'Entry niet gevonden' });
     }
 
-    const previous = { ...japEntries[index] };
-    japEntries[index] = { ...japEntries[index], ...req.body };
-    const updated = japEntries[index];
+    const previous = { ...store.japEntries[index] };
+    store.japEntries[index] = { ...store.japEntries[index], ...req.body };
+    const updated = store.japEntries[index];
 
     // If a remark/comment was added, notify relevant users
     if (req.body && typeof req.body.opmerking === 'string' && req.body.opmerking.trim() !== '') {
@@ -130,13 +144,13 @@ export default function createJapRouter(
       console.warn('Failed to notify users for JAP status change', err);
     }
 
-    res.json({ entry: japEntries[index] });
+    res.json({ entry: store.japEntries[index] });
   });
 
   // DELETE /jap/:id - verwijder een entry
   router.delete('/:id', (req: Request, res: Response) => {
     const id = Number(req.params.id);
-    japEntries = japEntries.filter((e) => e.id !== id);
+    store.japEntries = store.japEntries.filter((e) => e.id !== id);
     res.status(204).send();
   });
 

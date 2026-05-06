@@ -205,8 +205,8 @@ class _JapDetailScreenState extends State<JapDetailScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(child: _buildLabelValue('Domein', widget.entry.domain, bold: true)),
-        Expanded(child: _buildLabelValue('Start datum', '01/01/${widget.entry.year}')),
-        Expanded(child: _buildLabelValue('Einddatum', '31/12/${widget.entry.year}')),
+        Expanded(child: _buildLabelValue('Start datum', _formatDate(widget.entry.startDate, '01/01/${widget.entry.year}'))),
+        Expanded(child: _buildLabelValue('Einddatum', _formatDate(widget.entry.endDate, '31/12/${widget.entry.year}'))),
       ],
     );
   }
@@ -215,7 +215,7 @@ class _JapDetailScreenState extends State<JapDetailScreen> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(child: _buildLabelValue('Risicoveld', 'Algemeen', bold: true)),
+        Expanded(child: _buildLabelValue('Risicoveld', widget.entry.riskField, bold: true)),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -231,9 +231,16 @@ class _JapDetailScreenState extends State<JapDetailScreen> {
             ],
           ),
         ),
-        const Expanded(child: SizedBox()),
+        Expanded(child: _buildLabelValue('Middelen / Budget', widget.entry.resourcesBudget.isEmpty ? '—' : widget.entry.resourcesBudget)),
       ],
     );
+  }
+
+  String _formatDate(DateTime? value, String fallback) {
+    if (value == null) return fallback;
+    final day = value.day.toString().padLeft(2, '0');
+    final month = value.month.toString().padLeft(2, '0');
+    return '$day/$month/${value.year}';
   }
 
   Widget _buildPriorityRealisationRow() {

@@ -13,9 +13,11 @@ dependencies:
   shared_preferences: ^2.2.2
   provider: ^6.1.1
   url_launcher: ^6.3.0  
-
-  # Add file_picker for web-compatible file/image picking
   file_picker: ^6.1.1
+  pdf: ^3.10.0
+  printing: ^5.10.0
+  archive: ^3.4.0
+  path_provider: ^2.1.1
 
 dev_dependencies:
   flutter_test:

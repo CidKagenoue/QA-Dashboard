@@ -1,6 +1,7 @@
 // lib/services/jap_api_service.dart
 
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import '../models/jap_gpp_entry.dart';
 import 'api_service.dart';
@@ -60,6 +61,54 @@ class JapApiService {
     }
     final error = jsonDecode(response.body);
     throw Exception(error['message'] ?? 'GPP aanmaken mislukt');
+  }
+
+  static Future<GppEntry> updateGppEntry({
+    required String token,
+    required int id,
+    required Map<String, dynamic> payload,
+  }) async {
+    final response = await http.patch(
+      Uri.parse('${ApiService.baseUrl}/gpp/$id'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(payload),
+    );
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final body = jsonDecode(response.body);
+      final entry = body['entry'];
+      if (entry is! Map) throw Exception('Ongeldige GPP entry ontvangen');
+      return GppEntry.fromJson(Map<String, dynamic>.from(entry));
+    }
+    final error = jsonDecode(response.body);
+    throw Exception(error['message'] ?? 'GPP opslaan mislukt');
+  }
+
+  static Future<Map<String, dynamic>> importGppExcel({
+    required String token,
+    required String fileName,
+    required Uint8List bytes,
+    bool clearExisting = true,
+  }) async {
+    final uri = Uri.parse('${ApiService.baseUrl}/gpp/import-excel').replace(
+      queryParameters: {'clearExisting': clearExisting ? 'true' : 'false'},
+    );
+
+    final request = http.MultipartRequest('POST', uri)
+      ..headers['Authorization'] = 'Bearer $token'
+      ..files.add(http.MultipartFile.fromBytes('file', bytes, filename: fileName));
+
+    final streamed = await request.send();
+    final response = await http.Response.fromStream(streamed);
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return body;
+    }
+    throw Exception(body['message'] ?? 'GPP import mislukt');
   }
 
   // ── JAP ──────────────────────────────────────────────────────────────────

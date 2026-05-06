@@ -99,6 +99,31 @@ flutter run
 
 ## 3. API Endpoints
 
+### GPP / JAP Excel Import
+
+The JAP & GPP screen now supports importing a workbook like `2021-2026 - GPP + JAP Facilities.xlsx` directly from the GPP tab.
+
+Expected behavior:
+
+- One GPP master plan is created for the workbook.
+- Each Excel row becomes one or more yearly JAP entries.
+- You can edit JAP rows per year after import, so goal text, risk field, priority, executor, dates, and remarks can differ by year.
+
+Excel columns that are mapped:
+
+- `Jaar`
+- `Doelstelling - maatregel`
+- `Risicoveld`
+- `Prioriteit (tijdsplanning)`
+- `Uitvoerder`
+- `Middelen : Budget of werkuren`
+- `Startdatum`
+- `Realisatie`
+- `Einddatum`
+- `Opmerkingen`
+
+In the app, open **JAP & GPP** and use **Excel import** in the GPP tab.
+
 ### Login
 ```
 POST /auth/login

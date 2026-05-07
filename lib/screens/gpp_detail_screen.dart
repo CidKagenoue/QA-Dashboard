@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:qa_dashboard/services/jap_gpp_api_service.dart';
 import '../models/jap_gpp_entry.dart';
+import '../services/domain_service.dart';
 import '../services/notification_service.dart';
+import '../widgets/domain_dropdown_field.dart';
 
 class GppDetailScreen extends StatefulWidget {
   final GppEntry entry;
@@ -28,6 +30,7 @@ class _GppDetailScreenState extends State<GppDetailScreen> {
   late final TextEditingController _executorController;
   late final TextEditingController _resourcesController;
   late final TextEditingController _remarkController;
+  List<String> _domains = DomainService.defaultDomains;
   late DateTime _startDate;
   late DateTime _endDate;
   late String _priority;
@@ -49,6 +52,7 @@ class _GppDetailScreenState extends State<GppDetailScreen> {
     _endDate = _entry.endDate ?? DateTime(_entry.endYear, 12, 31);
     _priority = _normalisePriority(_entry.priority);
     _realisation = _normaliseRealisation(_entry.realisation);
+    _loadDomains();
   }
 
   @override
@@ -60,6 +64,18 @@ class _GppDetailScreenState extends State<GppDetailScreen> {
     _resourcesController.dispose();
     _remarkController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadDomains() async {
+    final currentDomain = _domainController.text.trim();
+    if (currentDomain.isNotEmpty) {
+      await DomainService.addDomain(currentDomain);
+    }
+
+    final domains = await DomainService.loadDomains();
+    if (!mounted) return;
+
+    setState(() => _domains = domains);
   }
 
   @override
@@ -116,6 +132,13 @@ class _GppDetailScreenState extends State<GppDetailScreen> {
               onPressed: _saving ? null : _cancelEditing,
               child: const Text('Annuleren'),
             ),
+          const SizedBox(width: 8),
+          TextButton.icon(
+            onPressed: _saving ? null : _confirmDelete,
+            icon: const Icon(Icons.delete_outline, size: 18),
+            label: const Text('Verwijderen'),
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFFD32F2F)),
+          ),
           const SizedBox(width: 8),
           ElevatedButton.icon(
             onPressed: _saving ? null : (_editing ? _save : () => setState(() => _editing = true)),
@@ -296,7 +319,9 @@ class _GppDetailScreenState extends State<GppDetailScreen> {
         ),
         const SizedBox(height: 8),
         if (controller != null)
-          _editableField(controller, maxLines: maxLines)
+          label == 'Domein'
+              ? _editableDomainField()
+              : _editableField(controller, maxLines: maxLines)
         else if (priority != null)
           _buildPriorityPill(priority)
         else if (realisation != null)
@@ -322,6 +347,31 @@ class _GppDetailScreenState extends State<GppDetailScreen> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       ),
+    );
+  }
+
+  Widget _editableDomainField() {
+    if (!_editing) {
+      return Text(
+        _domainController.text.isEmpty ? '-' : _domainController.text,
+        style: const TextStyle(fontSize: 13, color: Color(0xFF2F382E)),
+      );
+    }
+
+    return DomainDropdownField(
+      value: _domainController.text,
+      domains: _domains,
+      onChanged: (value) {
+        setState(() => _domainController.text = value);
+      },
+      onDomainAdded: (value) {
+        setState(() {
+          _domainController.text = value;
+          if (!_domains.any((domain) => domain.toLowerCase() == value.toLowerCase())) {
+            _domains = [..._domains, value];
+          }
+        });
+      },
     );
   }
 
@@ -527,6 +577,47 @@ class _GppDetailScreenState extends State<GppDetailScreen> {
       );
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _confirmDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('GPP verwijderen'),
+        content: const Text('Weet je zeker dat je deze GPP wilt verwijderen? De gekoppelde JAP-regels worden ook verwijderd.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuleren'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD32F2F), foregroundColor: Colors.white),
+            child: const Text('Verwijderen'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await JapApiService.deleteGppEntry(token: widget.token, id: _entry.id);
+      if (!mounted) return;
+      try {
+        await context.read<NotificationService>().loadNotifications(limit: 50);
+        await context.read<NotificationService>().refreshUnreadCount();
+      } catch (_) {}
+      widget.onClose();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('GPP verwijderd.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Verwijderen mislukt: $e')),
+      );
     }
   }
 

@@ -3,8 +3,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/notification_service.dart';
+import '../services/domain_service.dart';
 import 'package:qa_dashboard/services/jap_gpp_api_service.dart';
 import '../models/jap_gpp_entry.dart';
+import '../widgets/domain_dropdown_field.dart';
 
 class JapDetailScreen extends StatefulWidget {
   final JapEntry entry;
@@ -23,33 +25,60 @@ class JapDetailScreen extends StatefulWidget {
 }
 
 class _JapDetailScreenState extends State<JapDetailScreen> {
+  late JapEntry _entry;
   late final TextEditingController _remarkController;
   late final TextEditingController _goalController;
+  late final TextEditingController _domainController;
+  late final TextEditingController _riskFieldController;
   late final TextEditingController _executorController;
+  late final TextEditingController _budgetController;
+  List<String> _domains = DomainService.defaultDomains;
   bool _editingRemark = false;
   bool _editingAll = false;
+  late DateTime _startDate;
+  late DateTime _endDate;
   late JapRealisation _selectedRealisation;
   late JapPriority _selectedPriority;
 
   @override
   void initState() {
     super.initState();
-    _remarkController = TextEditingController(text: widget.entry.remark);
-    _goalController = TextEditingController(text: widget.entry.goalMeasure);
-    _executorController = TextEditingController(text: widget.entry.executor);
-    _selectedRealisation = widget.entry.realisation;
-    _selectedPriority = widget.entry.priority;
+    _entry = widget.entry;
+    _remarkController = TextEditingController(text: _entry.remark);
+    _goalController = TextEditingController(text: _entry.goalMeasure);
+    _domainController = TextEditingController(text: _entry.domain);
+    _riskFieldController = TextEditingController(text: _entry.riskField);
+    _executorController = TextEditingController(text: _entry.executor);
+    _budgetController = TextEditingController(text: _entry.resourcesBudget);
+    _startDate = _entry.startDate ?? DateTime(_entry.year, 1, 1);
+    _endDate = _entry.endDate ?? DateTime(_entry.year, 12, 31);
+    _selectedRealisation = _entry.realisation;
+    _selectedPriority = _entry.priority;
+    _loadDomains();
   }
 
   @override
   void dispose() {
     _remarkController.dispose();
     _goalController.dispose();
+    _domainController.dispose();
+    _riskFieldController.dispose();
     _executorController.dispose();
+    _budgetController.dispose();
     super.dispose();
   }
 
-  // jap_detail_screen.dart
+  Future<void> _loadDomains() async {
+    final currentDomain = _domainController.text.trim();
+    if (currentDomain.isNotEmpty) {
+      await DomainService.addDomain(currentDomain);
+    }
+
+    final domains = await DomainService.loadDomains();
+    if (!mounted) return;
+
+    setState(() => _domains = domains);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -77,12 +106,21 @@ class _JapDetailScreenState extends State<JapDetailScreen> {
                     ),
                   ),
                   Text(
-                    'ID ${widget.entry.id.toString().padLeft(4, '0')}',
+                    'ID ${_entry.id.toString().padLeft(4, '0')}',
                     style: const TextStyle(fontSize: 12, color: Color(0xFF6B7A62)),
                   ),
                 ],
               ),
               const Spacer(),
+              TextButton.icon(
+                onPressed: _confirmDelete,
+                icon: const Icon(Icons.delete_outline, size: 18),
+                label: const Text('Verwijderen'),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFFD32F2F),
+                ),
+              ),
+              const SizedBox(width: 8),
               TextButton.icon(
                 onPressed: () => setState(() => _editingAll = !_editingAll),
                 icon: Icon(_editingAll ? Icons.visibility_outlined : Icons.edit_outlined, size: 18),
@@ -170,7 +208,7 @@ class _JapDetailScreenState extends State<JapDetailScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
-          'ID ${widget.entry.id.toString().padLeft(4, '0')}',
+          'ID ${_entry.id.toString().padLeft(4, '0')}',
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w700,
@@ -185,7 +223,7 @@ class _JapDetailScreenState extends State<JapDetailScreen> {
             border: Border.all(color: const Color(0xFFE4E9DD)),
           ),
           child: Text(
-            widget.entry.year.toString(),
+            _entry.year.toString(),
             style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF4D5548)),
           ),
         ),
@@ -226,9 +264,24 @@ class _JapDetailScreenState extends State<JapDetailScreen> {
       spacing: 12,
       runSpacing: 12,
       children: [
-        SizedBox(width: 220, child: _buildLabelValue('Domein', widget.entry.domain, bold: true)),
-        SizedBox(width: 180, child: _buildLabelValue('Start datum', _formatDate(widget.entry.startDate, '01/01/${widget.entry.year}'))),
-        SizedBox(width: 180, child: _buildLabelValue('Einddatum', _formatDate(widget.entry.endDate, '31/12/${widget.entry.year}'))),
+        SizedBox(
+          width: 220,
+          child: _editingAll
+              ? _buildEditableDomainDropdown()
+              : _buildLabelValue('Domein', _entry.domain, bold: true),
+        ),
+        SizedBox(
+          width: 180,
+          child: _editingAll
+              ? _buildEditableDateField('Start datum', _startDate, (date) => setState(() => _startDate = date))
+              : _buildLabelValue('Start datum', _formatDate(_entry.startDate, '01/01/${_entry.year}')),
+        ),
+        SizedBox(
+          width: 180,
+          child: _editingAll
+              ? _buildEditableDateField('Einddatum', _endDate, (date) => setState(() => _endDate = date))
+              : _buildLabelValue('Einddatum', _formatDate(_entry.endDate, '31/12/${_entry.year}')),
+        ),
       ],
     );
   }
@@ -238,7 +291,12 @@ class _JapDetailScreenState extends State<JapDetailScreen> {
       spacing: 12,
       runSpacing: 12,
       children: [
-        SizedBox(width: 220, child: _buildLabelValue('Risicoveld', widget.entry.riskField, bold: true)),
+        SizedBox(
+          width: 220,
+          child: _editingAll
+              ? _buildEditableTextField('Risicoveld', _riskFieldController)
+              : _buildLabelValue('Risicoveld', _entry.riskField, bold: true),
+        ),
         SizedBox(
           width: 220,
           child: Column(
@@ -247,7 +305,10 @@ class _JapDetailScreenState extends State<JapDetailScreen> {
               Text('Uitvoerder', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
               const SizedBox(height: 4),
               _editingAll
-                  ? TextField(controller: _executorController, decoration: const InputDecoration(isDense: true))
+                  ? TextField(
+                      controller: _executorController,
+                      decoration: const InputDecoration(isDense: true),
+                    )
                   : Text(
                       _executorController.text.isNotEmpty ? _executorController.text : '—',
                       style: const TextStyle(fontSize: 13, color: Color(0xFF243022)),
@@ -257,7 +318,22 @@ class _JapDetailScreenState extends State<JapDetailScreen> {
         ),
         SizedBox(
           width: 220,
-          child: _buildLabelValue('Middelen / Budget', widget.entry.resourcesBudget.isEmpty ? '—' : widget.entry.resourcesBudget),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Middelen / Budget', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+              const SizedBox(height: 4),
+              _editingAll
+                  ? TextField(
+                      controller: _budgetController,
+                      decoration: const InputDecoration(isDense: true),
+                    )
+                  : Text(
+                      _budgetController.text.isNotEmpty ? _budgetController.text : '—',
+                      style: const TextStyle(fontSize: 13, color: Color(0xFF243022)),
+                    ),
+            ],
+          ),
         ),
       ],
     );
@@ -344,6 +420,71 @@ class _JapDetailScreenState extends State<JapDetailScreen> {
     );
   }
 
+  Widget _buildEditableTextField(String label, TextEditingController controller, {int maxLines = 1}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+        const SizedBox(height: 4),
+        TextField(
+          controller: controller,
+          maxLines: maxLines,
+          decoration: const InputDecoration(isDense: true),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEditableDomainDropdown() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Domein', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+        const SizedBox(height: 4),
+        DomainDropdownField(
+          value: _domainController.text,
+          domains: _domains,
+          onChanged: (value) {
+            setState(() => _domainController.text = value);
+          },
+          onDomainAdded: (value) {
+            setState(() {
+              _domainController.text = value;
+              if (!_domains.any((domain) => domain.toLowerCase() == value.toLowerCase())) {
+                _domains = [..._domains, value];
+              }
+            });
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEditableDateField(String label, DateTime date, ValueChanged<DateTime> onChanged) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+        const SizedBox(height: 4),
+        InkWell(
+          onTap: () async {
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: date,
+              firstDate: DateTime(2020),
+              lastDate: DateTime(2100),
+            );
+            if (picked != null) onChanged(picked);
+          },
+          child: InputDecorator(
+            decoration: const InputDecoration(isDense: true),
+            child: Text(_formatDate(date, '')),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildRemarksSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -379,10 +520,12 @@ class _JapDetailScreenState extends State<JapDetailScreen> {
                       try {
                         await JapApiService.updateRemark(
                           token: widget.token,
-                          id: widget.entry.id,
+                          id: _entry.id,
                           remark: _remarkController.text.trim(),
                         );
-                          setState(() => _editingRemark = false);
+                          setState(() {
+                            _editingRemark = false;
+                          });
                           // Refresh notifications immediately
                           try {
                             await context.read<NotificationService>().loadNotifications(limit: 50);
@@ -429,12 +572,17 @@ class _JapDetailScreenState extends State<JapDetailScreen> {
             children: [
               TextButton(
                 onPressed: () {
-                  _goalController.text = widget.entry.goalMeasure;
-                  _executorController.text = widget.entry.executor;
+                  _goalController.text = _entry.goalMeasure;
+                  _executorController.text = _entry.executor;
+                  _domainController.text = _entry.domain;
+                  _riskFieldController.text = _entry.riskField;
+                  _budgetController.text = _entry.resourcesBudget;
+                  _startDate = _entry.startDate ?? DateTime(_entry.year, 1, 1);
+                  _endDate = _entry.endDate ?? DateTime(_entry.year, 12, 31);
                   setState(() {
                     _editingAll = false;
-                    _selectedPriority = widget.entry.priority;
-                    _selectedRealisation = widget.entry.realisation;
+                    _selectedPriority = _entry.priority;
+                    _selectedRealisation = _entry.realisation;
                   });
                 },
                 child: const Text('Annuleren',
@@ -444,18 +592,36 @@ class _JapDetailScreenState extends State<JapDetailScreen> {
               ElevatedButton(
                 onPressed: () async {
                   try {
-                    await JapApiService.updateJapEntry(
+                    final updated = await JapApiService.updateJapEntry(
                       token: widget.token,
-                      id: widget.entry.id,
+                      id: _entry.id,
                       payload: {
                         'doelstellingMaatregel': _goalController.text.trim(),
+                        'domein': _domainController.text.trim(),
+                        'risicoveld': _riskFieldController.text.trim(),
                         'uitvoerder': _executorController.text.trim(),
+                        'middelenBudgetWerkuren': _budgetController.text.trim(),
+                        'jaar': _entry.year,
+                        'startdatum': _formatDate(_startDate, ''),
+                        'einddatum': _formatDate(_endDate, ''),
                         'prioriteit': _priorityToString(_selectedPriority),
                         'realisatie': _realisationToString(_selectedRealisation),
                         'opmerking': _remarkController.text.trim(),
                       },
                     );
-                    setState(() => _editingAll = false);
+                    setState(() {
+                      _entry = updated;
+                      _goalController.text = updated.goalMeasure;
+                      _domainController.text = updated.domain;
+                      _riskFieldController.text = updated.riskField;
+                      _executorController.text = updated.executor;
+                      _budgetController.text = updated.resourcesBudget;
+                      _startDate = updated.startDate ?? _startDate;
+                      _endDate = updated.endDate ?? _endDate;
+                      _selectedPriority = updated.priority;
+                      _selectedRealisation = updated.realisation;
+                      _editingAll = false;
+                    });
                     // Refresh notifications immediately
                     try {
                       await context.read<NotificationService>().loadNotifications(limit: 50);
@@ -480,8 +646,8 @@ class _JapDetailScreenState extends State<JapDetailScreen> {
   
 
   Widget _buildStatusBadge() {
-    final (label, backgroundColor, foregroundColor) = switch (widget.entry.realisation) {
-      JapRealisation.completed => ('Actief', const Color(0xFFEAF4D9), const Color(0xFF4A7A1E)),
+    final (label, backgroundColor, foregroundColor) = switch (_entry.realisation) {
+      JapRealisation.completed => ('Uitgevoerd', const Color(0xFFEAF4D9), const Color(0xFF4A7A1E)),
       JapRealisation.inProgress => ('In uitvoering', const Color(0xFFE3F0FF), const Color(0xFF1565C0)),
       JapRealisation.notYetCompleted => ('Niet uitgevoerd', const Color(0xFFFFEDED), const Color(0xFFD32F2F)),
       JapRealisation.fillIn => ('Vul aan', const Color(0xFFF1F1F1), const Color(0xFF757575)),
@@ -493,23 +659,59 @@ class _JapDetailScreenState extends State<JapDetailScreen> {
         color: backgroundColor,
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(label,
-              style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: foregroundColor)),
-          const SizedBox(width: 4),
-          Icon(Icons.keyboard_arrow_down, size: 16, color: foregroundColor),
-        ],
+      child: Text(
+        label,
+        style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: foregroundColor),
       ),
     );
   }
 
+  Future<void> _confirmDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('JAP verwijderen'),
+        content: const Text('Weet je zeker dat je deze JAP wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuleren'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD32F2F), foregroundColor: Colors.white),
+            child: const Text('Verwijderen'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await JapApiService.deleteJapEntry(token: widget.token, id: _entry.id);
+      if (!mounted) return;
+      try {
+        await context.read<NotificationService>().loadNotifications(limit: 50);
+        await context.read<NotificationService>().refreshUnreadCount();
+      } catch (_) {}
+      widget.onClose();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('JAP verwijderd.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Verwijderen mislukt: $e')),
+      );
+    }
+  }
+
   Widget _buildPriorityBadge() {
-    final (label, backgroundColor, foregroundColor) = switch (widget.entry.priority) {
+    final (label, backgroundColor, foregroundColor) = switch (_entry.priority) {
       JapPriority.high => ('Hoge prioriteit', const Color(0xFFFFEDED), const Color(0xFFD32F2F)),
       JapPriority.medium => ('Middelhoge prioriteit', const Color(0xFFFFF8E1), const Color(0xFFF57F17)),
       JapPriority.low => ('Lage prioriteit', const Color(0xFFF1F1F1), const Color(0xFF757575)),
@@ -530,7 +732,7 @@ class _JapDetailScreenState extends State<JapDetailScreen> {
   }
 
   Widget _buildRealisationLabel() {
-    final (label, color) = switch (widget.entry.realisation) {
+    final (label, color) = switch (_entry.realisation) {
       JapRealisation.inProgress => ('In Uitvoering', const Color(0xFF1565C0)),
       JapRealisation.completed => ('Uitgevoerd', const Color(0xFF2E7D32)),
       JapRealisation.notYetCompleted => ('Nog niet uitgevoerd', const Color(0xFFD32F2F)),

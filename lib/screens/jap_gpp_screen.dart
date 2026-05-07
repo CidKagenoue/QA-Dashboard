@@ -5,10 +5,12 @@ import 'package:qa_dashboard/services/jap_gpp_api_service.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import '../services/notification_service.dart';
+import '../services/domain_service.dart';
 import '../services/jap_export_service.dart';
 import '../models/jap_gpp_entry.dart';
 import 'jap_detail_screen.dart';
 import 'gpp_detail_screen.dart';
+import '../widgets/domain_dropdown_field.dart';
 
 // ---------------------------------------------------------------------------
 // Screen
@@ -47,6 +49,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
   int _tabIndex = 0;
   List<GppEntry> _allGppEntries = [];
   bool _importingGppExcel = false;
+  List<String> _domains = DomainService.defaultDomains;
 
   Future<void> _loadGppEntries() async {
     try {
@@ -58,11 +61,18 @@ class _JapGppScreenState extends State<JapGppScreen> {
     }
   }
 
+  Future<void> _loadDomains() async {
+    final domains = await DomainService.loadDomains();
+    if (!mounted) return;
+    setState(() => _domains = domains);
+  }
+
   @override
   void initState() {
     super.initState();
     _loadEntries();
     _loadGppEntries();
+    _loadDomains();
     _searchController.addListener(_applyFilter);
     _gppSearchController.addListener(_applyGppFilter); // ← voeg toe
   }
@@ -501,11 +511,12 @@ class _JapGppScreenState extends State<JapGppScreen> {
   }
 
   void _showGppFilterSheet() {
-    final domains = _allGppEntries
-        .map((entry) => entry.domain)
-        .where((domain) => domain.trim().isNotEmpty)
-        .toSet()
-        .toList()
+    final domains = {
+      ..._domains.where((domain) => domain.trim().isNotEmpty),
+      ..._allGppEntries
+          .map((entry) => entry.domain)
+          .where((domain) => domain.trim().isNotEmpty),
+    }.toList()
       ..sort();
 
     showModalBottomSheet(
@@ -604,6 +615,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
               token: widget.token,
               onSaved: () async {
                 await _loadEntries();
+                await _loadDomains();
                 try {
                   await context.read<NotificationService>().loadNotifications(limit: 50);
                   await context.read<NotificationService>().refreshUnreadCount();
@@ -633,6 +645,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
               onSaved: () async {
                 await _loadGppEntries();
                 await _loadEntries();
+                await _loadDomains();
                 try {
                   await context.read<NotificationService>().loadNotifications(limit: 50);
                   await context.read<NotificationService>().refreshUnreadCount();
@@ -732,7 +745,11 @@ class _JapGppScreenState extends State<JapGppScreen> {
       return JapDetailScreen(
         entry: _selectedEntry!,
         token: widget.token,
-        onClose: () => setState(() => _selectedEntry = null),
+        onClose: () {
+          setState(() => _selectedEntry = null);
+          _loadEntries();
+          _loadGppEntries();
+        },
       );
     }
     if (_selectedGppEntry != null) {
@@ -1318,6 +1335,20 @@ class _CreateJapFormState extends State<_CreateJapForm> {
   DateTime? _startDate;
   DateTime? _endDate;
   int? _selectedYear;
+  List<String> _domains = DomainService.defaultDomains;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDomains();
+  }
+
+  Future<void> _loadDomains() async {
+    final domains = await DomainService.loadDomains();
+    if (!mounted) return;
+    setState(() => _domains = domains);
+  }
+
   @override
   void dispose() {
     _doelstellingController.dispose();
@@ -1378,13 +1409,17 @@ class _CreateJapFormState extends State<_CreateJapForm> {
               decoration: const InputDecoration(labelText: 'Doelstelling - maatregel *'),
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: _domein,
-              items: ['Arbeidsveiligheid', 'Welzijnsbeleid', 'Arbeidshygiëne', 'Vul aan']
-                  .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                  .toList(),
-              onChanged: (v) => setState(() => _domein = v!),
-              decoration: const InputDecoration(labelText: 'Domein *'),
+            DomainDropdownField(
+              label: 'Domein *',
+              value: _domein,
+              domains: _domains,
+              onChanged: (value) => setState(() => _domein = value),
+              onDomainAdded: (value) => setState(() {
+                _domein = value;
+                if (!_domains.any((domain) => domain.toLowerCase() == value.toLowerCase())) {
+                  _domains = [..._domains, value];
+                }
+              }),
             ),
             const SizedBox(height: 12),
             Row(
@@ -1598,6 +1633,19 @@ class _CreateGppFormState extends State<_CreateGppForm> {
 
   DateTime? _startDate;
   DateTime? _endDate;
+  List<String> _domains = DomainService.defaultDomains;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDomains();
+  }
+
+  Future<void> _loadDomains() async {
+    final domains = await DomainService.loadDomains();
+    if (!mounted) return;
+    setState(() => _domains = domains);
+  }
 
   @override
   void dispose() {
@@ -1647,13 +1695,17 @@ class _CreateGppFormState extends State<_CreateGppForm> {
               decoration: const InputDecoration(labelText: 'Doelstelling - maatregel *'),
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: _domein,
-              items: ['Arbeidsveiligheid', 'Welzijnsbeleid', 'Arbeidshygiëne', 'Vul aan']
-                  .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                  .toList(),
-              onChanged: (v) => setState(() => _domein = v!),
-              decoration: const InputDecoration(labelText: 'Domein *'),
+            DomainDropdownField(
+              label: 'Domein *',
+              value: _domein,
+              domains: _domains,
+              onChanged: (value) => setState(() => _domein = value),
+              onDomainAdded: (value) => setState(() {
+                _domein = value;
+                if (!_domains.any((domain) => domain.toLowerCase() == value.toLowerCase())) {
+                  _domains = [..._domains, value];
+                }
+              }),
             ),
             const SizedBox(height: 12),
             Row(

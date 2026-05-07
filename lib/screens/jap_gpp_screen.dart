@@ -5,10 +5,12 @@ import 'package:qa_dashboard/services/jap_gpp_api_service.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import '../services/notification_service.dart';
+import '../services/domain_service.dart';
 import '../services/jap_export_service.dart';
 import '../models/jap_gpp_entry.dart';
 import 'jap_detail_screen.dart';
 import 'gpp_detail_screen.dart';
+import '../widgets/domain_dropdown_field.dart';
 
 // ---------------------------------------------------------------------------
 // Screen
@@ -47,6 +49,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
   int _tabIndex = 0;
   List<GppEntry> _allGppEntries = [];
   bool _importingGppExcel = false;
+  List<String> _domains = DomainService.defaultDomains;
 
   Future<void> _loadGppEntries() async {
     try {
@@ -58,11 +61,18 @@ class _JapGppScreenState extends State<JapGppScreen> {
     }
   }
 
+  Future<void> _loadDomains() async {
+    final domains = await DomainService.loadDomains();
+    if (!mounted) return;
+    setState(() => _domains = domains);
+  }
+
   @override
   void initState() {
     super.initState();
     _loadEntries();
     _loadGppEntries();
+    _loadDomains();
     _searchController.addListener(_applyFilter);
     _gppSearchController.addListener(_applyGppFilter); // ← voeg toe
   }
@@ -136,31 +146,142 @@ class _JapGppScreenState extends State<JapGppScreen> {
     if (!mounted) return;
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Selecteer Jaar voor Export'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: years.map((year) {
-              final count = _allEntries.where((e) => e.year == year).length;
-              return ListTile(
-                title: Text('Jaar $year'),
-                subtitle: Text('$count acties'),
-                trailing: const Icon(Icons.download),
-                onTap: () {
-                  Navigator.pop(context);
-                  _exportYearPdf(year);
-                },
-              );
-            }).toList(),
+      builder: (context) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 460),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEAF4D9),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.download_outlined, color: Color(0xFF4A7A1E)),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Selecteer jaar voor export',
+                            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Color(0xFF243022)),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Kies één jaar om de PDF-export te maken.',
+                            style: TextStyle(fontSize: 13, color: Color(0xFF6B7A62)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAF4),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFE4E9DD)),
+                  ),
+                  child: Text(
+                    '${years.length} jaar beschikbaar',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF4D5548)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  height: 360,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: years.map((year) {
+                        final count = _allEntries.where((e) => e.year == year).length;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: () {
+                              Navigator.pop(context);
+                              _exportYearPdf(year);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: const Color(0xFFE4E9DD)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF1F5EE),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        '$year',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF243022),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Jaar $year',
+                                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF243022)),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          '$count acties',
+                                          style: const TextStyle(fontSize: 12, color: Color(0xFF6B7A62)),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const Icon(Icons.chevron_right, color: Color(0xFF8CC63F)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Sluiten'),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Sluiten'),
-          ),
-        ],
       ),
     );
   }
@@ -390,11 +511,12 @@ class _JapGppScreenState extends State<JapGppScreen> {
   }
 
   void _showGppFilterSheet() {
-    final domains = _allGppEntries
-        .map((entry) => entry.domain)
-        .where((domain) => domain.trim().isNotEmpty)
-        .toSet()
-        .toList()
+    final domains = {
+      ..._domains.where((domain) => domain.trim().isNotEmpty),
+      ..._allGppEntries
+          .map((entry) => entry.domain)
+          .where((domain) => domain.trim().isNotEmpty),
+    }.toList()
       ..sort();
 
     showModalBottomSheet(
@@ -493,6 +615,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
               token: widget.token,
               onSaved: () async {
                 await _loadEntries();
+                await _loadDomains();
                 try {
                   await context.read<NotificationService>().loadNotifications(limit: 50);
                   await context.read<NotificationService>().refreshUnreadCount();
@@ -522,6 +645,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
               onSaved: () async {
                 await _loadGppEntries();
                 await _loadEntries();
+                await _loadDomains();
                 try {
                   await context.read<NotificationService>().loadNotifications(limit: 50);
                   await context.read<NotificationService>().refreshUnreadCount();
@@ -621,7 +745,11 @@ class _JapGppScreenState extends State<JapGppScreen> {
       return JapDetailScreen(
         entry: _selectedEntry!,
         token: widget.token,
-        onClose: () => setState(() => _selectedEntry = null),
+        onClose: () {
+          setState(() => _selectedEntry = null);
+          _loadEntries();
+          _loadGppEntries();
+        },
       );
     }
     if (_selectedGppEntry != null) {
@@ -1149,48 +1277,6 @@ class _RealisatieLabel extends StatelessWidget {
   }
 }
 
-class _GppPriorityBadge extends StatelessWidget {
-  final String value;
-
-  const _GppPriorityBadge({required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    final text = value.toLowerCase();
-    final (label, bg, fg) = text.contains('hoog')
-        ? ('Hoge prioriteit', const Color(0xFFFFEDED), const Color(0xFFD32F2F))
-        : text.contains('middel')
-            ? ('Middelhoge prioriteit', const Color(0xFFFFF8E1), const Color(0xFFF57F17))
-            : ('Lage prioriteit', const Color(0xFFF1F1F1), const Color(0xFF757575));
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
-      child: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: fg)),
-    );
-  }
-}
-
-class _GppRealisationLabel extends StatelessWidget {
-  final String value;
-
-  const _GppRealisationLabel({required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    final text = value.toLowerCase();
-    final (label, color) = text.contains('uitgevoerd') && !text.contains('niet')
-        ? ('Uitgevoerd', const Color(0xFF2E7D32))
-        : text.contains('nog') || text.contains('niet')
-            ? ('Nog niet uitgevoerd', const Color(0xFFD32F2F))
-            : text.contains('uitvoering')
-                ? ('In uitvoering', const Color(0xFF1565C0))
-                : ('Vul aan', const Color(0xFF6B7A62));
-
-    return Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color));
-  }
-}
-
 class _FilterChip extends StatelessWidget {
   final String label;
   final bool selected;
@@ -1249,7 +1335,19 @@ class _CreateJapFormState extends State<_CreateJapForm> {
   DateTime? _startDate;
   DateTime? _endDate;
   int? _selectedYear;
-  final Map<int, Map<String, dynamic>> _yearDataMap = {};
+  List<String> _domains = DomainService.defaultDomains;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDomains();
+  }
+
+  Future<void> _loadDomains() async {
+    final domains = await DomainService.loadDomains();
+    if (!mounted) return;
+    setState(() => _domains = domains);
+  }
 
   @override
   void dispose() {
@@ -1311,13 +1409,17 @@ class _CreateJapFormState extends State<_CreateJapForm> {
               decoration: const InputDecoration(labelText: 'Doelstelling - maatregel *'),
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: _domein,
-              items: ['Arbeidsveiligheid', 'Welzijnsbeleid', 'Arbeidshygiëne', 'Vul aan']
-                  .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                  .toList(),
-              onChanged: (v) => setState(() => _domein = v!),
-              decoration: const InputDecoration(labelText: 'Domein *'),
+            DomainDropdownField(
+              label: 'Domein *',
+              value: _domein,
+              domains: _domains,
+              onChanged: (value) => setState(() => _domein = value),
+              onDomainAdded: (value) => setState(() {
+                _domein = value;
+                if (!_domains.any((domain) => domain.toLowerCase() == value.toLowerCase())) {
+                  _domains = [..._domains, value];
+                }
+              }),
             ),
             const SizedBox(height: 12),
             Row(
@@ -1531,6 +1633,19 @@ class _CreateGppFormState extends State<_CreateGppForm> {
 
   DateTime? _startDate;
   DateTime? _endDate;
+  List<String> _domains = DomainService.defaultDomains;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDomains();
+  }
+
+  Future<void> _loadDomains() async {
+    final domains = await DomainService.loadDomains();
+    if (!mounted) return;
+    setState(() => _domains = domains);
+  }
 
   @override
   void dispose() {
@@ -1580,13 +1695,17 @@ class _CreateGppFormState extends State<_CreateGppForm> {
               decoration: const InputDecoration(labelText: 'Doelstelling - maatregel *'),
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: _domein,
-              items: ['Arbeidsveiligheid', 'Welzijnsbeleid', 'Arbeidshygiëne', 'Vul aan']
-                  .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                  .toList(),
-              onChanged: (v) => setState(() => _domein = v!),
-              decoration: const InputDecoration(labelText: 'Domein *'),
+            DomainDropdownField(
+              label: 'Domein *',
+              value: _domein,
+              domains: _domains,
+              onChanged: (value) => setState(() => _domein = value),
+              onDomainAdded: (value) => setState(() {
+                _domein = value;
+                if (!_domains.any((domain) => domain.toLowerCase() == value.toLowerCase())) {
+                  _domains = [..._domains, value];
+                }
+              }),
             ),
             const SizedBox(height: 12),
             Row(

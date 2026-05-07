@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:qa_dashboard/services/jap_gpp_api_service.dart';
 import '../models/jap_gpp_entry.dart';
+import '../services/domain_service.dart';
 import '../services/notification_service.dart';
+import '../widgets/domain_dropdown_field.dart';
 
 class GppDetailScreen extends StatefulWidget {
   final GppEntry entry;
@@ -28,6 +30,7 @@ class _GppDetailScreenState extends State<GppDetailScreen> {
   late final TextEditingController _executorController;
   late final TextEditingController _resourcesController;
   late final TextEditingController _remarkController;
+  List<String> _domains = DomainService.defaultDomains;
   late DateTime _startDate;
   late DateTime _endDate;
   late String _priority;
@@ -49,6 +52,7 @@ class _GppDetailScreenState extends State<GppDetailScreen> {
     _endDate = _entry.endDate ?? DateTime(_entry.endYear, 12, 31);
     _priority = _normalisePriority(_entry.priority);
     _realisation = _normaliseRealisation(_entry.realisation);
+    _loadDomains();
   }
 
   @override
@@ -62,6 +66,18 @@ class _GppDetailScreenState extends State<GppDetailScreen> {
     super.dispose();
   }
 
+  Future<void> _loadDomains() async {
+    final currentDomain = _domainController.text.trim();
+    if (currentDomain.isNotEmpty) {
+      await DomainService.addDomain(currentDomain);
+    }
+
+    final domains = await DomainService.loadDomains();
+    if (!mounted) return;
+
+    setState(() => _domains = domains);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -70,14 +86,14 @@ class _GppDetailScreenState extends State<GppDetailScreen> {
         _buildTopBar(),
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(32),
+            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildSummary(),
-                const SizedBox(height: 32),
+                const SizedBox(height: 20),
                 _buildDetailsSection(),
-                const SizedBox(height: 32),
+                const SizedBox(height: 20),
                 _buildGeneratedYears(),
               ],
             ),
@@ -90,16 +106,25 @@ class _GppDetailScreenState extends State<GppDetailScreen> {
   Widget _buildTopBar() {
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(8, 8, 16, 8),
+      padding: const EdgeInsets.fromLTRB(8, 6, 12, 6),
       child: Row(
         children: [
           IconButton(
             icon: const Icon(Icons.arrow_back, color: Color(0xFF243022)),
             onPressed: widget.onClose,
           ),
-          const Text(
-            'GPP-lijn',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF243022)),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'GPP-lijn',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF243022)),
+              ),
+              Text(
+                'ID ${_entry.id.toString().padLeft(4, '0')}',
+                style: const TextStyle(fontSize: 12, color: Color(0xFF6B7A62)),
+              ),
+            ],
           ),
           const Spacer(),
           if (_editing)
@@ -107,6 +132,13 @@ class _GppDetailScreenState extends State<GppDetailScreen> {
               onPressed: _saving ? null : _cancelEditing,
               child: const Text('Annuleren'),
             ),
+          const SizedBox(width: 8),
+          TextButton.icon(
+            onPressed: _saving ? null : _confirmDelete,
+            icon: const Icon(Icons.delete_outline, size: 18),
+            label: const Text('Verwijderen'),
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFFD32F2F)),
+          ),
           const SizedBox(width: 8),
           ElevatedButton.icon(
             onPressed: _saving ? null : (_editing ? _save : () => setState(() => _editing = true)),
@@ -121,6 +153,7 @@ class _GppDetailScreenState extends State<GppDetailScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF8CC63F),
               foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
             ),
           ),
@@ -132,82 +165,138 @@ class _GppDetailScreenState extends State<GppDetailScreen> {
   Widget _buildSummary() {
     return Row(
       children: [
-        Text(
-          'ID ${_entry.id.toString().padLeft(4, '0')}',
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF243022)),
-        ),
-        const SizedBox(width: 12),
+        _buildMiniChip('GPP ${_entry.startYear} - ${_entry.endYear}'),
+        const SizedBox(width: 8),
         _buildStatusPill(_realisation),
         const Spacer(),
-        Text(
-          _entry.yearLabel,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF4D5548)),
-        ),
+        _buildMiniChip(_entry.yearLabel),
       ],
     );
   }
 
   Widget _buildDetailsSection() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE4E9DD)),
-      ),
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Details',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF243022)),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 760;
+        final columnWidth = wide ? (constraints.maxWidth - 14) / 2 : constraints.maxWidth;
+
+        Widget field(
+          String label,
+          TextEditingController? controller, {
+          int maxLines = 1,
+          String? priority,
+          String? realisation,
+          bool isDate = false,
+          DateTime? date,
+          ValueChanged<DateTime>? onDateChanged,
+        }) {
+          return SizedBox(
+            width: label == 'Doelstelling – maatregel' || label == 'Opmerking' || !wide ? constraints.maxWidth : columnWidth,
+            child: _buildDetailRow(
+              label,
+              controller,
+              maxLines: maxLines,
+              priority: priority,
+              realisation: realisation,
+              isDate: isDate,
+              date: date,
+              onDateChanged: onDateChanged,
+            ),
+          );
+        }
+
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE4E9DD)),
           ),
-          const SizedBox(height: 20),
-          _buildDetailRow('Doelstelling – maatregel', _goalController, maxLines: 3),
-          const SizedBox(height: 16),
-          _buildDetailRow('Domein', _domainController),
-          const SizedBox(height: 16),
-          _buildDetailRow('Risicoveld', _riskFieldController),
-          const SizedBox(height: 16),
-          Row(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: _buildDetailRow('Prioriteit', null, priority: _priority)),
-              const SizedBox(width: 16),
-              Expanded(child: _buildDetailRow('Realisatie', null, realisation: _realisation)),
+              const Text(
+                'Gegevens',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF243022)),
+              ),
+              const SizedBox(height: 14),
+              field('Doelstelling – maatregel', _goalController, maxLines: 3),
+              const SizedBox(height: 12),
+              if (wide)
+                Wrap(
+                  spacing: 14,
+                  runSpacing: 12,
+                  children: [
+                    field('Domein', _domainController),
+                    field('Risicoveld', _riskFieldController),
+                    field('Prioriteit', null, priority: _priority),
+                    field('Realisatie', null, realisation: _realisation),
+                    field('Uitvoerder', _executorController),
+                    field('Middelen / Budget / Werkuren', _resourcesController),
+                    field(
+                      'Startdatum',
+                      null,
+                      isDate: true,
+                      date: _startDate,
+                      onDateChanged: (date) => setState(() => _startDate = date),
+                    ),
+                    field(
+                      'Einddatum',
+                      null,
+                      isDate: true,
+                      date: _endDate,
+                      onDateChanged: (date) => setState(() => _endDate = date),
+                    ),
+                    field('Opmerking', _remarkController, maxLines: 3),
+                  ],
+                )
+              else ...[
+                field('Domein', _domainController),
+                const SizedBox(height: 12),
+                field('Risicoveld', _riskFieldController),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(child: field('Prioriteit', null, priority: _priority)),
+                    const SizedBox(width: 12),
+                    Expanded(child: field('Realisatie', null, realisation: _realisation)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                field('Uitvoerder', _executorController),
+                const SizedBox(height: 12),
+                field('Middelen / Budget / Werkuren', _resourcesController),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: field(
+                        'Startdatum',
+                        null,
+                        isDate: true,
+                        date: _startDate,
+                        onDateChanged: (date) => setState(() => _startDate = date),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: field(
+                        'Einddatum',
+                        null,
+                        isDate: true,
+                        date: _endDate,
+                        onDateChanged: (date) => setState(() => _endDate = date),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                field('Opmerking', _remarkController, maxLines: 3),
+              ],
             ],
           ),
-          const SizedBox(height: 16),
-          _buildDetailRow('Uitvoerder', _executorController),
-          const SizedBox(height: 16),
-          _buildDetailRow('Middelen / Budget / Werkuren', _resourcesController),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildDetailRow(
-                  'Startdatum',
-                  null,
-                  isDate: true,
-                  date: _startDate,
-                  onDateChanged: (date) => setState(() => _startDate = date),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildDetailRow(
-                  'Einddatum',
-                  null,
-                  isDate: true,
-                  date: _endDate,
-                  onDateChanged: (date) => setState(() => _endDate = date),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _buildDetailRow('Opmerking', _remarkController, maxLines: 3),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -230,7 +319,9 @@ class _GppDetailScreenState extends State<GppDetailScreen> {
         ),
         const SizedBox(height: 8),
         if (controller != null)
-          _editableField(controller, maxLines: maxLines)
+          label == 'Domein'
+              ? _editableDomainField()
+              : _editableField(controller, maxLines: maxLines)
         else if (priority != null)
           _buildPriorityPill(priority)
         else if (realisation != null)
@@ -256,6 +347,31 @@ class _GppDetailScreenState extends State<GppDetailScreen> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       ),
+    );
+  }
+
+  Widget _editableDomainField() {
+    if (!_editing) {
+      return Text(
+        _domainController.text.isEmpty ? '-' : _domainController.text,
+        style: const TextStyle(fontSize: 13, color: Color(0xFF2F382E)),
+      );
+    }
+
+    return DomainDropdownField(
+      value: _domainController.text,
+      domains: _domains,
+      onChanged: (value) {
+        setState(() => _domainController.text = value);
+      },
+      onDomainAdded: (value) {
+        setState(() {
+          _domainController.text = value;
+          if (!_domains.any((domain) => domain.toLowerCase() == value.toLowerCase())) {
+            _domains = [..._domains, value];
+          }
+        });
+      },
     );
   }
 
@@ -298,14 +414,14 @@ class _GppDetailScreenState extends State<GppDetailScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFE4E9DD)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Padding(
-            padding: EdgeInsets.fromLTRB(16, 14, 16, 8),
+            padding: EdgeInsets.fromLTRB(16, 14, 16, 10),
             child: Text(
               'JAP per jaar',
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF243022)),
@@ -314,22 +430,23 @@ class _GppDetailScreenState extends State<GppDetailScreen> {
           const Divider(height: 1, color: Color(0xFFE4E9DD)),
           for (final year in years)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 children: [
                   SizedBox(
-                    width: 84,
+                    width: 72,
                     child: Text(
                       year.toString(),
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF243022)),
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF243022)),
                     ),
                   ),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       _goalController.text,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 13, color: Color(0xFF2F382E)),
+                      style: const TextStyle(fontSize: 12.5, color: Color(0xFF2F382E)),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -380,6 +497,21 @@ class _GppDetailScreenState extends State<GppDetailScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(999)),
       child: _buildRealisationText(value),
+    );
+  }
+
+  Widget _buildMiniChip(String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF6F8F2),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFE4E9DD)),
+      ),
+      child: Text(
+        value,
+        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF4D5548)),
+      ),
     );
   }
 
@@ -445,6 +577,47 @@ class _GppDetailScreenState extends State<GppDetailScreen> {
       );
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _confirmDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('GPP verwijderen'),
+        content: const Text('Weet je zeker dat je deze GPP wilt verwijderen? De gekoppelde JAP-regels worden ook verwijderd.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuleren'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD32F2F), foregroundColor: Colors.white),
+            child: const Text('Verwijderen'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await JapApiService.deleteGppEntry(token: widget.token, id: _entry.id);
+      if (!mounted) return;
+      try {
+        await context.read<NotificationService>().loadNotifications(limit: 50);
+        await context.read<NotificationService>().refreshUnreadCount();
+      } catch (_) {}
+      widget.onClose();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('GPP verwijderd.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Verwijderen mislukt: $e')),
+      );
     }
   }
 

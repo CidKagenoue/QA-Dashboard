@@ -87,6 +87,23 @@ class JapApiService {
     throw Exception(error['message'] ?? 'GPP opslaan mislukt');
   }
 
+  static Future<void> deleteGppEntry({
+    required String token,
+    required int id,
+  }) async {
+    final response = await http.delete(
+      Uri.parse('${ApiService.baseUrl}/gpp/$id'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode != 204 && response.statusCode != 200) {
+      throw Exception('GPP verwijderen mislukt: ${response.statusCode}');
+    }
+  }
+
   static Future<Map<String, dynamic>> importGppExcel({
     required String token,
     required String fileName,
@@ -113,7 +130,7 @@ class JapApiService {
 
   // ── JAP ──────────────────────────────────────────────────────────────────
 
-  static Future<void> updateJapEntry({
+  static Future<JapEntry> updateJapEntry({
     required String token,
     required int id,
     required Map<String, dynamic> payload,
@@ -127,9 +144,14 @@ class JapApiService {
       body: jsonEncode(payload),
     );
 
-    if (response.statusCode != 200) {
-      throw Exception('Opslaan mislukt: ${response.statusCode}');
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final body = jsonDecode(response.body);
+      final entry = body['entry'];
+      if (entry is! Map) throw Exception('Ongeldige JAP entry ontvangen');
+      return JapEntry.fromJson(Map<String, dynamic>.from(entry));
     }
+
+    throw Exception('Opslaan mislukt: ${response.statusCode}');
   }
 
   static Future<List<JapEntry>> fetchJapEntries({
@@ -202,6 +224,23 @@ class JapApiService {
 
     if (response.statusCode != 200) {
       throw Exception('Opmerking opslaan mislukt: ${response.statusCode}');
+    }
+  }
+
+  static Future<void> deleteJapEntry({
+    required String token,
+    required int id,
+  }) async {
+    final response = await http.delete(
+      Uri.parse('${ApiService.baseUrl}/jap/$id'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode != 204 && response.statusCode != 200) {
+      throw Exception('JAP verwijderen mislukt: ${response.statusCode}');
     }
   }
 }

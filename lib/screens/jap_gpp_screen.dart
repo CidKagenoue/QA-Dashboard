@@ -136,31 +136,142 @@ class _JapGppScreenState extends State<JapGppScreen> {
     if (!mounted) return;
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Selecteer Jaar voor Export'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: years.map((year) {
-              final count = _allEntries.where((e) => e.year == year).length;
-              return ListTile(
-                title: Text('Jaar $year'),
-                subtitle: Text('$count acties'),
-                trailing: const Icon(Icons.download),
-                onTap: () {
-                  Navigator.pop(context);
-                  _exportYearPdf(year);
-                },
-              );
-            }).toList(),
+      builder: (context) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 460),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEAF4D9),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.download_outlined, color: Color(0xFF4A7A1E)),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Selecteer jaar voor export',
+                            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Color(0xFF243022)),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Kies één jaar om de PDF-export te maken.',
+                            style: TextStyle(fontSize: 13, color: Color(0xFF6B7A62)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAF4),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFE4E9DD)),
+                  ),
+                  child: Text(
+                    '${years.length} jaar beschikbaar',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF4D5548)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  height: 360,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: years.map((year) {
+                        final count = _allEntries.where((e) => e.year == year).length;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: () {
+                              Navigator.pop(context);
+                              _exportYearPdf(year);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: const Color(0xFFE4E9DD)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF1F5EE),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        '$year',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF243022),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Jaar $year',
+                                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF243022)),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          '$count acties',
+                                          style: const TextStyle(fontSize: 12, color: Color(0xFF6B7A62)),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const Icon(Icons.chevron_right, color: Color(0xFF8CC63F)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Sluiten'),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Sluiten'),
-          ),
-        ],
       ),
     );
   }
@@ -1149,48 +1260,6 @@ class _RealisatieLabel extends StatelessWidget {
   }
 }
 
-class _GppPriorityBadge extends StatelessWidget {
-  final String value;
-
-  const _GppPriorityBadge({required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    final text = value.toLowerCase();
-    final (label, bg, fg) = text.contains('hoog')
-        ? ('Hoge prioriteit', const Color(0xFFFFEDED), const Color(0xFFD32F2F))
-        : text.contains('middel')
-            ? ('Middelhoge prioriteit', const Color(0xFFFFF8E1), const Color(0xFFF57F17))
-            : ('Lage prioriteit', const Color(0xFFF1F1F1), const Color(0xFF757575));
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
-      child: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: fg)),
-    );
-  }
-}
-
-class _GppRealisationLabel extends StatelessWidget {
-  final String value;
-
-  const _GppRealisationLabel({required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    final text = value.toLowerCase();
-    final (label, color) = text.contains('uitgevoerd') && !text.contains('niet')
-        ? ('Uitgevoerd', const Color(0xFF2E7D32))
-        : text.contains('nog') || text.contains('niet')
-            ? ('Nog niet uitgevoerd', const Color(0xFFD32F2F))
-            : text.contains('uitvoering')
-                ? ('In uitvoering', const Color(0xFF1565C0))
-                : ('Vul aan', const Color(0xFF6B7A62));
-
-    return Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color));
-  }
-}
-
 class _FilterChip extends StatelessWidget {
   final String label;
   final bool selected;
@@ -1249,8 +1318,6 @@ class _CreateJapFormState extends State<_CreateJapForm> {
   DateTime? _startDate;
   DateTime? _endDate;
   int? _selectedYear;
-  final Map<int, Map<String, dynamic>> _yearDataMap = {};
-
   @override
   void dispose() {
     _doelstellingController.dispose();

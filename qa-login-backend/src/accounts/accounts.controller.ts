@@ -39,8 +39,13 @@ export class AccountsController {
   async updateAccountAccess(
     @Param('id', ParseIntPipe) accountId: number,
     @Body() updateAccountAccessDto: UpdateAccountAccessDto,
+    @Req() req: AuthenticatedRequest,
   ) {
-    return this.accountsService.updateAccountAccess(accountId, updateAccountAccessDto);
+    return this.accountsService.updateAccountAccess(
+      accountId,
+      updateAccountAccessDto,
+      this.readActorId(req),
+    );
   }
 
   @Delete(':id')

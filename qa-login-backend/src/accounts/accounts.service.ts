@@ -90,7 +90,12 @@ export class AccountsService {
   async updateAccountAccess(
     accountId: number,
     updateAccountAccessDto: UpdateAccountAccessDto,
+    actorId: number,
   ) {
+    if (accountId === actorId) {
+      throw new BadRequestException('You cannot change your own account access');
+    }
+
     const existingAccount = await this.userService.findById(accountId);
     if (!existingAccount) {
       throw new NotFoundException('Account not found');

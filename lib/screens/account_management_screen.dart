@@ -30,14 +30,17 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
   Widget build(BuildContext context) {
     return Consumer2<AccountManagementService, AuthService>(
       builder: (context, accountManagementService, authService, child) {
+        final currentUserId = authService.user?.id;
+        final manageableAccounts = accountManagementService.accounts
+            .where((account) => account.id != currentUserId)
+            .toList();
         final query = _searchController.text.trim().toLowerCase();
-        final filteredAccounts = accountManagementService.accounts
+        final filteredAccounts = manageableAccounts
             .where((account) => _matchesQuery(account, query))
             .toList();
         final accountsWithoutAccess = filteredAccounts
             .where((account) => !account.hasAnyAccess)
             .toList();
-        final currentUserId = authService.user?.id;
 
         if (accountManagementService.isLoading &&
             !accountManagementService.hasLoaded) {

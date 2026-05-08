@@ -243,6 +243,29 @@ class ApiService {
     );
   }
 
+  static Future<Map<String, dynamic>> updateAccountDetails({
+    required String token,
+    required int accountId,
+    required String email,
+    required String name,
+    String? password,
+  }) async {
+    final body = <String, dynamic>{'email': email.trim(), 'name': name.trim()};
+
+    final trimmedPassword = password?.trim();
+    if (trimmedPassword != null && trimmedPassword.isNotEmpty) {
+      body['password'] = trimmedPassword;
+    }
+
+    return _requestObject(
+      () => http.patch(
+        Uri.parse('$baseUrl/accounts/$accountId'),
+        headers: _headers(token: token),
+        body: jsonEncode(body),
+      ),
+    );
+  }
+
   static Future<void> deleteAccount({
     required String token,
     required int accountId,
@@ -435,7 +458,7 @@ class ApiService {
     };
   }
 
-    // Notification Endpoints
+  // Notification Endpoints
   static Future<List<Map<String, dynamic>>> fetchNotifications({
     required String token,
     int? limit,

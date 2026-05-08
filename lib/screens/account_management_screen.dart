@@ -163,6 +163,7 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
                           isUpdating: accountManagementService.isUpdating,
                           isDeleting: accountManagementService.isDeleting,
                           onAccessChanged: _handleAccountUpdate,
+                          onEdit: _handleEditAccount,
                           onDelete: _handleDeleteAccount,
                         ),
                 ),
@@ -191,6 +192,7 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
                           isUpdating: accountManagementService.isUpdating,
                           isDeleting: accountManagementService.isDeleting,
                           onAccessChanged: _handleAccountUpdate,
+                          onEdit: _handleEditAccount,
                           onDelete: _handleDeleteAccount,
                         ),
                 ),
@@ -251,6 +253,22 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
         ),
       );
     }
+  }
+
+  Future<void> _handleEditAccount(User account) async {
+    final updated = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _EditAccountDialog(account: account),
+    );
+
+    if (!mounted || updated != true) {
+      return;
+    }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Account is aangepast.')));
   }
 
   Future<void> _handleDeleteAccount(User account) async {
@@ -385,6 +403,7 @@ class _AccountGrid extends StatelessWidget {
     required this.isUpdating,
     required this.isDeleting,
     required this.onAccessChanged,
+    required this.onEdit,
     required this.onDelete,
   });
 
@@ -394,6 +413,7 @@ class _AccountGrid extends StatelessWidget {
   final bool Function(int accountId) isDeleting;
   final Future<void> Function(User account, bool isAdmin, AccountAccess access)
   onAccessChanged;
+  final Future<void> Function(User account) onEdit;
   final Future<void> Function(User account) onDelete;
 
   @override
@@ -418,6 +438,7 @@ class _AccountGrid extends StatelessWidget {
                 isUpdating: updating,
                 isDeleting: deleting,
                 onAccessChanged: onAccessChanged,
+                onEdit: isCurrentUser ? null : onEdit,
                 onDelete: isCurrentUser ? null : onDelete,
               ),
             );
@@ -446,6 +467,7 @@ class _AccountCard extends StatelessWidget {
     required this.isUpdating,
     required this.isDeleting,
     required this.onAccessChanged,
+    this.onEdit,
     this.onDelete,
   });
 
@@ -455,6 +477,7 @@ class _AccountCard extends StatelessWidget {
   final bool isDeleting;
   final Future<void> Function(User account, bool isAdmin, AccountAccess access)
   onAccessChanged;
+  final Future<void> Function(User account)? onEdit;
   final Future<void> Function(User account)? onDelete;
 
   @override
@@ -495,17 +518,38 @@ class _AccountCard extends StatelessWidget {
                             ),
                           ),
                         const Spacer(),
-                        IconButton(
-                          onPressed: onDelete == null
-                              ? null
-                              : () => onDelete!(account),
-                          icon: const Icon(Icons.delete_outline_rounded),
-                          color: onDelete == null
-                              ? const Color(0xFFB6BCB1)
-                              : const Color(0xFF7C8278),
-                          tooltip: onDelete == null
-                              ? 'Je eigen account kan niet worden verwijderd'
-                              : 'Verwijderen',
+                        PopupMenuButton<_AccountCardAction>(
+                          enabled: !isBusy,
+                          tooltip: 'Account acties',
+                          icon: const Icon(Icons.more_vert_rounded),
+                          color: Colors.white,
+                          onSelected: (action) {
+                            if (action == _AccountCardAction.edit) {
+                              onEdit?.call(account);
+                              return;
+                            }
+
+                            onDelete?.call(account);
+                          },
+                          itemBuilder: (context) => [
+                            PopupMenuItem(
+                              value: _AccountCardAction.edit,
+                              enabled: onEdit != null,
+                              child: const _AccountActionMenuItem(
+                                icon: Icons.edit_outlined,
+                                label: 'Bewerken',
+                              ),
+                            ),
+                            PopupMenuItem(
+                              value: _AccountCardAction.delete,
+                              enabled: onDelete != null,
+                              child: const _AccountActionMenuItem(
+                                icon: Icons.delete_outline_rounded,
+                                label: 'Verwijderen',
+                                isDestructive: true,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -657,6 +701,33 @@ class _AccountCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+enum _AccountCardAction { edit, delete }
+
+class _AccountActionMenuItem extends StatelessWidget {
+  const _AccountActionMenuItem({
+    required this.icon,
+    required this.label,
+    this.isDestructive = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool isDestructive;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isDestructive ? Colors.red.shade700 : const Color(0xFF475145);
+
+    return Row(
+      children: [
+        Icon(icon, size: 19, color: color),
+        const SizedBox(width: 10),
+        Text(label, style: TextStyle(color: color)),
+      ],
     );
   }
 }
@@ -825,6 +896,219 @@ class _SelectionField extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _EditAccountDialog extends StatefulWidget {
+  const _EditAccountDialog({required this.account});
+
+  final User account;
+
+  @override
+  State<_EditAccountDialog> createState() => _EditAccountDialogState();
+}
+
+class _EditAccountDialogState extends State<_EditAccountDialog> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  late final TextEditingController _nameController;
+  late final TextEditingController _emailController;
+  final TextEditingController _passwordController = TextEditingController();
+
+  bool _submitting = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.account.name ?? '');
+    _emailController = TextEditingController(text: widget.account.email);
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Account bewerken'),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 460),
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.account.displayName,
+                  style: const TextStyle(color: Color(0xFF667085), height: 1.4),
+                ),
+                const SizedBox(height: 18),
+                TextFormField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Gebruikersnaam *',
+                    prefixIcon: Icon(Icons.person_outline_rounded),
+                  ),
+                  validator: (value) {
+                    if ((value ?? '').trim().isEmpty) {
+                      return 'Gebruikersnaam is verplicht';
+                    }
+
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'E-mail *',
+                    prefixIcon: Icon(Icons.mail_outline_rounded),
+                  ),
+                  validator: (value) {
+                    final email = value?.trim() ?? '';
+                    if (email.isEmpty) {
+                      return 'E-mail is verplicht';
+                    }
+                    if (!email.contains('@')) {
+                      return 'Geef een geldig e-mailadres in';
+                    }
+
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Nieuw wachtwoord',
+                    helperText: 'Laat leeg om het wachtwoord niet te wijzigen',
+                    prefixIcon: Icon(Icons.lock_outline_rounded),
+                  ),
+                  validator: (value) {
+                    final password = value?.trim() ?? '';
+                    if (password.isNotEmpty && password.length < 6) {
+                      return 'Minstens 6 tekens';
+                    }
+
+                    return null;
+                  },
+                ),
+                if (_error != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    _error!,
+                    style: TextStyle(
+                      color: Colors.red.shade700,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _submitting
+              ? null
+              : () => Navigator.of(context).pop(false),
+          child: const Text('Annuleren'),
+        ),
+        ElevatedButton.icon(
+          onPressed: _submitting ? null : _confirmAndSave,
+          icon: _submitting
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Icon(Icons.check_rounded),
+          label: const Text('Opslaan'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _confirmAndSave() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    final hasPasswordChange = _passwordController.text.trim().isNotEmpty;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Wijzigingen bevestigen?'),
+          content: Text(
+            hasPasswordChange
+                ? 'Ben je zeker dat je de gebruikersnaam, e-mail en het wachtwoord van ${widget.account.displayName} wilt wijzigen?'
+                : 'Ben je zeker dat je de gebruikersnaam en e-mail van ${widget.account.displayName} wilt wijzigen?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Annuleren'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Ja, aanpassen'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+
+    try {
+      await context.read<AccountManagementService>().updateAccountDetails(
+        account: widget.account,
+        email: _emailController.text,
+        name: _nameController.text,
+        password: _passwordController.text,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.of(context).pop(true);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _error = error.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _submitting = false;
+        });
+      }
+    }
   }
 }
 

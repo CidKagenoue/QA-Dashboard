@@ -30,6 +30,12 @@ export class UpdateAccountAccessDto {
   notifyMaintenance?: boolean;
 }
 
+export class UpdateAccountDetailsDto {
+  email?: string;
+  name?: string;
+  password?: string;
+}
+
 // For updating only notification settings
 export class UpdateNotificationSettingsDto {
   notifyWhsTours?: boolean;

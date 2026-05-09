@@ -7,10 +7,24 @@ import 'ova_ticket_list_screen.dart';
 import 'ova_ticket_wizard_screen.dart';
 
 class OvaDashboardScreen extends StatelessWidget {
-  const OvaDashboardScreen({super.key});
+  const OvaDashboardScreen({
+    super.key,
+    this.initialTicketId,
+    this.onCloseInitialTicket,
+  });
+
+  final int? initialTicketId;
+  final VoidCallback? onCloseInitialTicket;
 
   @override
   Widget build(BuildContext context) {
+    if (initialTicketId != null) {
+      return OvaTicketWizardScreen(
+        ticketId: initialTicketId,
+        onClose: onCloseInitialTicket,
+      );
+    }
+
     return Consumer<AuthService>(
       builder: (context, authService, child) {
         final user = authService.user;

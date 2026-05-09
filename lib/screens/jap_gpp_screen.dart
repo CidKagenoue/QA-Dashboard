@@ -17,10 +17,14 @@ import '../widgets/domain_dropdown_field.dart';
 // ---------------------------------------------------------------------------
 class JapGppScreen extends StatefulWidget {
   final String token;
+  final String? initialModule;
+  final int? initialEntryId;
 
   const JapGppScreen({
     super.key,
     required this.token,
+    this.initialModule,
+    this.initialEntryId,
   });
 
   @override
@@ -50,12 +54,34 @@ class _JapGppScreenState extends State<JapGppScreen> {
   List<GppEntry> _allGppEntries = [];
   bool _importingGppExcel = false;
   List<String> _domains = DomainService.defaultDomains;
+  bool _loadedJapOnce = false;
+  bool _loadedGppOnce = false;
+  bool _initialContextApplied = false;
+  late final String? _requestedInitialModule;
+  late final int? _requestedInitialEntryId;
+
+  @override
+  void initState() {
+    super.initState();
+    _requestedInitialModule = widget.initialModule;
+    _requestedInitialEntryId = widget.initialEntryId;
+    _loadEntries();
+    _loadGppEntries();
+    _loadDomains();
+    _searchController.addListener(_applyFilter);
+    _gppSearchController.addListener(_applyGppFilter); // ← voeg toe
+  }
 
   Future<void> _loadGppEntries() async {
     try {
       final entries = await JapApiService.fetchGppEntries(token: widget.token);
-      setState(() => _allGppEntries = entries);
+      if (!mounted) return;
+      setState(() {
+        _allGppEntries = entries;
+        _loadedGppOnce = true;
+      });
       _applyGppFilter(); // ← voeg toe
+      _tryApplyInitialContext();
     } catch (e) {
       // optioneel: fout tonen
     }
@@ -65,16 +91,6 @@ class _JapGppScreenState extends State<JapGppScreen> {
     final domains = await DomainService.loadDomains();
     if (!mounted) return;
     setState(() => _domains = domains);
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _loadEntries();
-    _loadGppEntries();
-    _loadDomains();
-    _searchController.addListener(_applyFilter);
-    _gppSearchController.addListener(_applyGppFilter); // ← voeg toe
   }
 
   @override
@@ -322,9 +338,11 @@ class _JapGppScreenState extends State<JapGppScreen> {
 
       setState(() {
         _allEntries = entries;
+        _loadedJapOnce = true;
         _loading = false;
       });
       _applyFilter();
+      _tryApplyInitialContext();
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -377,6 +395,87 @@ class _JapGppScreenState extends State<JapGppScreen> {
     }).toList();
 
     setState(() => _filteredGpp = result);
+  }
+
+  void _tryApplyInitialContext() {
+    if (_initialContextApplied || !mounted) {
+      return;
+    }
+
+    final normalizedModule = (_requestedInitialModule ?? '').trim().toUpperCase();
+    final initialEntryId = _requestedInitialEntryId;
+
+    if (initialEntryId == null) {
+      if (normalizedModule == 'GPP' && _tabIndex != 1) {
+        setState(() => _tabIndex = 1);
+      }
+      _initialContextApplied = true;
+      return;
+    }
+
+    if (normalizedModule == 'GPP') {
+      if (!_loadedGppOnce) {
+        return;
+      }
+      for (final entry in _allGppEntries) {
+        if (entry.id == initialEntryId) {
+          setState(() {
+            _tabIndex = 1;
+            _selectedGppEntry = entry;
+          });
+          _initialContextApplied = true;
+          return;
+        }
+      }
+      _initialContextApplied = true;
+      return;
+    }
+
+    if (normalizedModule == 'JAP') {
+      if (!_loadedJapOnce) {
+        return;
+      }
+      for (final entry in _allEntries) {
+        if (entry.id == initialEntryId) {
+          setState(() {
+            _tabIndex = 0;
+            _selectedEntry = entry;
+          });
+          _initialContextApplied = true;
+          return;
+        }
+      }
+      _initialContextApplied = true;
+      return;
+    }
+
+    if (!_loadedJapOnce || !_loadedGppOnce) {
+      return;
+    }
+
+    for (final entry in _allEntries) {
+      if (entry.id == initialEntryId) {
+        setState(() {
+          _tabIndex = 0;
+          _selectedEntry = entry;
+        });
+        _initialContextApplied = true;
+        return;
+      }
+    }
+
+    for (final entry in _allGppEntries) {
+      if (entry.id == initialEntryId) {
+        setState(() {
+          _tabIndex = 1;
+          _selectedGppEntry = entry;
+        });
+        _initialContextApplied = true;
+        return;
+      }
+    }
+
+    _initialContextApplied = true;
   }
 
   void _showFilterSheet() {

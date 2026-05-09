@@ -19,7 +19,20 @@ enum _HomeSection {
 }
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({
+    super.key,
+    this.initialSectionKey = 'dashboard',
+    this.initialOvaTicketId,
+    this.initialJapGppModule,
+    this.initialJapGppEntryId,
+    this.initialMaintenanceInspectionId,
+  });
+
+  final String initialSectionKey;
+  final int? initialOvaTicketId;
+  final String? initialJapGppModule;
+  final int? initialJapGppEntryId;
+  final int? initialMaintenanceInspectionId;
 
   static const _sidebarGreen = Color(0xFF8BC34A);
   static const _sidebarText = Color(0xFFFFFFFF);
@@ -30,7 +43,50 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  _HomeSection _selected = _HomeSection.dashboard;
+  late _HomeSection _selected;
+  int? _initialOvaTicketId;
+  bool _initialOvaTicketConsumed = false;
+  String? _initialJapGppModule;
+  int? _initialJapGppEntryId;
+  bool _initialJapGppContextConsumed = false;
+  int? _initialMaintenanceInspectionId;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = _sectionFromKey(widget.initialSectionKey);
+    _initialOvaTicketId = widget.initialOvaTicketId;
+    _initialJapGppModule = widget.initialJapGppModule;
+    _initialJapGppEntryId = widget.initialJapGppEntryId;
+    _initialMaintenanceInspectionId = widget.initialMaintenanceInspectionId;
+  }
+
+  @override
+  void didUpdateWidget(covariant HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final nextSection = _sectionFromKey(widget.initialSectionKey);
+    final previousSection = _sectionFromKey(oldWidget.initialSectionKey);
+    if (nextSection != previousSection && nextSection != _selected) {
+      _selected = nextSection;
+    }
+
+    if (widget.initialJapGppModule != oldWidget.initialJapGppModule ||
+        widget.initialJapGppEntryId != oldWidget.initialJapGppEntryId) {
+      _initialJapGppModule = widget.initialJapGppModule;
+      _initialJapGppEntryId = widget.initialJapGppEntryId;
+      _initialJapGppContextConsumed = false;
+    }
+
+    if (widget.initialOvaTicketId != oldWidget.initialOvaTicketId) {
+      _initialOvaTicketId = widget.initialOvaTicketId;
+      _initialOvaTicketConsumed = false;
+    }
+
+    if (widget.initialMaintenanceInspectionId !=
+        oldWidget.initialMaintenanceInspectionId) {
+      _initialMaintenanceInspectionId = widget.initialMaintenanceInspectionId;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -108,11 +164,66 @@ class _HomeScreenState extends State<HomeScreen> {
       case _HomeSection.whsTours:
         return const Center(child: Text('WHS-Tours'));
       case _HomeSection.ova:
-        return const OvaDashboardScreen();
+        final ovaTicketId = _initialOvaTicketConsumed ? null : _initialOvaTicketId;
+        return OvaDashboardScreen(
+          initialTicketId: ovaTicketId,
+          onCloseInitialTicket: () {
+            if (!mounted) {
+              return;
+            }
+            setState(() {
+              _initialOvaTicketConsumed = true;
+            });
+          },
+        );
       case _HomeSection.onderhoud:
-        return const MaintenanceInspectionsScreen();
+        return MaintenanceInspectionsScreen(
+          initialInspectionId: _initialMaintenanceInspectionId,
+        );
       case _HomeSection.japGpp:
-        return JapGppScreen(token: token ?? '');
+        final japGppModule = _initialJapGppContextConsumed ? null : _initialJapGppModule;
+        final japGppEntryId = _initialJapGppContextConsumed ? null : _initialJapGppEntryId;
+        final japGppKey = ValueKey<String>(
+          'japGpp:${japGppModule ?? 'list'}:${japGppEntryId?.toString() ?? 'none'}',
+        );
+        if (!_initialJapGppContextConsumed &&
+            (japGppModule != null || japGppEntryId != null)) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) {
+              return;
+            }
+            if (_initialJapGppContextConsumed) {
+              return;
+            }
+
+            setState(() {
+              _initialJapGppContextConsumed = true;
+            });
+          });
+        }
+        return JapGppScreen(
+          key: japGppKey,
+          token: token ?? '',
+          initialModule: japGppModule,
+          initialEntryId: japGppEntryId,
+        );
+    }
+  }
+
+  _HomeSection _sectionFromKey(String key) {
+    switch (key) {
+      case 'dashboard':
+        return _HomeSection.dashboard;
+      case 'whsTours':
+        return _HomeSection.whsTours;
+      case 'ova':
+        return _HomeSection.ova;
+      case 'onderhoud':
+        return _HomeSection.onderhoud;
+      case 'japGpp':
+        return _HomeSection.japGpp;
+      default:
+        return _HomeSection.dashboard;
     }
   }
 }

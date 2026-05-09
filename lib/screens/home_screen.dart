@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../widgets/app_bars/main_app_bar.dart';
 import '../models/ova_assigned_action.dart';
 import '../models/ova_ticket.dart';
@@ -9,6 +8,7 @@ import '../services/auth_service.dart';
 import 'jap_gpp_screen.dart';
 import 'ova_dashboard_screen.dart';
 import 'maintenance_inspections_screen.dart';
+import '../services/jap_gpp_api_service.dart';
 
 enum _HomeSection {
   dashboard,
@@ -178,6 +178,7 @@ class _DashboardBodyState extends State<_DashboardBody> {
   String? _error;
   List<OvaTicket> _tickets = const [];
   List<OvaAssignedAction> _actions = const [];
+  List<JapGppComment> _recentComments = [];
 
   @override
   void initState() {
@@ -198,6 +199,17 @@ class _DashboardBodyState extends State<_DashboardBody> {
         ApiService.fetchOvaTickets(token: token),
         ApiService.fetchMyOvaActions(token: token),
       ]);
+      try {
+        final comments = await JapApiService.fetchRecentComments(token: token);
+        if (!mounted) return;
+        setState(() {
+          _recentComments = comments.map((c) => JapGppComment(
+            title: c['title'] as String? ?? '',
+            author: c['author'] as String? ?? '',
+            comment: c['comment'] as String? ?? '',
+          )).toList();
+        });
+      } catch (_) {}
 
       if (!mounted) return;
 
@@ -311,20 +323,8 @@ class _DashboardBodyState extends State<_DashboardBody> {
                         onTap: () => widget.onNavigate(_HomeSection.ova),
                       ),
 
-                      // === REPLACED: show JAP & GPP commentaar and Upcoming maintenance ===
                       _JapGppCommentaarCard(
-                        items: [
-                          JapGppComment(
-                            title: 'FD Soft Handafwasmiddel',
-                            author: 'Milton Boon',
-                            comment: 'Opgebruiken en vervangen',
-                          ),
-                          JapGppComment(
-                            title: 'Loctite Quick Gasket',
-                            author: 'Tina Dupon',
-                            comment: 'Deze wordt niet meer gemaakt',
-                          ),
-                        ],
+                        items: _recentComments, 
                         onTap: () => widget.onNavigate(_HomeSection.japGpp),
                       ),
                       _UpcomingMaintenanceCard(

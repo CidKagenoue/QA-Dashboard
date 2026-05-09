@@ -40,6 +40,18 @@ class JapApiService {
     throw Exception(error['message'] ?? 'GPP ophalen mislukt');
   }
 
+  static Future<List<Map<String, dynamic>>> fetchRecentComments({
+    required String token,
+  }) async {
+    final response = await http.get(
+      Uri.parse('${ApiService.baseUrl}/jap/recent-comments'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode != 200) throw Exception('Fout bij ophalen commentaar');
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    return List<Map<String, dynamic>>.from(data['comments'] as List);
+  }
+
   static Future<GppEntry> createGppEntry({
     required String token,
     required Map<String, dynamic> payload,

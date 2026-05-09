@@ -110,6 +110,33 @@ export class MaintenanceInspectionsService {
     return this.maintenanceInspectionModel.maintenanceInspection.delete({ where: { id } });
   }
 
+  async findUpcoming(limit = 3) {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const records = await this.maintenanceInspectionModel.maintenanceInspection.findMany({
+      where: {
+        dueDate: { gte: now },
+        NOT: { status: 'Closed' },
+      },
+      orderBy: { dueDate: 'asc' },
+      take: limit,
+    });
+
+    const branches = await this.prisma.branch.findMany({
+      select: { id: true, name: true },
+    });
+    const branchLookup = new Map(branches.map((b) => [b.id, b.name]));
+
+    return records.map((record) => ({
+      id: record.id,
+      equipment: record.equipment,
+      dueDate: record.dueDate,
+      locations: record.locationIds
+        .map((id) => branchLookup.get(id))
+        .filter((name): name is string => Boolean(name)),
+    }));
+  }
+
   private async assertExists(id: number) {
     const existing = await this.maintenanceInspectionModel.maintenanceInspection.findUnique({
       where: { id },

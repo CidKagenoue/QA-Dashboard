@@ -157,4 +157,16 @@ class MaintenanceApiService {
 
     return 'Request failed with status code ${response.statusCode}';
   }
+
+  static Future<List<Map<String, dynamic>>> fetchUpcomingInspections({
+    required String token,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/maintenance-inspections/upcoming'),
+      headers: _headers(token),
+    );
+    if (response.statusCode != 200) throw Exception('Fout bij ophalen keuringen');
+    final data = jsonDecode(response.body) as List;
+    return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
 }

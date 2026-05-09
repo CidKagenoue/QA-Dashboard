@@ -43,6 +43,35 @@ export default function createJapRouter(
     res.json({ entries: result });
   });
 
+  // GET /jap/recent-comments
+  router.get('/recent-comments', (req: Request, res: Response) => {
+    const japWithComments = store.japEntries
+      .filter((e) => e.opmerking && e.opmerking.trim() !== '')
+      .map((e) => ({
+        id: e.id,
+        module: 'JAP' as const,
+        title: e.doelstellingMaatregel ?? '',
+        author: e.uitvoerder ?? '',
+        comment: e.opmerking ?? '',
+      }));
+
+    const gppWithComments = store.gppEntries
+      .filter((e) => e.opmerking && e.opmerking.trim() !== '')
+      .map((e) => ({
+        id: e.id,
+        module: 'GPP' as const,
+        title: e.doelstellingMaatregel ?? '',
+        author: e.uitvoerder ?? '',
+        comment: e.opmerking ?? '',
+      }));
+
+    const combined = [...japWithComments, ...gppWithComments]
+      .sort((a, b) => b.id - a.id) // hoogste id = meest recent
+      .slice(0, 3);
+
+    res.json({ comments: combined });
+  });
+
   // POST /jap - maak nieuwe entry aan
   router.post('/', async (req: Request, res: Response) => {
     const entry = {

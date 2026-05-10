@@ -7,6 +7,7 @@ import '../models/maintenance_inspections.dart';
 import '../services/auth_service.dart';
 import '../services/maintenance_api_service.dart';
 import '../services/notification_service.dart';
+import 'maintenance_inspection_detail_screen.dart';
 
 class MaintenanceInspectionsScreen extends StatefulWidget {
   const MaintenanceInspectionsScreen({super.key});
@@ -21,6 +22,7 @@ class _MaintenanceInspectionsScreenState
   List<MaintenanceInspection> allInspections = [];
   List<MaintenanceInspection> filteredInspections = [];
   List<Branch> availableBranches = [];
+  MaintenanceInspection? _selectedInspection;
   String searchQuery = '';
   bool showFilters = false;
   bool isLoading = true;
@@ -128,6 +130,18 @@ class _MaintenanceInspectionsScreenState
     setState(() {});
   }
 
+  void _openInspectionDetail(MaintenanceInspection inspection) {
+    setState(() {
+      _selectedInspection = inspection;
+    });
+  }
+
+  void _closeInspectionDetail() {
+    setState(() {
+      _selectedInspection = null;
+    });
+  }
+
   void _showAddDialog() {
     final authService = context.read<AuthService>();
     final messenger = ScaffoldMessenger.of(context);
@@ -184,6 +198,13 @@ class _MaintenanceInspectionsScreenState
 
   @override
   Widget build(BuildContext context) {
+    if (_selectedInspection != null) {
+      return MaintenanceInspectionDetailScreen(
+        inspection: _selectedInspection,
+        onClose: _closeInspectionDetail,
+      );
+    }
+
     return Container(
       color: const Color(0xFFF6F6F3),
       padding: const EdgeInsets.all(20),
@@ -457,6 +478,7 @@ class _MaintenanceInspectionsScreenState
                             child: SizedBox(
                               width: double.infinity,
                               child: DataTable(
+                                showCheckboxColumn: false,
                                 headingRowHeight: 56,
                                 dataRowMinHeight: 54,
                                 dataRowMaxHeight: 62,
@@ -474,6 +496,7 @@ class _MaintenanceInspectionsScreenState
                                 ],
                                 rows: filteredInspections.map((inspection) {
                                   return DataRow(
+                                    onSelectChanged: (_) => _openInspectionDetail(inspection),
                                     cells: [
                                       DataCell(Text(inspection.equipment)),
                                       DataCell(Text(inspection.inspectionInstitution)),

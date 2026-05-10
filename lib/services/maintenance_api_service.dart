@@ -34,6 +34,26 @@ class MaintenanceApiService {
     throw Exception(_extractErrorMessage(response));
   }
 
+  static Future<MaintenanceInspection> getInspection({
+    required String token,
+    required int id,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/maintenance-inspections/$id'),
+      headers: _headers(token),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data is Map<String, dynamic>) {
+        return MaintenanceInspection.fromJson(data);
+      }
+      throw Exception('Invalid maintenance detail received from the server');
+    }
+
+    throw Exception(_extractErrorMessage(response));
+  }
+
   static Future<List<Branch>> getAvailableBranches({
     required String token,
   }) async {

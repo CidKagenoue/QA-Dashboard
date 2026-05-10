@@ -1,3 +1,10 @@
+export type JapComment = {
+  id: number;
+  author: string;
+  text: string;
+  createdAt: string; // ISO string
+};
+
 export type JapStoreEntry = {
   id: number;
   jaar: number;
@@ -11,6 +18,7 @@ export type JapStoreEntry = {
   startdatum?: string;
   einddatum?: string;
   opmerking?: string;
+  comments?: JapComment[];
   generatedFromGppId?: number;
   [key: string]: any;
 };
@@ -29,6 +37,7 @@ export type GppStoreEntry = {
   startdatum?: string;
   einddatum?: string;
   opmerking?: string;
+  comments?: JapComment[];
   [key: string]: any;
 };
 

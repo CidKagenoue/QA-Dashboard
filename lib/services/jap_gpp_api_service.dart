@@ -140,6 +140,67 @@ class JapApiService {
     throw Exception(body['message'] ?? 'GPP import mislukt');
   }
 
+
+  // ── Comments ──────────────────────────────────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> fetchJapComments({
+    required String token,
+    required int id,
+  }) async {
+    final response = await http.get(
+      Uri.parse('${ApiService.baseUrl}/jap/$id/comments'),
+      headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+    );
+    if (response.statusCode != 200) throw Exception('Ophalen mislukt');
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    return List<Map<String, dynamic>>.from(data['comments'] as List);
+  }
+
+  static Future<Map<String, dynamic>> addJapComment({
+    required String token,
+    required int id,
+    required String author,
+    required String text,
+  }) async {
+    final response = await http.post(
+      Uri.parse('${ApiService.baseUrl}/jap/$id/comments'),
+      headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+      body: jsonEncode({'author': author, 'text': text}),
+    );
+    if (response.statusCode != 201) throw Exception('Toevoegen mislukt');
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    return data['comment'] as Map<String, dynamic>;
+  }
+
+  static Future<List<Map<String, dynamic>>> fetchGppComments({
+    required String token,
+    required int id,
+  }) async {
+    final response = await http.get(
+      Uri.parse('${ApiService.baseUrl}/gpp/$id/comments'),
+      headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+    );
+    if (response.statusCode != 200) throw Exception('Ophalen mislukt');
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    return List<Map<String, dynamic>>.from(data['comments'] as List);
+  }
+
+  static Future<Map<String, dynamic>> addGppComment({
+    required String token,
+    required int id,
+    required String author,
+    required String text,
+  }) async {
+    final response = await http.post(
+      Uri.parse('${ApiService.baseUrl}/gpp/$id/comments'),
+      headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+      body: jsonEncode({'author': author, 'text': text}),
+    );
+    if (response.statusCode != 201) throw Exception('Toevoegen mislukt');
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    return data['comment'] as Map<String, dynamic>;
+  }
+
   // ── JAP ──────────────────────────────────────────────────────────────────
 
   static Future<JapEntry> updateJapEntry({

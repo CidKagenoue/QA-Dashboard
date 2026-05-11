@@ -4,7 +4,9 @@ import 'package:qa_dashboard/services/jap_gpp_api_service.dart';
 import '../models/jap_gpp_entry.dart';
 import '../services/domain_service.dart';
 import '../services/notification_service.dart';
+import '../widgets/comments_section.dart';
 import '../widgets/domain_dropdown_field.dart';
+import '../models/jap_comment.dart';
 
 class GppDetailScreen extends StatefulWidget {
   final GppEntry entry;
@@ -30,6 +32,8 @@ class _GppDetailScreenState extends State<GppDetailScreen> {
   late final TextEditingController _executorController;
   late final TextEditingController _resourcesController;
   late final TextEditingController _remarkController;
+  List<JapComment> _comments = [];
+  bool _commentsLoading = true;
   List<String> _domains = DomainService.defaultDomains;
   late DateTime _startDate;
   late DateTime _endDate;
@@ -53,6 +57,7 @@ class _GppDetailScreenState extends State<GppDetailScreen> {
     _priority = _normalisePriority(_entry.priority);
     _realisation = _normaliseRealisation(_entry.realisation);
     _loadDomains();
+    _loadComments();
   }
 
   @override
@@ -77,6 +82,18 @@ class _GppDetailScreenState extends State<GppDetailScreen> {
 
     setState(() => _domains = domains);
   }
+  Future<void> _loadComments() async {
+    try {
+      final raw = await JapApiService.fetchGppComments(token: widget.token, id: _entry.id);
+      if (!mounted) return;
+      setState(() {
+        _comments = raw.map((e) => JapComment.fromJson(e)).toList();
+        _commentsLoading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _commentsLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -95,6 +112,20 @@ class _GppDetailScreenState extends State<GppDetailScreen> {
                 _buildDetailsSection(),
                 const SizedBox(height: 20),
                 _buildGeneratedYears(),
+                const SizedBox(height: 20),
+                CommentsSection(
+                  comments: _comments,
+                  loading: _commentsLoading,
+                  onAdd: (text) async {
+                    final raw = await JapApiService.addGppComment(
+                      token: widget.token,
+                      id: _entry.id,
+                      author: 'Gebruiker',
+                      text: text,
+                    );
+                    setState(() => _comments.add(JapComment.fromJson(raw)));
+                  },
+                ),
               ],
             ),
           ),

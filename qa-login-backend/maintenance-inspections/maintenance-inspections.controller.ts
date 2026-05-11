@@ -35,6 +35,12 @@ export class MaintenanceInspectionsController {
     return this.maintenanceInspectionsService.getFormData();
   }
 
+  @Get('upcoming')
+  async findUpcoming(@Req() req: AuthenticatedRequest) {
+    await this.assertAccess(req);
+    return this.maintenanceInspectionsService.findUpcoming();
+  }
+
   @Get()
   async findAll(@Req() req: AuthenticatedRequest) {
     await this.assertAccess(req);

@@ -6,7 +6,9 @@ import '../services/notification_service.dart';
 import '../services/domain_service.dart';
 import 'package:qa_dashboard/services/jap_gpp_api_service.dart';
 import '../models/jap_gpp_entry.dart';
+import '../widgets/comments_section.dart';
 import '../widgets/domain_dropdown_field.dart';
+import '../models/jap_comment.dart';
 
 class JapDetailScreen extends StatefulWidget {
   final JapEntry entry;
@@ -33,6 +35,8 @@ class _JapDetailScreenState extends State<JapDetailScreen> {
   late final TextEditingController _executorController;
   late final TextEditingController _budgetController;
   List<String> _domains = DomainService.defaultDomains;
+  List<JapComment> _comments = [];
+  bool _commentsLoading = true;
   bool _editingRemark = false;
   bool _editingAll = false;
   late DateTime _startDate;
@@ -55,6 +59,7 @@ class _JapDetailScreenState extends State<JapDetailScreen> {
     _selectedRealisation = _entry.realisation;
     _selectedPriority = _entry.priority;
     _loadDomains();
+    _loadComments();
   }
 
   @override
@@ -78,6 +83,19 @@ class _JapDetailScreenState extends State<JapDetailScreen> {
     if (!mounted) return;
 
     setState(() => _domains = domains);
+  }
+
+  Future<void> _loadComments() async {
+    try {
+      final raw = await JapApiService.fetchJapComments(token: widget.token, id: _entry.id);
+      if (!mounted) return;
+      setState(() {
+        _comments = raw.map((e) => JapComment.fromJson(e)).toList();
+        _commentsLoading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _commentsLoading = false);
+    }
   }
 
   @override
@@ -173,33 +191,51 @@ class _JapDetailScreenState extends State<JapDetailScreen> {
   }
 
   Widget _buildCard(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE4E9DD)),
-      ),
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildIdRow(),
-          const SizedBox(height: 10),
-          _buildStatusBadge(),
-          const SizedBox(height: 16),
-          _buildGoalSection(),
-          const SizedBox(height: 16),
-          const Divider(color: Color(0xFFE4E9DD)),
-          const SizedBox(height: 14),
-          _buildDomainDateRow(),
-          const SizedBox(height: 14),
-          _buildRiskExecutorRow(),
-          const SizedBox(height: 14),
-          _buildPriorityRealisationRow(),
-          const SizedBox(height: 14),
-          _buildRemarksSection(),
-        ],
-      ),
+    return Column(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE4E9DD)),
+          ),
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildIdRow(),
+              const SizedBox(height: 10),
+              _buildStatusBadge(),
+              const SizedBox(height: 16),
+              _buildGoalSection(),
+              const SizedBox(height: 16),
+              const Divider(color: Color(0xFFE4E9DD)),
+              const SizedBox(height: 14),
+              _buildDomainDateRow(),
+              const SizedBox(height: 14),
+              _buildRiskExecutorRow(),
+              const SizedBox(height: 14),
+              _buildPriorityRealisationRow(),
+              const SizedBox(height: 14),
+              _buildRemarksSection(),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        CommentsSection(
+          comments: _comments,
+          loading: _commentsLoading,
+          onAdd: (text) async {
+            final raw = await JapApiService.addJapComment(
+              token: widget.token,
+              id: _entry.id,
+              author: 'Gebruiker',
+              text: text,
+            );
+            setState(() => _comments.add(JapComment.fromJson(raw)));
+          },
+        ),
+      ],
     );
   }
 

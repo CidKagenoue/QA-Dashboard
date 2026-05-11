@@ -43,6 +43,85 @@ export default function createJapRouter(
     res.json({ entries: result });
   });
 
+  // GET /jap/:id/comments
+  router.get('/:id/comments', (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    const entry = store.japEntries.find((e) => e.id === id);
+    if (!entry) return res.status(404).json({ message: 'Entry niet gevonden' });
+    res.json({ comments: entry.comments ?? [] });
+  });
+
+  // POST /jap/:id/comments
+  router.post('/:id/comments', async (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    const index = store.japEntries.findIndex((e) => e.id === id);
+    if (index === -1) return res.status(404).json({ message: 'Entry niet gevonden' });
+
+    const { author, text } = req.body;
+    if (!text?.trim()) return res.status(400).json({ message: 'Tekst is verplicht' });
+
+    const comment: any = {
+      id: Date.now(),
+      author: author?.trim() || 'Onbekend',
+      text: text.trim(),
+      createdAt: new Date().toISOString(),
+    };
+
+    if (!store.japEntries[index].comments) {
+      store.japEntries[index].comments = [];
+    }
+    store.japEntries[index].comments!.push(comment);
+
+    // Notify
+    try {
+      const users = await prismaService.user.findMany({
+        where: { OR: [{ isAdmin: true }, { japGppAccess: true }] },
+        select: { id: true },
+      });
+      const recipientIds = users.map((u: any) => u.id);
+      if (recipientIds.length > 0) {
+        await notificationsService.notifyUsers({
+          recipientUserIds: recipientIds,
+          type: NotificationType.JAP_COMMENT,
+          title: 'Nieuwe opmerking op JAP',
+          body: text.trim().slice(0, 200),
+          metadata: { entryId: id, module: 'JAP' },
+        });
+      }
+    } catch (_) {}
+
+    res.status(201).json({ comment });
+  });
+
+  // GET /jap/recent-comments
+  router.get('/recent-comments', (req: Request, res: Response) => {
+    const japWithComments = store.japEntries
+      .filter((e) => e.opmerking && e.opmerking.trim() !== '')
+      .map((e) => ({
+        id: e.id,
+        module: 'JAP' as const,
+        title: e.doelstellingMaatregel ?? '',
+        author: e.uitvoerder ?? '',
+        comment: e.opmerking ?? '',
+      }));
+
+    const gppWithComments = store.gppEntries
+      .filter((e) => e.opmerking && e.opmerking.trim() !== '')
+      .map((e) => ({
+        id: e.id,
+        module: 'GPP' as const,
+        title: e.doelstellingMaatregel ?? '',
+        author: e.uitvoerder ?? '',
+        comment: e.opmerking ?? '',
+      }));
+
+    const combined = [...japWithComments, ...gppWithComments]
+      .sort((a, b) => b.id - a.id) // hoogste id = meest recent
+      .slice(0, 3);
+
+    res.json({ comments: combined });
+  });
+
   // POST /jap - maak nieuwe entry aan
   router.post('/', async (req: Request, res: Response) => {
     const entry = {

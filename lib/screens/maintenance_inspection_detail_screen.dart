@@ -34,6 +34,9 @@ class _MaintenanceInspectionDetailScreenState
   bool _isDeleting = false;
   bool _isLoadingBranches = false;
   String? _error;
+  String? _equipmentError;
+  String? _inspectionInstitutionError;
+  String? _branchesError;
 
   final TextEditingController _equipmentController = TextEditingController();
   final TextEditingController _inspectionInstitutionController =
@@ -61,6 +64,16 @@ class _MaintenanceInspectionDetailScreenState
       _syncFromInspection(_inspection!);
     }
     _loadBranches();
+    _equipmentController.addListener(() {
+      if (_equipmentError != null && _equipmentController.text.trim().isNotEmpty) {
+        setState(() => _equipmentError = null);
+      }
+    });
+    _inspectionInstitutionController.addListener(() {
+      if (_inspectionInstitutionError != null && _inspectionInstitutionController.text.trim().isNotEmpty) {
+        setState(() => _inspectionInstitutionError = null);
+      }
+    });
   }
 
   @override
@@ -192,6 +205,9 @@ class _MaintenanceInspectionDetailScreenState
 
     setState(() {
       _editing = true;
+      _equipmentError = null;
+      _inspectionInstitutionError = null;
+      _branchesError = null;
       _syncFromInspection(inspection);
     });
   }
@@ -204,6 +220,9 @@ class _MaintenanceInspectionDetailScreenState
 
     setState(() {
       _editing = false;
+      _equipmentError = null;
+      _inspectionInstitutionError = null;
+      _branchesError = null;
       _syncFromInspection(inspection);
     });
   }
@@ -265,17 +284,17 @@ class _MaintenanceInspectionDetailScreenState
 
     final equipment = _equipmentController.text.trim();
     final inspectionInstitution = _inspectionInstitutionController.text.trim();
-    if (equipment.isEmpty || inspectionInstitution.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Toestel en keurinstelling zijn verplicht.')),
-      );
-      return;
-    }
+    final missing = <String>[];
+    if (equipment.isEmpty) missing.add('Toestel / Installatie');
+    if (inspectionInstitution.isEmpty) missing.add('Naam keurinstelling');
+    if (_resolvedBranchIds().isEmpty) missing.add('Vestiging');
 
-    if (_resolvedBranchIds().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecteer minstens één vestiging.')),
-      );
+    if (missing.isNotEmpty) {
+      setState(() {
+        _equipmentError = missing.contains('Toestel / Installatie') ? 'Verplicht' : null;
+        _inspectionInstitutionError = missing.contains('Naam keurinstelling') ? 'Verplicht' : null;
+        _branchesError = missing.contains('Vestiging') ? 'Kies minstens één vestiging' : null;
+      });
       return;
     }
 
@@ -447,7 +466,14 @@ class _MaintenanceInspectionDetailScreenState
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.arrow_back, color: Color(0xFF243022)),
+              IconButton(
+                onPressed: widget.onClose,
+                icon: const Icon(Icons.arrow_back, color: Color(0xFF243022)),
+                tooltip: 'Terug',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                visualDensity: VisualDensity.compact,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
@@ -595,6 +621,14 @@ class _MaintenanceInspectionDetailScreenState
                             ),
                             const SizedBox(height: 3),
                             child,
+                            if (label == 'Vestigingen' && _branchesError != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6.0),
+                                child: Text(
+                                  _branchesError!,
+                                  style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+                                ),
+                              ),
                             const SizedBox(height: 8),
                           ],
                         ),
@@ -672,6 +706,8 @@ class _MaintenanceInspectionDetailScreenState
           borderSide: const BorderSide(color: Color(0xFF8CC63F)),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      ).copyWith(
+        errorText: controller == _equipmentController ? _equipmentError : (controller == _inspectionInstitutionController ? _inspectionInstitutionError : null),
       ),
     );
   }
@@ -856,6 +892,7 @@ class _MaintenanceInspectionDetailScreenState
               setState(() {
                 if (isSelected) {
                   _selectedBranchIds.add(branch.id);
+                  if (_branchesError != null && _selectedBranchIds.isNotEmpty) _branchesError = null;
                 } else {
                   _selectedBranchIds.remove(branch.id);
                 }

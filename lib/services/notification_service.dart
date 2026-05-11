@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/notification_setting.dart';
+import '../screens/home_screen.dart';
 import '../screens/account_management_screen.dart';
 import '../screens/ova_ticket_wizard_screen.dart';
 
@@ -205,30 +206,161 @@ class NotificationService extends ChangeNotifier {
 
 // Service for handling navigation based on notification context
 class NotificationNavigationService {
+  static final List<_NotificationContextResolver> _resolvers = [
+    _NotificationContextResolver(
+      canHandle: (notification) => notification.ticketId != null,
+      open: _openOvaContext,
+    ),
+    _NotificationContextResolver(
+      canHandle: (notification) => notification.accountId != null,
+      open: (context, notification) async {
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => const AccountManagementScreen(),
+          ),
+        );
+        return true;
+      },
+    ),
+    _NotificationContextResolver(
+      canHandle: (notification) =>
+          notification.entryId != null ||
+          _normalizeModule(notification) == 'JAP' ||
+          _normalizeModule(notification) == 'GPP' ||
+          notification.type.toUpperCase().startsWith('JAP_'),
+      open: _openJapGppContext,
+    ),
+    _NotificationContextResolver(
+      canHandle: (notification) =>
+          notification.maintenanceInspectionId != null ||
+          _normalizeModule(notification) == 'MAINTENANCE' ||
+          notification.type.toUpperCase().startsWith('MAINTENANCE_'),
+      open: _openMaintenanceContext,
+    ),
+  ];
+
   static Future<bool> openContext(
     BuildContext context,
     AppNotification notification,
   ) async {
-    if (notification.ticketId != null) {
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => OvaTicketWizardScreen(
-            ticketId: notification.ticketId,
-          ),
-        ),
-      );
-      return true;
-    }
+    for (final resolver in _resolvers) {
+      if (!resolver.canHandle(notification)) {
+        continue;
+      }
 
-    if (notification.accountId != null) {
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => const AccountManagementScreen(),
-        ),
-      );
-      return true;
+      final opened = await resolver.open(context, notification);
+      if (opened) {
+        return true;
+      }
     }
 
     return false;
   }
+
+  static Future<bool> _openJapGppContext(
+    BuildContext context,
+    AppNotification notification,
+  ) async {
+    if (!context.mounted) {
+      return false;
+    }
+
+    final module = _japGppModule(notification);
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => HomeScreen(
+          initialSectionKey: 'japGpp',
+          initialJapGppModule: module,
+          initialJapGppEntryId: notification.entryId,
+        ),
+      ),
+    );
+    return true;
+  }
+
+  static Future<bool> _openOvaContext(
+    BuildContext context,
+    AppNotification notification,
+  ) async {
+    if (!context.mounted) {
+      return false;
+    }
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => OvaTicketWizardScreen(
+          ticketId: notification.ticketId,
+        ),
+      ),
+    );
+    return true;
+  }
+
+  static Future<bool> _openMaintenanceContext(
+    BuildContext context,
+    AppNotification notification,
+  ) async {
+    if (!context.mounted) {
+      return false;
+    }
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => HomeScreen(
+          initialSectionKey: 'onderhoud',
+          initialMaintenanceInspectionId: notification.maintenanceInspectionId,
+        ),
+      ),
+    );
+    return true;
+  }
+
+  static String? _normalizeModule(AppNotification notification) {
+    final value = notification.metadata?['module'];
+    if (value is! String) {
+      return null;
+    }
+
+    final normalized = value.trim().toUpperCase().replaceAll(' ', '_');
+    if (normalized.isEmpty) {
+      return null;
+    }
+
+    if (normalized == 'ONDERHOUD_KEURINGEN') {
+      return 'MAINTENANCE';
+    }
+
+    return normalized;
+  }
+
+  static String? _japGppModule(AppNotification notification) {
+    final module = _normalizeModule(notification);
+    if (module == 'JAP' || module == 'GPP') {
+      return module;
+    }
+
+    final normalizedType = notification.type.toUpperCase();
+    if (!normalizedType.startsWith('JAP_')) {
+      return null;
+    }
+
+    final text = '${notification.title} ${notification.body}'.toUpperCase();
+    if (text.contains('GPP')) {
+      return 'GPP';
+    }
+
+    return 'JAP';
+  }
+}
+
+class _NotificationContextResolver {
+  const _NotificationContextResolver({
+    required this.canHandle,
+    required this.open,
+  });
+
+  final bool Function(AppNotification notification) canHandle;
+  final Future<bool> Function(BuildContext context, AppNotification notification)
+      open;
 }

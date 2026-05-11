@@ -10,7 +10,12 @@ import '../services/notification_service.dart';
 import 'maintenance_inspection_detail_screen.dart';
 
 class MaintenanceInspectionsScreen extends StatefulWidget {
-  const MaintenanceInspectionsScreen({super.key});
+  const MaintenanceInspectionsScreen({
+    super.key,
+    this.initialInspectionId,
+  });
+
+  final int? initialInspectionId;
 
   @override
   State<MaintenanceInspectionsScreen> createState() =>
@@ -28,6 +33,7 @@ class _MaintenanceInspectionsScreenState
   bool isLoading = true;
   String? loadError;
   bool _didRequestLoad = false;
+  bool _showNotVisibleMessage = false;
 
   // Filter state
   String? selectedStatus;
@@ -67,6 +73,10 @@ class _MaintenanceInspectionsScreenState
       allInspections = results[0] as List<MaintenanceInspection>;
       availableBranches = results[1] as List<Branch>;
       _filterInspections();
+
+      if (widget.initialInspectionId != null) {
+        _showNotVisibleMessage = true;
+      }
     } catch (error) {
       if (!mounted) {
         return;
@@ -231,6 +241,25 @@ class _MaintenanceInspectionsScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (_showNotVisibleMessage) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF3CD),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFFFD54F)),
+                  ),
+                  child: const Text(
+                    'Pagina nog niet zichtbaar',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF6B4E00),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
               Text(
                 'Onderhoud & Keuringen',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(

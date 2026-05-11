@@ -67,6 +67,9 @@ class AppNotification {
 
   int? get ticketId => _readIntFromMetadata('ticketId');
   int? get accountId => _readIntFromMetadata('accountId');
+  int? get entryId => _readIntFromMetadata('entryId');
+  int? get maintenanceInspectionId =>
+      _readIntFromMetadata('maintenanceInspectionId');
 
   String? get source {
     final value = metadata?['source'];

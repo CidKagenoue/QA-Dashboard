@@ -135,6 +135,19 @@ export class MaintenanceInspectionsService {
     const inspectionInstitution = dto.inspectionInstitution?.trim() ?? '';
     const frequency = dto.frequency?.trim() ?? '';
     const dueDate = this.parseDate(dto.dueDate, 'dueDate');
+    // If the user didn't provide a dueDate, compute a sensible default:
+    // - Prefer deriving from lastInspectionDate + frequency (years parsed from frequency)
+    // - Otherwise use now + parsed frequency (default 1 year)
+    let dueDateComputed: Date | null = dueDate;
+    if (!dueDateComputed) {
+      const last = this.parseDate(dto.lastInspectionDate, 'lastInspectionDate');
+      // extract integer from frequency (e.g. "Elke 5 Jaar" -> 5)
+      const numMatch = (frequency.match(/(\d+)/) || [null])[0];
+      const yearsToAdd = numMatch ? Math.max(1, parseInt(numMatch, 10)) : 1;
+      const base = last ?? new Date();
+      dueDateComputed = new Date(base);
+      dueDateComputed.setFullYear(dueDateComputed.getFullYear() + yearsToAdd);
+    }
 
     if (!equipment || !inspectionType || !inspectionInstitution || !frequency) {
       throw new BadRequestException('Verplichte velden ontbreken');
@@ -170,7 +183,7 @@ export class MaintenanceInspectionsService {
       frequency,
       selfContact: dto.selfContact ?? false,
       lastInspectionDate: this.parseDate(dto.lastInspectionDate, 'lastInspectionDate'),
-      dueDate,
+      dueDate: dueDateComputed!,
       status: dto.status?.trim() || 'Open',
       notes: dto.notes?.trim() || null,
     };

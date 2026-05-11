@@ -159,6 +159,11 @@ class _MaintenanceInspectionsScreenState
 
       try {
         final token = await authService.getValidAccessToken();
+        // Debug: log payload to help diagnose server 500 errors
+        try {
+          // ignore: avoid_print
+          print('Creating maintenance inspection with payload: ${result.toJson()}');
+        } catch (_) {}
         await MaintenanceApiService.createInspection(token: token, form: result);
         if (!mounted) {
           return;
@@ -173,6 +178,7 @@ class _MaintenanceInspectionsScreenState
         if (!mounted) {
           return;
         }
+        // Show full error message returned by API (status/body) for debugging
         messenger.showSnackBar(
           SnackBar(content: Text(error.toString().replaceFirst('Exception: ', ''))),
         );
@@ -552,6 +558,9 @@ class _MaintenanceInspectionDialogState
   final ScrollController _locationsScrollController = ScrollController();
   DateTime? lastInspectionDate;
   DateTime? dueDate;
+  String? _equipmentError;
+  String? _institutionError;
+  String? _branchesError;
 
   List<Branch> get branches => widget.availableBranches;
 
@@ -561,6 +570,16 @@ class _MaintenanceInspectionDialogState
     if (branches.isNotEmpty) {
       selectedLocationIds.add(branches.first.id);
     }
+    equipmentController.addListener(() {
+      if (_equipmentError != null && equipmentController.text.trim().isNotEmpty) {
+        setState(() => _equipmentError = null);
+      }
+    });
+    institutionController.addListener(() {
+      if (_institutionError != null && institutionController.text.trim().isNotEmpty) {
+        setState(() => _institutionError = null);
+      }
+    });
   }
 
   @override
@@ -641,14 +660,14 @@ class _MaintenanceInspectionDialogState
                                   const SizedBox(height: 8),
                                   TextField(
                                     controller: equipmentController,
-                                    decoration: _inputDecoration('Drukvat compressor'),
+                                    decoration: _inputDecoration('Drukvat compressor').copyWith(errorText: _equipmentError),
                                   ),
                                   const SizedBox(height: 16),
                                   _buildLabel('Naam Keurinstelling *'),
                                   const SizedBox(height: 8),
                                   TextField(
                                     controller: institutionController,
-                                    decoration: _inputDecoration('Vinçotte'),
+                                    decoration: _inputDecoration('Vinçotte').copyWith(errorText: _institutionError),
                                   ),
                                   const SizedBox(height: 16),
                                   _buildLabel('Contactgegevens'),
@@ -761,7 +780,7 @@ class _MaintenanceInspectionDialogState
                           const SizedBox(height: 8),
                           TextField(
                             controller: equipmentController,
-                            decoration: _inputDecoration('Drukvat compressor'),
+                            decoration: _inputDecoration('Drukvat compressor').copyWith(errorText: _equipmentError),
                           ),
                           const SizedBox(height: 16),
                           _buildLabel('Type Keuring *'),
@@ -786,7 +805,7 @@ class _MaintenanceInspectionDialogState
                           const SizedBox(height: 8),
                           TextField(
                             controller: institutionController,
-                            decoration: _inputDecoration('Vinçotte'),
+                            decoration: _inputDecoration('Vinçotte').copyWith(errorText: _institutionError),
                           ),
                           const SizedBox(height: 16),
                           _buildLabel('Contactgegevens'),
@@ -837,6 +856,7 @@ class _MaintenanceInspectionDialogState
                                     setState(() {
                                       if (isChecked == true) {
                                         selectedLocationIds.add(branch.id);
+                                        if (_branchesError != null && selectedLocationIds.isNotEmpty) _branchesError = null;
                                       } else {
                                         selectedLocationIds.remove(branch.id);
                                       }
@@ -846,6 +866,16 @@ class _MaintenanceInspectionDialogState
                               }).toList(),
                             ),
                           ),
+                  ),
+                  Visibility(
+                    visible: _branchesError != null,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 8.0, left: 4.0),
+                      child: Text(
+                        _branchesError ?? '',
+                        style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 18),
                   Row(
@@ -889,12 +919,17 @@ class _MaintenanceInspectionDialogState
                   const Divider(),
                   const SizedBox(height: 12),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       TextButton(
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFF8BC34A),
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                        ),
                         onPressed: () => Navigator.pop(context),
-                        child: Text('Annuleren', style: TextStyle(color: Colors.grey[800])),
+                        child: const Text('Annuleren'),
                       ),
+                      const SizedBox(width: 12),
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF8BC34A),
@@ -934,17 +969,17 @@ class _MaintenanceInspectionDialogState
                               }
                             } catch (_) {}
                           }
+                          final missing = <String>[];
+                          if (equipmentController.text.trim().isEmpty) missing.add('Toestel/Installatie');
+                          if (institutionController.text.trim().isEmpty) missing.add('Naam keurinstelling');
+                          if (selectedLocationIds.isEmpty) missing.add('Vestiging');
 
-                          if (equipmentController.text.trim().isEmpty ||
-                              institutionController.text.trim().isEmpty ||
-                              selectedLocationIds.isEmpty ||
-                              parsedLastInspection == null ||
-                              parsedDueDate == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Vul alle verplichte velden in en kies minstens één vestiging.'),
-                              ),
-                            );
+                          if (missing.isNotEmpty) {
+                            setState(() {
+                              _equipmentError = missing.contains('Toestel/Installatie') ? 'Verplicht' : null;
+                              _institutionError = missing.contains('Naam keurinstelling') ? 'Verplicht' : null;
+                              _branchesError = missing.contains('Vestiging') ? 'Kies minstens één vestiging' : null;
+                            });
                             return;
                           }
                           final form = MaintenanceInspectionForm()

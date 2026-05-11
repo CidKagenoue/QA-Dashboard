@@ -547,6 +547,7 @@ class _MaintenanceInspectionDialogState
   final TextEditingController equipmentController = TextEditingController();
   final TextEditingController institutionController = TextEditingController();
   final TextEditingController contactController = TextEditingController();
+  final TextEditingController notesController = TextEditingController();
   final TextEditingController lastInspectionController = TextEditingController();
   final TextEditingController dueDateController = TextEditingController();
 
@@ -587,6 +588,7 @@ class _MaintenanceInspectionDialogState
     equipmentController.dispose();
     institutionController.dispose();
     contactController.dispose();
+    notesController.dispose();
     lastInspectionController.dispose();
     dueDateController.dispose();
     _locationsScrollController.dispose();
@@ -819,7 +821,7 @@ class _MaintenanceInspectionDialogState
                       );
                     },
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 24),
                   _buildLabel('Vestigingen *'),
                   const SizedBox(height: 8),
                   Container(
@@ -877,6 +879,17 @@ class _MaintenanceInspectionDialogState
                       ),
                     ),
                   ),
+                  const SizedBox(height: 16),
+                  _buildLabel('Opmerkingen'),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: notesController,
+                    maxLines: 4,
+                    minLines: 3,
+                    decoration: _inputDecoration('Extra opmerkingen of aandachtspunten').copyWith(
+                      alignLabelWithHint: true,
+                    ),
+                  ),
                   const SizedBox(height: 18),
                   Row(
                     children: [
@@ -916,8 +929,6 @@ class _MaintenanceInspectionDialogState
                     ],
                   ),
                   const SizedBox(height: 22),
-                  const Divider(),
-                  const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
@@ -987,6 +998,9 @@ class _MaintenanceInspectionDialogState
                             ..inspectionType = inspectionType
                             ..inspectionInstitution = institutionController.text.trim()
                             ..contactInfo = contactController.text.trim()
+                            ..notes = notesController.text.trim().isEmpty
+                                ? null
+                                : notesController.text.trim()
                             ..frequencyValue = frequencyValue
                             ..frequencyUnit = frequencyUnit
                             ..selfContact = selfContact

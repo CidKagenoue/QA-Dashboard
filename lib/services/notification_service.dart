@@ -1,15 +1,14 @@
-import 'package:qa_dashboard/services/auth_service.dart';
-import 'api_service.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/notification_setting.dart';
-import '../screens/home_screen.dart';
 import '../screens/account_management_screen.dart';
+import '../screens/home_screen.dart';
 import '../screens/ova_ticket_wizard_screen.dart';
+import '../services/auth_service.dart';
+import '../services/api_service.dart';
 
-// Service for fetching notification data from backend (simple API helper)
 class NotificationApiService {
   final String baseUrl;
   NotificationApiService(this.baseUrl);
@@ -209,7 +208,16 @@ class NotificationNavigationService {
   static final List<_NotificationContextResolver> _resolvers = [
     _NotificationContextResolver(
       canHandle: (notification) => notification.ticketId != null,
-      open: _openOvaContext,
+      open: (context, notification) async {
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => OvaTicketWizardScreen(
+              ticketId: notification.ticketId,
+            ),
+          ),
+        );
+        return true;
+      },
     ),
     _NotificationContextResolver(
       canHandle: (notification) => notification.accountId != null,
@@ -262,30 +270,14 @@ class NotificationNavigationService {
     BuildContext context,
     AppNotification notification,
   ) async {
-    if (!context.mounted) return false;
+    if (!context.mounted) {
+      return false;
+    }
 
     final module = _japGppModule(notification);
-    debugPrint(
-      '[NotificationNavigationService] Open JAP/GPP context: '
-      'notificationId=${notification.id}, '
-      'type=${notification.type}, '
-      'module=$module, '
-      'entryId=${notification.entryId}, '
-      'metadata=${notification.metadata}',
-    );
-
-    // If HomeScreen is already in the tree, apply context directly to it.
-    final homeState = context.findAncestorStateOfType<State<HomeScreen>>();
-    if (homeState != null) {
-      try {
-        (homeState as dynamic).applyInitialJapGppContext(
-          module: module,
-          entryId: notification.entryId,
-        );
-        return true;
-      } catch (_) {
-        // fall through and push new HomeScreen below
-      }
+    final entryId = notification.entryId;
+    if (entryId == null) {
+      return false;
     }
 
     await Navigator.of(context).push(
@@ -293,23 +285,7 @@ class NotificationNavigationService {
         builder: (context) => HomeScreen(
           initialSectionKey: 'japGpp',
           initialJapGppModule: module,
-          initialJapGppEntryId: notification.entryId,
-        ),
-      ),
-    );
-    return true;
-  }
-
-  static Future<bool> _openOvaContext(
-    BuildContext context,
-    AppNotification notification,
-  ) async {
-    if (!context.mounted) return false;
-
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => OvaTicketWizardScreen(
-          ticketId: notification.ticketId,
+          initialJapGppEntryId: entryId,
         ),
       ),
     );
@@ -320,24 +296,8 @@ class NotificationNavigationService {
     BuildContext context,
     AppNotification notification,
   ) async {
-    if (!context.mounted) return false;
-
-    debugPrint(
-      '[NotificationNavigationService] Open maintenance context: '
-      'notificationId=${notification.id}, '
-      'type=${notification.type}, '
-      'entryId=${notification.maintenanceInspectionId}, '
-      'metadata=${notification.metadata}',
-    );
-
-    final homeState = context.findAncestorStateOfType<State<HomeScreen>>();
-    if (homeState != null) {
-      try {
-        (homeState as dynamic).applyInitialMaintenanceContext(
-          inspectionId: notification.maintenanceInspectionId,
-        );
-        return true;
-      } catch (_) {}
+    if (!context.mounted) {
+      return false;
     }
 
     await Navigator.of(context).push(
@@ -353,24 +313,42 @@ class NotificationNavigationService {
 
   static String? _normalizeModule(AppNotification notification) {
     final value = notification.metadata?['module'];
-    if (value is! String) return null;
+    if (value is! String) {
+      return null;
+    }
 
     final normalized = value.trim().toUpperCase().replaceAll(' ', '_');
-    if (normalized.isEmpty) return null;
-    if (normalized == 'ONDERHOUD_KEURINGEN') return 'MAINTENANCE';
+    if (normalized.isEmpty) {
+      return null;
+    }
+
+    if (normalized == 'ONDERHOUD_KEURINGEN') {
+      return 'MAINTENANCE';
+    }
+
     return normalized;
   }
 
   static String? _japGppModule(AppNotification notification) {
     final module = _normalizeModule(notification);
-    if (module == 'JAP' || module == 'GPP') return module;
+    if (module == 'JAP' || module == 'GPP') {
+      return module;
+    }
+
     final normalizedType = notification.type.toUpperCase();
-    if (normalizedType.startsWith('GPP_')) return 'GPP';
-    if (normalizedType.startsWith('JAP_')) return 'JAP';
+    if (normalizedType.startsWith('GPP_')) {
+      return 'GPP';
+    }
+    if (!normalizedType.startsWith('JAP_')) {
+      return module;
+    }
+
     final text = '${notification.title} ${notification.body}'.toUpperCase();
-    if (text.contains('GPP')) return 'GPP';
-    if (text.contains('JAP')) return 'JAP';
-    return null;
+    if (text.contains('GPP')) {
+      return 'GPP';
+    }
+
+    return 'JAP';
   }
 }
 

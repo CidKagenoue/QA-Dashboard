@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
-import '../services/notification_navigation_service.dart';
+import '../services/notification_settings_service.dart';
 import '../services/auth_service.dart';
 import '../models/notification_setting.dart';
 
@@ -13,7 +13,7 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  late NotificationNavigationService _service;
+  late NotificationSettingsService _service;
   String? _error;
   List<NotificationSetting> _settings = [];
   List<NotificationSetting> _uiSettings = [];
@@ -23,7 +23,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final authService = Provider.of<AuthService>(context, listen: false);
-    _service = NotificationNavigationService(
+    _service = NotificationSettingsService(
       baseUrl: ApiService.baseUrl,
       authService: authService,
     );

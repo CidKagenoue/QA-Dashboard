@@ -1,3 +1,4 @@
+import 'package:provider/provider.dart';
 import 'package:qa_dashboard/services/auth_service.dart';
 import 'api_service.dart';
 import 'dart:convert';
@@ -227,7 +228,8 @@ class NotificationNavigationService {
           notification.entryId != null ||
           _normalizeModule(notification) == 'JAP' ||
           _normalizeModule(notification) == 'GPP' ||
-          notification.type.toUpperCase().startsWith('JAP_'),
+          notification.type.toUpperCase().startsWith('JAP_') ||
+          notification.type.toUpperCase().startsWith('GPP_'),
       open: _openJapGppContext,
     ),
     _NotificationContextResolver(
@@ -266,6 +268,14 @@ class NotificationNavigationService {
     }
 
     final module = _japGppModule(notification);
+    debugPrint(
+      '[NotificationNavigationService] Open JAP/GPP context: '
+      'notificationId=${notification.id}, '
+      'type=${notification.type}, '
+      'module=$module, '
+      'entryId=${notification.entryId}, '
+      'metadata=${notification.metadata}',
+    );
 
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -341,16 +351,22 @@ class NotificationNavigationService {
     }
 
     final normalizedType = notification.type.toUpperCase();
-    if (!normalizedType.startsWith('JAP_')) {
-      return null;
+    if (normalizedType.startsWith('GPP_')) {
+      return 'GPP';
+    }
+    if (normalizedType.startsWith('JAP_')) {
+      return 'JAP';
     }
 
     final text = '${notification.title} ${notification.body}'.toUpperCase();
     if (text.contains('GPP')) {
       return 'GPP';
     }
+    if (text.contains('JAP')) {
+      return 'JAP';
+    }
 
-    return 'JAP';
+    return null;
   }
 }
 

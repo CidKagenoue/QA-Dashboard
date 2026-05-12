@@ -19,12 +19,14 @@ class JapGppScreen extends StatefulWidget {
   final String token;
   final String? initialModule;
   final int? initialEntryId;
+  final VoidCallback? onInitialContextConsumed;
 
   const JapGppScreen({
     super.key,
     required this.token,
     this.initialModule,
     this.initialEntryId,
+    this.onInitialContextConsumed,
   });
 
   @override
@@ -56,6 +58,8 @@ class _JapGppScreenState extends State<JapGppScreen> {
   List<String> _domains = DomainService.defaultDomains;
   bool _loadedJapOnce = false;
   bool _loadedGppOnce = false;
+  bool _japLoadFailed = false;
+  bool _gppLoadFailed = false;
   bool _initialContextApplied = false;
   late final String? _requestedInitialModule;
   late final int? _requestedInitialEntryId;
@@ -79,11 +83,16 @@ class _JapGppScreenState extends State<JapGppScreen> {
       setState(() {
         _allGppEntries = entries;
         _loadedGppOnce = true;
+        _gppLoadFailed = false;
       });
       _applyGppFilter(); // ← voeg toe
       _tryApplyInitialContext();
     } catch (e) {
-      // optioneel: fout tonen
+      if (!mounted) return;
+      setState(() {
+        _gppLoadFailed = true;
+      });
+      _tryApplyInitialContext();
     }
   }
 
@@ -325,6 +334,9 @@ class _JapGppScreenState extends State<JapGppScreen> {
 
   // ── data loading ──────────────────────────────────────────────────────────
   Future<void> _loadEntries() async {
+    if (!mounted) {
+      return;
+    }
     setState(() {
       _loading = true;
       _error = null;
@@ -336,22 +348,35 @@ class _JapGppScreenState extends State<JapGppScreen> {
       );
       entries.sort((a, b) => b.year.compareTo(a.year));
 
+      if (!mounted) {
+        return;
+      }
+
       setState(() {
         _allEntries = entries;
         _loadedJapOnce = true;
+        _japLoadFailed = false;
         _loading = false;
       });
       _applyFilter();
       _tryApplyInitialContext();
     } catch (e) {
+      if (!mounted) {
+        return;
+      }
       setState(() {
         _error = e.toString();
+        _japLoadFailed = true;
         _loading = false;
       });
+      _tryApplyInitialContext();
     }
   }
 
   void _applyFilter() {
+    if (!mounted) {
+      return;
+    }
     final query = _searchController.text.toLowerCase();
     var result = _allEntries.where((e) {
       if (query.isNotEmpty) {
@@ -378,6 +403,9 @@ class _JapGppScreenState extends State<JapGppScreen> {
   }
 
   void _applyGppFilter() {
+    if (!mounted) {
+      return;
+    }
     final query = _gppSearchController.text.toLowerCase();
     var result = _allGppEntries.where((e) {
       if (query.isNotEmpty) {
@@ -404,12 +432,84 @@ class _JapGppScreenState extends State<JapGppScreen> {
 
     final normalizedModule = (_requestedInitialModule ?? '').trim().toUpperCase();
     final initialEntryId = _requestedInitialEntryId;
+    final hasRequestedContext = normalizedModule.isNotEmpty || initialEntryId != null;
+
+    if (hasRequestedContext) {
+      debugPrint(
+        '[JapGppScreen] Try initial context: '
+        'module=$normalizedModule, '
+        'entryId=$initialEntryId, '
+        'loadedJap=$_loadedJapOnce, loadedGpp=$_loadedGppOnce, '
+        'japCount=${_allEntries.length}, gppCount=${_allGppEntries.length}',
+      );
+    }
 
     if (initialEntryId == null) {
       if (normalizedModule == 'GPP' && _tabIndex != 1) {
         setState(() => _tabIndex = 1);
       }
-      _initialContextApplied = true;
+      _consumeInitialContext();
+      return;
+    }
+
+    bool trySelectJap() {
+      for (final entry in _allEntries) {
+        if (entry.id == initialEntryId) {
+          setState(() {
+            _tabIndex = 0;
+            _selectedEntry = entry;
+            _selectedGppEntry = null;
+          });
+          return true;
+        }
+      }
+      return false;
+    }
+
+    bool trySelectGpp() {
+      for (final entry in _allGppEntries) {
+        if (entry.id == initialEntryId) {
+          setState(() {
+            _tabIndex = 1;
+            _selectedGppEntry = entry;
+            _selectedEntry = null;
+          });
+          return true;
+        }
+      }
+      return false;
+    }
+
+    // Prefer requested module, without blocking forever on the other list.
+    if (normalizedModule == 'JAP') {
+      if (!_loadedJapOnce) {
+        return;
+      }
+      if (trySelectJap()) {
+        _consumeInitialContext();
+        return;
+      }
+
+      if (_loadedGppOnce && trySelectGpp()) {
+        _consumeInitialContext();
+        return;
+      }
+
+      if (_loadedGppOnce || _gppLoadFailed) {
+        if (_allEntries.isNotEmpty) {
+          setState(() {
+            _tabIndex = 0;
+            _selectedEntry = _allEntries.first;
+            _selectedGppEntry = null;
+          });
+        }
+        debugPrint(
+          '[JapGppScreen] Initial JAP entryId not found; fallback to latest JAP detail',
+        );
+        _consumeInitialContext();
+        return;
+      }
+
       return;
     }
 
@@ -417,65 +517,60 @@ class _JapGppScreenState extends State<JapGppScreen> {
       if (!_loadedGppOnce) {
         return;
       }
-      for (final entry in _allGppEntries) {
-        if (entry.id == initialEntryId) {
+      if (trySelectGpp()) {
+        _consumeInitialContext();
+        return;
+      }
+
+      if (_loadedJapOnce && trySelectJap()) {
+        _consumeInitialContext();
+        return;
+      }
+
+      if (_loadedJapOnce || _japLoadFailed) {
+        if (_allGppEntries.isNotEmpty) {
           setState(() {
             _tabIndex = 1;
-            _selectedGppEntry = entry;
+            _selectedGppEntry = _allGppEntries.first;
+            _selectedEntry = null;
           });
-          _initialContextApplied = true;
-          return;
         }
+        debugPrint(
+          '[JapGppScreen] Initial GPP entryId not found; fallback to latest GPP detail',
+        );
+        _consumeInitialContext();
+        return;
       }
-      _initialContextApplied = true;
+
       return;
     }
 
-    if (normalizedModule == 'JAP') {
-      if (!_loadedJapOnce) {
-        return;
-      }
-      for (final entry in _allEntries) {
-        if (entry.id == initialEntryId) {
-          setState(() {
-            _tabIndex = 0;
-            _selectedEntry = entry;
-          });
-          _initialContextApplied = true;
-          return;
-        }
-      }
-      _initialContextApplied = true;
+    final canSearchJap = _loadedJapOnce;
+    final canSearchGpp = _loadedGppOnce;
+
+    if (canSearchJap && trySelectJap()) {
+      _consumeInitialContext();
+      return;
+    }
+    if (canSearchGpp && trySelectGpp()) {
+      _consumeInitialContext();
       return;
     }
 
-    if (!_loadedJapOnce || !_loadedGppOnce) {
+    final japFinalized = _loadedJapOnce || _japLoadFailed;
+    final gppFinalized = _loadedGppOnce || _gppLoadFailed;
+    if (japFinalized && gppFinalized) {
+      _consumeInitialContext();
       return;
     }
+  }
 
-    for (final entry in _allEntries) {
-      if (entry.id == initialEntryId) {
-        setState(() {
-          _tabIndex = 0;
-          _selectedEntry = entry;
-        });
-        _initialContextApplied = true;
-        return;
-      }
+  void _consumeInitialContext() {
+    if (_initialContextApplied) {
+      return;
     }
-
-    for (final entry in _allGppEntries) {
-      if (entry.id == initialEntryId) {
-        setState(() {
-          _tabIndex = 1;
-          _selectedGppEntry = entry;
-        });
-        _initialContextApplied = true;
-        return;
-      }
-    }
-
     _initialContextApplied = true;
+    widget.onInitialContextConsumed?.call();
   }
 
   void _showFilterSheet() {

@@ -151,7 +151,7 @@ class MaintenanceApiService {
     // Debug: print raw response to help diagnose server errors (500)
     try {
       // ignore: avoid_print
-      print('MaintenanceApiService ${method} ${uri} => ${response.statusCode} ${response.body}');
+      print('MaintenanceApiService $method $uri => ${response.statusCode} ${response.body}');
     } catch (_) {}
 
     throw Exception(_extractErrorMessage(response));

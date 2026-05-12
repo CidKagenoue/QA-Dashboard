@@ -49,6 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int? _initialJapGppEntryId;
   bool _initialJapGppContextConsumed = false;
   int? _initialMaintenanceInspectionId;
+  // (no pending fields needed)
 
   @override
   void initState() {
@@ -58,6 +59,27 @@ class _HomeScreenState extends State<HomeScreen> {
     _initialJapGppModule = widget.initialJapGppModule;
     _initialJapGppEntryId = widget.initialJapGppEntryId;
     _initialMaintenanceInspectionId = widget.initialMaintenanceInspectionId;
+  }
+
+  // Called by external code (e.g. NotificationNavigationService) when HomeScreen
+  // is already visible and we want to apply a JAP/GPP context without pushing
+  // a new HomeScreen route.
+  void applyInitialJapGppContext({String? module, int? entryId}) {
+    if (!mounted) return;
+    setState(() {
+      _initialJapGppModule = module;
+      _initialJapGppEntryId = entryId;
+      _initialJapGppContextConsumed = false;
+      _selected = _HomeSection.japGpp;
+    });
+  }
+
+  void applyInitialMaintenanceContext({int? inspectionId}) {
+    if (!mounted) return;
+    setState(() {
+      _initialMaintenanceInspectionId = inspectionId;
+      _selected = _HomeSection.onderhoud;
+    });
   }
 
   @override

@@ -1,4 +1,3 @@
-import 'package:provider/provider.dart';
 import 'package:qa_dashboard/services/auth_service.dart';
 import 'api_service.dart';
 import 'dart:convert';
@@ -263,9 +262,7 @@ class NotificationNavigationService {
     BuildContext context,
     AppNotification notification,
   ) async {
-    if (!context.mounted) {
-      return false;
-    }
+    if (!context.mounted) return false;
 
     final module = _japGppModule(notification);
     debugPrint(
@@ -276,6 +273,20 @@ class NotificationNavigationService {
       'entryId=${notification.entryId}, '
       'metadata=${notification.metadata}',
     );
+
+    // If HomeScreen is already in the tree, apply context directly to it.
+    final homeState = context.findAncestorStateOfType<State<HomeScreen>>();
+    if (homeState != null) {
+      try {
+        (homeState as dynamic).applyInitialJapGppContext(
+          module: module,
+          entryId: notification.entryId,
+        );
+        return true;
+      } catch (_) {
+        // fall through and push new HomeScreen below
+      }
+    }
 
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -293,9 +304,7 @@ class NotificationNavigationService {
     BuildContext context,
     AppNotification notification,
   ) async {
-    if (!context.mounted) {
-      return false;
-    }
+    if (!context.mounted) return false;
 
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -311,8 +320,24 @@ class NotificationNavigationService {
     BuildContext context,
     AppNotification notification,
   ) async {
-    if (!context.mounted) {
-      return false;
+    if (!context.mounted) return false;
+
+    debugPrint(
+      '[NotificationNavigationService] Open maintenance context: '
+      'notificationId=${notification.id}, '
+      'type=${notification.type}, '
+      'entryId=${notification.maintenanceInspectionId}, '
+      'metadata=${notification.metadata}',
+    );
+
+    final homeState = context.findAncestorStateOfType<State<HomeScreen>>();
+    if (homeState != null) {
+      try {
+        (homeState as dynamic).applyInitialMaintenanceContext(
+          inspectionId: notification.maintenanceInspectionId,
+        );
+        return true;
+      } catch (_) {}
     }
 
     await Navigator.of(context).push(
@@ -328,44 +353,23 @@ class NotificationNavigationService {
 
   static String? _normalizeModule(AppNotification notification) {
     final value = notification.metadata?['module'];
-    if (value is! String) {
-      return null;
-    }
+    if (value is! String) return null;
 
     final normalized = value.trim().toUpperCase().replaceAll(' ', '_');
-    if (normalized.isEmpty) {
-      return null;
-    }
-
-    if (normalized == 'ONDERHOUD_KEURINGEN') {
-      return 'MAINTENANCE';
-    }
-
+    if (normalized.isEmpty) return null;
+    if (normalized == 'ONDERHOUD_KEURINGEN') return 'MAINTENANCE';
     return normalized;
   }
 
   static String? _japGppModule(AppNotification notification) {
     final module = _normalizeModule(notification);
-    if (module == 'JAP' || module == 'GPP') {
-      return module;
-    }
-
+    if (module == 'JAP' || module == 'GPP') return module;
     final normalizedType = notification.type.toUpperCase();
-    if (normalizedType.startsWith('GPP_')) {
-      return 'GPP';
-    }
-    if (normalizedType.startsWith('JAP_')) {
-      return 'JAP';
-    }
-
+    if (normalizedType.startsWith('GPP_')) return 'GPP';
+    if (normalizedType.startsWith('JAP_')) return 'JAP';
     final text = '${notification.title} ${notification.body}'.toUpperCase();
-    if (text.contains('GPP')) {
-      return 'GPP';
-    }
-    if (text.contains('JAP')) {
-      return 'JAP';
-    }
-
+    if (text.contains('GPP')) return 'GPP';
+    if (text.contains('JAP')) return 'JAP';
     return null;
   }
 }

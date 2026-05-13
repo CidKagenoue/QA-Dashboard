@@ -30,14 +30,17 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
   Widget build(BuildContext context) {
     return Consumer2<AccountManagementService, AuthService>(
       builder: (context, accountManagementService, authService, child) {
+        final currentUserId = authService.user?.id;
+        final manageableAccounts = accountManagementService.accounts
+            .where((account) => account.id != currentUserId)
+            .toList();
         final query = _searchController.text.trim().toLowerCase();
-        final filteredAccounts = accountManagementService.accounts
+        final filteredAccounts = manageableAccounts
             .where((account) => _matchesQuery(account, query))
             .toList();
         final accountsWithoutAccess = filteredAccounts
             .where((account) => !account.hasAnyAccess)
             .toList();
-        final currentUserId = authService.user?.id;
 
         if (accountManagementService.isLoading &&
             !accountManagementService.hasLoaded) {
@@ -160,6 +163,7 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
                           isUpdating: accountManagementService.isUpdating,
                           isDeleting: accountManagementService.isDeleting,
                           onAccessChanged: _handleAccountUpdate,
+                          onEdit: _handleEditAccount,
                           onDelete: _handleDeleteAccount,
                         ),
                 ),
@@ -188,6 +192,7 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
                           isUpdating: accountManagementService.isUpdating,
                           isDeleting: accountManagementService.isDeleting,
                           onAccessChanged: _handleAccountUpdate,
+                          onEdit: _handleEditAccount,
                           onDelete: _handleDeleteAccount,
                         ),
                 ),
@@ -230,6 +235,15 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
     bool isAdmin,
     AccountAccess access,
   ) async {
+    if (!_hasAccessChange(account, isAdmin, access)) {
+      return;
+    }
+
+    final confirmed = await _confirmAccessChange(account, isAdmin, access);
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
     try {
       await context.read<AccountManagementService>().updateAccount(
         account: account,
@@ -248,6 +262,107 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
         ),
       );
     }
+  }
+
+  Future<bool?> _confirmAccessChange(
+    User account,
+    bool isAdmin,
+    AccountAccess access,
+  ) {
+    final changedRights = _changedAccessLabels(account, isAdmin, access);
+    final removedRights = _removedAccessLabels(account, isAdmin, access);
+    final isRemovingRights = removedRights.isNotEmpty;
+    final changedRightsText = changedRights.join(', ');
+
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(
+            isRemovingRights ? 'Recht verwijderen?' : 'Rechten wijzigen?',
+          ),
+          content: Text(
+            isRemovingRights
+                ? 'Je staat op het punt om $changedRightsText voor ${account.displayName} te wijzigen. Verwijderde rechten kunnen de toegang tot onderdelen beperken.'
+                : 'Je staat op het punt om $changedRightsText voor ${account.displayName} te wijzigen.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Annuleren'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: isRemovingRights
+                  ? FilledButton.styleFrom(backgroundColor: Colors.red.shade700)
+                  : null,
+              child: Text(
+                isRemovingRights ? 'Ja, verwijderen' : 'Ja, wijzigen',
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  bool _hasAccessChange(User account, bool isAdmin, AccountAccess access) {
+    return account.isAdmin != isAdmin ||
+        account.access.basis != access.basis ||
+        account.access.whsTours != access.whsTours ||
+        account.access.ova != access.ova ||
+        account.access.japGpp != access.japGpp ||
+        account.access.maintenanceInspections != access.maintenanceInspections;
+  }
+
+  List<String> _changedAccessLabels(
+    User account,
+    bool isAdmin,
+    AccountAccess access,
+  ) {
+    return [
+      if (account.isAdmin != isAdmin) 'Admin',
+      if (account.access.basis != access.basis) 'Basis (Eigen OVA-acties)',
+      if (account.access.whsTours != access.whsTours) 'WHS-Tours',
+      if (account.access.ova != access.ova) 'OVA',
+      if (account.access.japGpp != access.japGpp) 'JAP & GPP',
+      if (account.access.maintenanceInspections !=
+          access.maintenanceInspections)
+        'Onderhoud & Keuringen',
+    ];
+  }
+
+  List<String> _removedAccessLabels(
+    User account,
+    bool isAdmin,
+    AccountAccess access,
+  ) {
+    return [
+      if (account.isAdmin && !isAdmin) 'Admin',
+      if (account.access.basis && !access.basis) 'Basis (Eigen OVA-acties)',
+      if (account.access.whsTours && !access.whsTours) 'WHS-Tours',
+      if (account.access.ova && !access.ova) 'OVA',
+      if (account.access.japGpp && !access.japGpp) 'JAP & GPP',
+      if (account.access.maintenanceInspections &&
+          !access.maintenanceInspections)
+        'Onderhoud & Keuringen',
+    ];
+  }
+
+  Future<void> _handleEditAccount(User account) async {
+    final updated = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _EditAccountDialog(account: account),
+    );
+
+    if (!mounted || updated != true) {
+      return;
+    }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Account is aangepast.')));
   }
 
   Future<void> _handleDeleteAccount(User account) async {
@@ -382,6 +497,7 @@ class _AccountGrid extends StatelessWidget {
     required this.isUpdating,
     required this.isDeleting,
     required this.onAccessChanged,
+    required this.onEdit,
     required this.onDelete,
   });
 
@@ -391,6 +507,7 @@ class _AccountGrid extends StatelessWidget {
   final bool Function(int accountId) isDeleting;
   final Future<void> Function(User account, bool isAdmin, AccountAccess access)
   onAccessChanged;
+  final Future<void> Function(User account) onEdit;
   final Future<void> Function(User account) onDelete;
 
   @override
@@ -415,6 +532,7 @@ class _AccountGrid extends StatelessWidget {
                 isUpdating: updating,
                 isDeleting: deleting,
                 onAccessChanged: onAccessChanged,
+                onEdit: isCurrentUser ? null : onEdit,
                 onDelete: isCurrentUser ? null : onDelete,
               ),
             );
@@ -443,6 +561,7 @@ class _AccountCard extends StatelessWidget {
     required this.isUpdating,
     required this.isDeleting,
     required this.onAccessChanged,
+    this.onEdit,
     this.onDelete,
   });
 
@@ -452,6 +571,7 @@ class _AccountCard extends StatelessWidget {
   final bool isDeleting;
   final Future<void> Function(User account, bool isAdmin, AccountAccess access)
   onAccessChanged;
+  final Future<void> Function(User account)? onEdit;
   final Future<void> Function(User account)? onDelete;
 
   @override
@@ -492,17 +612,38 @@ class _AccountCard extends StatelessWidget {
                             ),
                           ),
                         const Spacer(),
-                        IconButton(
-                          onPressed: onDelete == null
-                              ? null
-                              : () => onDelete!(account),
-                          icon: const Icon(Icons.delete_outline_rounded),
-                          color: onDelete == null
-                              ? const Color(0xFFB6BCB1)
-                              : const Color(0xFF7C8278),
-                          tooltip: onDelete == null
-                              ? 'Je eigen account kan niet worden verwijderd'
-                              : 'Verwijderen',
+                        PopupMenuButton<_AccountCardAction>(
+                          enabled: !isBusy,
+                          tooltip: 'Account acties',
+                          icon: const Icon(Icons.more_vert_rounded),
+                          color: Colors.white,
+                          onSelected: (action) {
+                            if (action == _AccountCardAction.edit) {
+                              onEdit?.call(account);
+                              return;
+                            }
+
+                            onDelete?.call(account);
+                          },
+                          itemBuilder: (context) => [
+                            PopupMenuItem(
+                              value: _AccountCardAction.edit,
+                              enabled: onEdit != null,
+                              child: const _AccountActionMenuItem(
+                                icon: Icons.edit_outlined,
+                                label: 'Bewerken',
+                              ),
+                            ),
+                            PopupMenuItem(
+                              value: _AccountCardAction.delete,
+                              enabled: onDelete != null,
+                              child: const _AccountActionMenuItem(
+                                icon: Icons.delete_outline_rounded,
+                                label: 'Verwijderen',
+                                isDestructive: true,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -572,60 +713,79 @@ class _AccountCard extends StatelessWidget {
                     const SizedBox(height: 12),
                     _AccessToggleRow(
                       label: 'Basis (Eigen OVA-acties)',
-                      value: account.access.basis,
-                      onChanged: (value) {
-                        onAccessChanged(
-                          account,
-                          account.isAdmin,
-                          account.access.copyWith(basis: value),
-                        );
-                      },
+                      value: account.isAdmin || account.access.basis,
+                      isInherited: account.isAdmin && !account.access.basis,
+                      onChanged: account.isAdmin
+                          ? null
+                          : (value) {
+                              onAccessChanged(
+                                account,
+                                account.isAdmin,
+                                account.access.copyWith(basis: value),
+                              );
+                            },
                     ),
                     _AccessToggleRow(
                       label: 'WHS-Tours',
-                      value: account.access.whsTours,
-                      onChanged: (value) {
-                        onAccessChanged(
-                          account,
-                          account.isAdmin,
-                          account.access.copyWith(whsTours: value),
-                        );
-                      },
+                      value: account.isAdmin || account.access.whsTours,
+                      isInherited: account.isAdmin && !account.access.whsTours,
+                      onChanged: account.isAdmin
+                          ? null
+                          : (value) {
+                              onAccessChanged(
+                                account,
+                                account.isAdmin,
+                                account.access.copyWith(whsTours: value),
+                              );
+                            },
                     ),
                     _AccessToggleRow(
                       label: 'OVA',
-                      value: account.access.ova,
-                      onChanged: (value) {
-                        onAccessChanged(
-                          account,
-                          account.isAdmin,
-                          account.access.copyWith(ova: value),
-                        );
-                      },
+                      value: account.isAdmin || account.access.ova,
+                      isInherited: account.isAdmin && !account.access.ova,
+                      onChanged: account.isAdmin
+                          ? null
+                          : (value) {
+                              onAccessChanged(
+                                account,
+                                account.isAdmin,
+                                account.access.copyWith(ova: value),
+                              );
+                            },
                     ),
                     _AccessToggleRow(
                       label: 'JAP & GPP',
-                      value: account.access.japGpp,
-                      onChanged: (value) {
-                        onAccessChanged(
-                          account,
-                          account.isAdmin,
-                          account.access.copyWith(japGpp: value),
-                        );
-                      },
+                      value: account.isAdmin || account.access.japGpp,
+                      isInherited: account.isAdmin && !account.access.japGpp,
+                      onChanged: account.isAdmin
+                          ? null
+                          : (value) {
+                              onAccessChanged(
+                                account,
+                                account.isAdmin,
+                                account.access.copyWith(japGpp: value),
+                              );
+                            },
                     ),
                     _AccessToggleRow(
                       label: 'Onderhoud & Keuringen',
-                      value: account.access.maintenanceInspections,
-                      onChanged: (value) {
-                        onAccessChanged(
-                          account,
-                          account.isAdmin,
-                          account.access.copyWith(
-                            maintenanceInspections: value,
-                          ),
-                        );
-                      },
+                      value:
+                          account.isAdmin ||
+                          account.access.maintenanceInspections,
+                      isInherited:
+                          account.isAdmin &&
+                          !account.access.maintenanceInspections,
+                      onChanged: account.isAdmin
+                          ? null
+                          : (value) {
+                              onAccessChanged(
+                                account,
+                                account.isAdmin,
+                                account.access.copyWith(
+                                  maintenanceInspections: value,
+                                ),
+                              );
+                            },
                     ),
                     const SizedBox(height: 14),
                     const Divider(height: 1),
@@ -658,16 +818,45 @@ class _AccountCard extends StatelessWidget {
   }
 }
 
+enum _AccountCardAction { edit, delete }
+
+class _AccountActionMenuItem extends StatelessWidget {
+  const _AccountActionMenuItem({
+    required this.icon,
+    required this.label,
+    this.isDestructive = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool isDestructive;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isDestructive ? Colors.red.shade700 : const Color(0xFF475145);
+
+    return Row(
+      children: [
+        Icon(icon, size: 19, color: color),
+        const SizedBox(width: 10),
+        Text(label, style: TextStyle(color: color)),
+      ],
+    );
+  }
+}
+
 class _AccessToggleRow extends StatelessWidget {
   const _AccessToggleRow({
     required this.label,
     required this.value,
     required this.onChanged,
+    this.isInherited = false,
   });
 
   final String label;
   final bool value;
-  final ValueChanged<bool> onChanged;
+  final ValueChanged<bool>? onChanged;
+  final bool isInherited;
 
   @override
   Widget build(BuildContext context) {
@@ -676,9 +865,29 @@ class _AccessToggleRow extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(fontSize: 13.5, color: Color(0xFF5A6255)),
+            child: Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      color: Color(0xFF5A6255),
+                    ),
+                  ),
+                ),
+                if (isInherited) ...[
+                  const SizedBox(width: 6),
+                  Tooltip(
+                    message: 'Inbegrepen via admin',
+                    child: Icon(
+                      Icons.admin_panel_settings_outlined,
+                      size: 15,
+                      color: Colors.green.shade700,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
           const SizedBox(width: 10),
@@ -822,6 +1031,222 @@ class _SelectionField extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _EditAccountDialog extends StatefulWidget {
+  const _EditAccountDialog({required this.account});
+
+  final User account;
+
+  @override
+  State<_EditAccountDialog> createState() => _EditAccountDialogState();
+}
+
+class _EditAccountDialogState extends State<_EditAccountDialog> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  late final TextEditingController _nameController;
+  late final TextEditingController _emailController;
+  final TextEditingController _passwordController = TextEditingController();
+
+  bool _submitting = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.account.name ?? '');
+    _emailController = TextEditingController(text: widget.account.email);
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Account bewerken'),
+      contentPadding: const EdgeInsets.fromLTRB(28, 20, 28, 12),
+      actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 420, maxWidth: 560),
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.account.displayName,
+                  style: const TextStyle(color: Color(0xFF667085), height: 1.4),
+                ),
+                const SizedBox(height: 18),
+                TextFormField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Gebruikersnaam *',
+                    prefixIcon: Icon(Icons.person_outline_rounded),
+                  ),
+                  validator: (value) {
+                    if ((value ?? '').trim().isEmpty) {
+                      return 'Gebruikersnaam is verplicht';
+                    }
+
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 18),
+                TextFormField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'E-mail *',
+                    prefixIcon: Icon(Icons.mail_outline_rounded),
+                  ),
+                  validator: (value) {
+                    final email = value?.trim() ?? '';
+                    if (email.isEmpty) {
+                      return 'E-mail is verplicht';
+                    }
+                    if (!email.contains('@')) {
+                      return 'Geef een geldig e-mailadres in';
+                    }
+
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 18),
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Nieuw wachtwoord',
+                    helperText: 'Laat leeg om het wachtwoord niet te wijzigen',
+                    helperMaxLines: 2,
+                    prefixIcon: Icon(Icons.lock_outline_rounded),
+                  ),
+                  validator: (value) {
+                    final password = value?.trim() ?? '';
+                    if (password.isNotEmpty && password.length < 6) {
+                      return 'Minstens 6 tekens';
+                    }
+
+                    return null;
+                  },
+                ),
+                if (_error != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    _error!,
+                    style: TextStyle(
+                      color: Colors.red.shade700,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _submitting
+              ? null
+              : () => Navigator.of(context).pop(false),
+          child: const Text('Annuleren'),
+        ),
+        ElevatedButton.icon(
+          onPressed: _submitting ? null : _confirmAndSave,
+          icon: _submitting
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Icon(Icons.check_rounded),
+          label: const Text('Opslaan'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _confirmAndSave() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    final hasPasswordChange = _passwordController.text.trim().isNotEmpty;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Wijzigingen bevestigen?'),
+          content: Text(
+            hasPasswordChange
+                ? 'Ben je zeker dat je de gebruikersnaam, e-mail en het wachtwoord van ${widget.account.displayName} wilt wijzigen?'
+                : 'Ben je zeker dat je de gebruikersnaam en e-mail van ${widget.account.displayName} wilt wijzigen?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Annuleren'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Ja, aanpassen'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+
+    try {
+      await context.read<AccountManagementService>().updateAccountDetails(
+        account: widget.account,
+        email: _emailController.text,
+        name: _nameController.text,
+        password: _passwordController.text,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.of(context).pop(true);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _error = error.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _submitting = false;
+        });
+      }
+    }
   }
 }
 
@@ -1108,48 +1533,65 @@ class _CreateAccountDialogState extends State<_CreateAccountDialog> {
                 const SizedBox(height: 8),
                 _DialogToggle(
                   label: 'Basis (Eigen OVA-acties)',
-                  value: _access.basis,
-                  onChanged: (value) {
-                    setState(() {
-                      _access = _access.copyWith(basis: value);
-                    });
-                  },
+                  value: _isAdmin || _access.basis,
+                  isInherited: _isAdmin && !_access.basis,
+                  onChanged: _isAdmin
+                      ? null
+                      : (value) {
+                          setState(() {
+                            _access = _access.copyWith(basis: value);
+                          });
+                        },
                 ),
                 _DialogToggle(
                   label: 'WHS-Tours',
-                  value: _access.whsTours,
-                  onChanged: (value) {
-                    setState(() {
-                      _access = _access.copyWith(whsTours: value);
-                    });
-                  },
+                  value: _isAdmin || _access.whsTours,
+                  isInherited: _isAdmin && !_access.whsTours,
+                  onChanged: _isAdmin
+                      ? null
+                      : (value) {
+                          setState(() {
+                            _access = _access.copyWith(whsTours: value);
+                          });
+                        },
                 ),
                 _DialogToggle(
                   label: 'OVA',
-                  value: _access.ova,
-                  onChanged: (value) {
-                    setState(() {
-                      _access = _access.copyWith(ova: value);
-                    });
-                  },
+                  value: _isAdmin || _access.ova,
+                  isInherited: _isAdmin && !_access.ova,
+                  onChanged: _isAdmin
+                      ? null
+                      : (value) {
+                          setState(() {
+                            _access = _access.copyWith(ova: value);
+                          });
+                        },
                 ),
                 _DialogToggle(
                   label: 'JAP & GPP',
-                  value: _access.japGpp,
-                  onChanged: (value) {
-                    setState(() {
-                      _access = _access.copyWith(japGpp: value);
-                    });
-                  },
+                  value: _isAdmin || _access.japGpp,
+                  isInherited: _isAdmin && !_access.japGpp,
+                  onChanged: _isAdmin
+                      ? null
+                      : (value) {
+                          setState(() {
+                            _access = _access.copyWith(japGpp: value);
+                          });
+                        },
                 ),
                 _DialogToggle(
                   label: 'Onderhoud & Keuringen',
-                  value: _access.maintenanceInspections,
-                  onChanged: (value) {
-                    setState(() {
-                      _access = _access.copyWith(maintenanceInspections: value);
-                    });
-                  },
+                  value: _isAdmin || _access.maintenanceInspections,
+                  isInherited: _isAdmin && !_access.maintenanceInspections,
+                  onChanged: _isAdmin
+                      ? null
+                      : (value) {
+                          setState(() {
+                            _access = _access.copyWith(
+                              maintenanceInspections: value,
+                            );
+                          });
+                        },
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: 12),
@@ -1249,18 +1691,35 @@ class _DialogToggle extends StatelessWidget {
     required this.label,
     required this.value,
     required this.onChanged,
+    this.isInherited = false,
   });
 
   final String label;
   final bool value;
-  final ValueChanged<bool> onChanged;
+  final ValueChanged<bool>? onChanged;
+  final bool isInherited;
 
   @override
   Widget build(BuildContext context) {
     return SwitchListTile.adaptive(
       value: value,
       onChanged: onChanged,
-      title: Text(label, style: const TextStyle(fontSize: 14.5)),
+      title: Row(
+        children: [
+          Flexible(child: Text(label, style: const TextStyle(fontSize: 14.5))),
+          if (isInherited) ...[
+            const SizedBox(width: 6),
+            Tooltip(
+              message: 'Inbegrepen via admin',
+              child: Icon(
+                Icons.admin_panel_settings_outlined,
+                size: 16,
+                color: Colors.green.shade700,
+              ),
+            ),
+          ],
+        ],
+      ),
       contentPadding: EdgeInsets.zero,
       activeThumbColor: const Color(0xFF6DBE45),
       activeTrackColor: const Color(0xFFBFE3A6),

@@ -143,6 +143,35 @@ class AccountManagementService extends ChangeNotifier {
     }
   }
 
+  Future<User> updateAccountDetails({
+    required User account,
+    required String email,
+    required String name,
+    String? password,
+  }) async {
+    final token = await _requireToken();
+
+    _updatingAccountIds.add(account.id);
+    notifyListeners();
+
+    try {
+      final response = await ApiService.updateAccountDetails(
+        token: token,
+        accountId: account.id,
+        email: email,
+        name: name,
+        password: password,
+      );
+
+      final updatedAccount = _readAccountFromResponse(response);
+      _upsertAccount(updatedAccount);
+      return updatedAccount;
+    } finally {
+      _updatingAccountIds.remove(account.id);
+      notifyListeners();
+    }
+  }
+
   Future<void> deleteAccount(int accountId) async {
     final token = await _requireToken();
 

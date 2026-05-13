@@ -10,6 +10,7 @@ import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateAccountDto,
+  UpdateAccountDetailsDto,
   UpdateAccountAccessDto,
 } from './dto/account-management.dto';
 import { ManagedAccount, UserService } from '../user/user.service';
@@ -87,10 +88,60 @@ export class AccountsService {
     };
   }
 
+  async updateAccountDetails(
+    accountId: number,
+    updateAccountDetailsDto: UpdateAccountDetailsDto,
+    actorId: number,
+  ) {
+    if (accountId === actorId) {
+      throw new BadRequestException('You cannot change your own account details');
+    }
+
+    const existingAccount = await this.userService.findById(accountId);
+    if (!existingAccount) {
+      throw new NotFoundException('Account not found');
+    }
+
+    const updateData: Prisma.UserUpdateInput = {};
+
+    if (Object.prototype.hasOwnProperty.call(updateAccountDetailsDto, 'email')) {
+      const email = this.normalizeEmail(updateAccountDetailsDto.email ?? '');
+      const emailOwner = await this.userService.findByEmail(email);
+      if (emailOwner && emailOwner.id !== accountId) {
+        throw new ConflictException('A user with that email already exists');
+      }
+      updateData.email = email;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(updateAccountDetailsDto, 'name')) {
+      updateData.name = this.normalizeName(updateAccountDetailsDto.name);
+    }
+
+    const password = updateAccountDetailsDto.password?.trim();
+    if (password) {
+      updateData.password = await bcrypt.hash(this.normalizePassword(password), 12);
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      throw new BadRequestException('At least one account field must be provided');
+    }
+
+    const updatedAccount = await this.userService.updateManagedAccount(accountId, updateData);
+
+    return {
+      account: this.serializeAccount(updatedAccount),
+    };
+  }
+
   async updateAccountAccess(
     accountId: number,
     updateAccountAccessDto: UpdateAccountAccessDto,
+    actorId: number,
   ) {
+    if (accountId === actorId) {
+      throw new BadRequestException('You cannot change your own account access');
+    }
+
     const existingAccount = await this.userService.findById(accountId);
     if (!existingAccount) {
       throw new NotFoundException('Account not found');

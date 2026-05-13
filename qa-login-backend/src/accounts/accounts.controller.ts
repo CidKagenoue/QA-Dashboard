@@ -17,6 +17,7 @@ import { AdminGuard } from './admin.guard';
 import { AccountsService } from './accounts.service';
 import {
   CreateAccountDto,
+  UpdateAccountDetailsDto,
   UpdateAccountAccessDto,
 } from './dto/account-management.dto';
 
@@ -35,12 +36,30 @@ export class AccountsController {
     return this.accountsService.createAccount(createAccountDto);
   }
 
+  @Patch(':id')
+  async updateAccountDetails(
+    @Param('id', ParseIntPipe) accountId: number,
+    @Body() updateAccountDetailsDto: UpdateAccountDetailsDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.accountsService.updateAccountDetails(
+      accountId,
+      updateAccountDetailsDto,
+      this.readActorId(req),
+    );
+  }
+
   @Patch(':id/access')
   async updateAccountAccess(
     @Param('id', ParseIntPipe) accountId: number,
     @Body() updateAccountAccessDto: UpdateAccountAccessDto,
+    @Req() req: AuthenticatedRequest,
   ) {
-    return this.accountsService.updateAccountAccess(accountId, updateAccountAccessDto);
+    return this.accountsService.updateAccountAccess(
+      accountId,
+      updateAccountAccessDto,
+      this.readActorId(req),
+    );
   }
 
   @Delete(':id')

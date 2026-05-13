@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../widgets/app_bars/main_app_bar.dart';
 import '../models/ova_assigned_action.dart';
 import '../models/ova_ticket.dart';
@@ -8,6 +9,8 @@ import '../services/auth_service.dart';
 import 'jap_gpp_screen.dart';
 import 'ova_dashboard_screen.dart';
 import 'maintenance_inspections_screen.dart';
+import '../services/jap_gpp_api_service.dart';
+import '../services/maintenance_api_service.dart';
 
 enum _HomeSection {
   dashboard,
@@ -266,7 +269,8 @@ class _DashboardBodyState extends State<_DashboardBody> {
   String? _error;
   List<OvaTicket> _tickets = const [];
   List<OvaAssignedAction> _actions = const [];
-
+  List<JapGppComment> _recentComments = [];
+ List<MaintenanceItem> _upcomingMaintenance = [];
   @override
   void initState() {
     super.initState();
@@ -287,6 +291,34 @@ class _DashboardBodyState extends State<_DashboardBody> {
         ApiService.fetchMyOvaActions(token: token),
       ]);
 
+      try {
+        final comments = await JapApiService.fetchRecentComments(token: token);
+        if (!mounted) return;
+        setState(() {
+          _recentComments = comments.map((c) => JapGppComment(
+            title: c['title'] as String? ?? '',
+            author: c['author'] as String? ?? '',
+            comment: c['comment'] as String? ?? '',
+          )).toList();
+        });
+      } catch (_) {}
+      try {
+        final inspections = await MaintenanceApiService.fetchUpcomingInspections(token: token);
+        if (!mounted) return;
+        setState(() {
+          _upcomingMaintenance = inspections.map((i) {
+            final dueDate = DateTime.tryParse(i['dueDate']?.toString() ?? '');
+            final formatted = dueDate != null
+                ? '${dueDate.day.toString().padLeft(2, '0')}/${dueDate.month.toString().padLeft(2, '0')}/${dueDate.year}'
+                : '';
+            final locations = (i['locations'] as List?)?.join(', ') ?? '';
+            return MaintenanceItem(
+              title: '${i['equipment'] ?? ''} ($locations)',
+              date: formatted,
+            );
+          }).toList();
+        });
+      } catch (_) {}
       if (!mounted) return;
 
       setState(() {
@@ -401,35 +433,11 @@ class _DashboardBodyState extends State<_DashboardBody> {
 
                       // === REPLACED: show JAP & GPP commentaar and Upcoming maintenance ===
                       _JapGppCommentaarCard(
-                        items: [
-                          JapGppComment(
-                            title: 'FD Soft Handafwasmiddel',
-                            author: 'Milton Boon',
-                            comment: 'Opgebruiken en vervangen',
-                          ),
-                          JapGppComment(
-                            title: 'Loctite Quick Gasket',
-                            author: 'Tina Dupon',
-                            comment: 'Deze wordt niet meer gemaakt',
-                          ),
-                        ],
+                        items: _recentComments, 
                         onTap: () => widget.onNavigate(_HomeSection.japGpp),
                       ),
                       _UpcomingMaintenanceCard(
-                        items: [
-                          MaintenanceItem(
-                            title: 'Stookinstallatie De Dietrich (Netweg 2)',
-                            date: '03/07/2025',
-                          ),
-                          MaintenanceItem(
-                            title: 'Elektrische installatie (Netweg 4)',
-                            date: '15/07/2025',
-                          ),
-                          MaintenanceItem(
-                            title: 'Brandblussers (Tunnelweg 1)',
-                            date: '28/12/2025',
-                          ),
-                        ],
+                        items: _upcomingMaintenance,
                         onTap: () =>
                             widget.onNavigate(_HomeSection.onderhoud),
                       ),

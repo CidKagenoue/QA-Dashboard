@@ -10,11 +10,8 @@ import '../services/notification_service.dart';
 import 'maintenance_inspection_detail_screen.dart';
 
 class MaintenanceInspectionsScreen extends StatefulWidget {
-  const MaintenanceInspectionsScreen({
-    super.key,
-    this.initialInspectionId,
-  });
- 
+  const MaintenanceInspectionsScreen({super.key, this.initialInspectionId});
+
   final int? initialInspectionId;
 
   @override
@@ -93,12 +90,15 @@ class _MaintenanceInspectionsScreenState
   void _filterInspections() {
     filteredInspections = allInspections.where((inspection) {
       final query = searchQuery.toLowerCase();
-      
+
       // Search filter
-      final matchesSearch = inspection.equipment.toLowerCase().contains(query) ||
+      final matchesSearch =
+          inspection.equipment.toLowerCase().contains(query) ||
           inspection.inspectionInstitution.toLowerCase().contains(query) ||
-          inspection.locations.any((location) => location.toLowerCase().contains(query));
-      
+          inspection.locations.any(
+            (location) => location.toLowerCase().contains(query),
+          );
+
       if (!matchesSearch) return false;
 
       // Status filter
@@ -107,7 +107,7 @@ class _MaintenanceInspectionsScreenState
       }
 
       // Inspection type filter
-      if (selectedInspectionType != null && 
+      if (selectedInspectionType != null &&
           inspection.inspectionType != selectedInspectionType) {
         return false;
       }
@@ -125,7 +125,8 @@ class _MaintenanceInspectionsScreenState
       }
 
       // Date range filter
-      if (filterDateFrom != null && inspection.dueDate.isBefore(filterDateFrom!)) {
+      if (filterDateFrom != null &&
+          inspection.dueDate.isBefore(filterDateFrom!)) {
         return false;
       }
       if (filterDateTo != null && inspection.dueDate.isAfter(filterDateTo!)) {
@@ -180,9 +181,8 @@ class _MaintenanceInspectionsScreenState
     showDialog<MaintenanceInspectionForm>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => _MaintenanceInspectionDialog(
-        availableBranches: availableBranches,
-      ),
+      builder: (context) =>
+          _MaintenanceInspectionDialog(availableBranches: availableBranches),
     ).then((result) async {
       if (result == null) {
         return;
@@ -190,7 +190,10 @@ class _MaintenanceInspectionsScreenState
 
       try {
         final token = await authService.getValidAccessToken();
-        await MaintenanceApiService.createInspection(token: token, form: result);
+        await MaintenanceApiService.createInspection(
+          token: token,
+          form: result,
+        );
         if (!mounted) {
           return;
         }
@@ -205,7 +208,9 @@ class _MaintenanceInspectionsScreenState
           return;
         }
         messenger.showSnackBar(
-          SnackBar(content: Text(error.toString().replaceFirst('Exception: ', ''))),
+          SnackBar(
+            content: Text(error.toString().replaceFirst('Exception: ', '')),
+          ),
         );
       }
     });
@@ -225,6 +230,145 @@ class _MaintenanceInspectionsScreenState
       return Colors.orange;
     }
     return Colors.grey[600]!;
+  }
+
+  Color _getStatusColor(String? status) {
+    switch (status?.trim()) {
+      case 'Uitgevoerd':
+        return Colors.green;
+      case 'In uitvoering':
+        return Colors.blue;
+      case 'Nog niet uitgevoerd':
+        return Colors.red;
+      default:
+        return Colors.red;
+    }
+  }
+
+  String _getStatusLabel(String? status) {
+    return status?.trim().isEmpty ?? true
+        ? 'Nog niet uitgevoerd'
+        : status!.trim();
+  }
+
+  Widget _buildInspectionTable({double minHeight = 0, double minWidth = 0}) {
+    final rows = <TableRow>[_buildInspectionHeaderRow()];
+    for (final inspection in filteredInspections) {
+      rows.add(_buildInspectionDataRow(inspection));
+    }
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE4E9DD)),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minWidth: minWidth > 0 ? minWidth : 980,
+              minHeight: minHeight,
+            ),
+            child: SingleChildScrollView(
+              child: Table(
+                columnWidths: const {
+                  0: FlexColumnWidth(2.3),
+                  1: FlexColumnWidth(2.0),
+                  2: FlexColumnWidth(2.0),
+                  3: FlexColumnWidth(1.5),
+                  4: FlexColumnWidth(1.3),
+                  5: FlexColumnWidth(1.4),
+                },
+                children: rows,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  TableRow _buildInspectionHeaderRow() {
+    return TableRow(
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFFE4E9DD))),
+      ),
+      children: const [
+        _MaintenanceHeaderCell(label: 'Toestel/Instalatie'),
+        _MaintenanceHeaderCell(label: 'Keurinstelling'),
+        _MaintenanceHeaderCell(label: 'Vestigingen'),
+        _MaintenanceHeaderCell(label: 'Frequentie'),
+        _MaintenanceHeaderCell(label: 'Status'),
+        _MaintenanceHeaderCell(label: 'Keuren voor', isLast: true),
+      ],
+    );
+  }
+
+  TableRow _buildInspectionDataRow(MaintenanceInspection inspection) {
+    void openDetail() {
+      _openInspectionDetail(inspection);
+    }
+
+    Widget tappable(Widget child) {
+      return GestureDetector(onTap: openDetail, child: child);
+    }
+
+    return TableRow(
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFFF0F2EC))),
+      ),
+      children: [
+        tappable(_buildInspectionTextCell(inspection.equipment)),
+        tappable(_buildInspectionTextCell(inspection.inspectionInstitution)),
+        tappable(_buildInspectionTextCell(inspection.locations.join(', '))),
+        tappable(_buildInspectionTextCell(inspection.frequency)),
+        tappable(
+          _buildInspectionTextCell(
+            _getStatusLabel(inspection.status),
+            color: _getStatusColor(inspection.status),
+            weight: FontWeight.w500,
+          ),
+        ),
+        tappable(
+          _buildInspectionTextCell(
+            _formatDate(inspection.dueDate),
+            color: _getDateColor(inspection.dueDate),
+            weight: FontWeight.w500,
+            isLast: true,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInspectionTextCell(
+    String value, {
+    Color? color,
+    FontWeight weight = FontWeight.w400,
+    bool isLast = false,
+  }) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: isLast ? 20 : 16,
+        top: 16,
+        bottom: 16,
+      ),
+      child: Text(
+        value,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 13,
+          color: color ?? const Color(0xFF4D5548),
+          fontWeight: weight,
+        ),
+      ),
+    );
   }
 
   @override
@@ -259,8 +403,8 @@ class _MaintenanceInspectionsScreenState
               Text(
                 'Onderhoud & Keuringen',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: 24),
               Row(
@@ -338,7 +482,7 @@ class _MaintenanceInspectionsScreenState
                                 ),
                                 const SizedBox(height: 8),
                                 DropdownButtonFormField<String>(
-                                   initialValue: selectedStatus,
+                                  initialValue: selectedStatus,
                                   isExpanded: true,
                                   decoration: InputDecoration(
                                     filled: true,
@@ -387,7 +531,7 @@ class _MaintenanceInspectionsScreenState
                                 ),
                                 const SizedBox(height: 8),
                                 DropdownButtonFormField<String>(
-                                   initialValue: selectedInspectionType,
+                                  initialValue: selectedInspectionType,
                                   isExpanded: true,
                                   decoration: InputDecoration(
                                     filled: true,
@@ -419,7 +563,9 @@ class _MaintenanceInspectionsScreenState
                                     ),
                                   ],
                                   onChanged: (value) {
-                                    setState(() => selectedInspectionType = value);
+                                    setState(
+                                      () => selectedInspectionType = value,
+                                    );
                                     _filterInspections();
                                   },
                                 ),
@@ -441,7 +587,9 @@ class _MaintenanceInspectionsScreenState
                         spacing: 8,
                         runSpacing: 8,
                         children: availableBranches.map((branch) {
-                          final isSelected = selectedFilterBranches.contains(branch.id);
+                          final isSelected = selectedFilterBranches.contains(
+                            branch.id,
+                          );
                           return FilterChip(
                             label: Text(branch.name),
                             selected: isSelected,
@@ -503,54 +651,45 @@ class _MaintenanceInspectionsScreenState
                         ),
                       )
                     : isLoading
-                        ? const Center(child: CircularProgressIndicator())
-                        : SingleChildScrollView(
-                            scrollDirection: Axis.vertical,
-                            child: SizedBox(
-                              width: double.infinity,
-                              child: DataTable(
-                                showCheckboxColumn: false,
-                                headingRowHeight: 56,
-                                dataRowMinHeight: 54,
-                                dataRowMaxHeight: 62,
-                                columnSpacing: 32,
-                                horizontalMargin: 24,
-                                headingRowColor: WidgetStateColor.resolveWith(
-                                  (states) => const Color(0xFFF5F5F5),
-                                ),
-                                columns: const [
-                                  DataColumn(label: Text('Toestel/Instalatie')),
-                                  DataColumn(label: Text('Keurinstelling')),
-                                  DataColumn(label: Text('Vestigingen')),
-                                  DataColumn(label: Text('Frequentie')),
-                                  DataColumn(label: Text('Keuren voor')),
-                                ],
-                                rows: filteredInspections.map((inspection) {
-                                  return DataRow(
-                                    onSelectChanged: (_) => _openInspectionDetail(inspection),
-                                    cells: [
-                                      DataCell(Text(inspection.equipment)),
-                                      DataCell(Text(inspection.inspectionInstitution)),
-                                      DataCell(Text(inspection.locations.join(', '))),
-                                      DataCell(Text(inspection.frequency)),
-                                      DataCell(
-                                        Text(
-                                          _formatDate(inspection.dueDate),
-                                          style: TextStyle(
-                                            color: _getDateColor(inspection.dueDate),
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                }).toList(),
-                              ),
-                            ),
-                          ),
+                    ? const Center(child: CircularProgressIndicator())
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          return _buildInspectionTable(
+                            minHeight: constraints.maxHeight,
+                            minWidth: constraints.maxWidth,
+                          );
+                        },
+                      ),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MaintenanceHeaderCell extends StatelessWidget {
+  const _MaintenanceHeaderCell({required this.label, this.isLast = false});
+
+  final String label;
+  final bool isLast;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: isLast ? 20 : 16,
+        top: 14,
+        bottom: 14,
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF6B7A62),
         ),
       ),
     );
@@ -573,13 +712,15 @@ class _MaintenanceInspectionDialogState
   final TextEditingController institutionController = TextEditingController();
   final TextEditingController contactController = TextEditingController();
   final TextEditingController notesController = TextEditingController();
-  final TextEditingController lastInspectionController = TextEditingController();
+  final TextEditingController lastInspectionController =
+      TextEditingController();
   final TextEditingController dueDateController = TextEditingController();
 
   String inspectionType = 'Kalibratie';
   int frequencyValue = 5;
   String frequencyUnit = 'Jaar';
   bool selfContact = false;
+  String? status;
   final Set<int> selectedLocationIds = {};
   final ScrollController _locationsScrollController = ScrollController();
   DateTime? lastInspectionDate;
@@ -596,18 +737,19 @@ class _MaintenanceInspectionDialogState
     if (branches.isNotEmpty) {
       selectedLocationIds.add(branches.first.id);
     }
-        equipmentController.addListener(() {
-      if (_equipmentError != null && equipmentController.text.trim().isNotEmpty) {
+    equipmentController.addListener(() {
+      if (_equipmentError != null &&
+          equipmentController.text.trim().isNotEmpty) {
         setState(() => _equipmentError = null);
       }
     });
     institutionController.addListener(() {
-      if (_institutionError != null && institutionController.text.trim().isNotEmpty) {
+      if (_institutionError != null &&
+          institutionController.text.trim().isNotEmpty) {
         setState(() => _institutionError = null);
       }
     });
   }
-
 
   @override
   void dispose() {
@@ -664,13 +806,15 @@ class _MaintenanceInspectionDialogState
                   Text(
                     'Nieuwe Onderhoud/Keuring Aanmaken',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Vul de onderstaande gegevens in om een nieuwe onderhouds- of keuringslijn toe te voegen.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[700]),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(color: Colors.grey[700]),
                   ),
                   const SizedBox(height: 20),
                   LayoutBuilder(
@@ -688,21 +832,27 @@ class _MaintenanceInspectionDialogState
                                   const SizedBox(height: 8),
                                   TextField(
                                     controller: equipmentController,
-                                    decoration: _inputDecoration('Drukvat compressor').copyWith(errorText: _equipmentError),
+                                    decoration: _inputDecoration(
+                                      'Drukvat compressor',
+                                    ).copyWith(errorText: _equipmentError),
                                   ),
                                   const SizedBox(height: 16),
                                   _buildLabel('Naam Keurinstelling *'),
                                   const SizedBox(height: 8),
                                   TextField(
                                     controller: institutionController,
-                                    decoration: _inputDecoration('Vinçotte').copyWith(errorText: _institutionError),
+                                    decoration: _inputDecoration(
+                                      'Vinçotte',
+                                    ).copyWith(errorText: _institutionError),
                                   ),
                                   const SizedBox(height: 16),
                                   _buildLabel('Contactgegevens'),
                                   const SizedBox(height: 8),
                                   TextField(
                                     controller: contactController,
-                                    decoration: _inputDecoration('buildingsalesnorth@vincotte.be'),
+                                    decoration: _inputDecoration(
+                                      'buildingsalesnorth@vincotte.be',
+                                    ),
                                   ),
                                 ],
                               ),
@@ -718,9 +868,18 @@ class _MaintenanceInspectionDialogState
                                     initialValue: inspectionType,
                                     isExpanded: true,
                                     items: const [
-                                      DropdownMenuItem(value: 'Kalibratie', child: Text('Kalibratie')),
-                                      DropdownMenuItem(value: 'Controle', child: Text('Controle')),
-                                      DropdownMenuItem(value: 'Revisie', child: Text('Revisie')),
+                                      DropdownMenuItem(
+                                        value: 'Kalibratie',
+                                        child: Text('Kalibratie'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'Controle',
+                                        child: Text('Controle'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'Revisie',
+                                        child: Text('Revisie'),
+                                      ),
                                     ],
                                     onChanged: (value) {
                                       if (value != null) {
@@ -735,7 +894,10 @@ class _MaintenanceInspectionDialogState
                                   Row(
                                     children: [
                                       ConstrainedBox(
-                                        constraints: const BoxConstraints(minWidth: 64, maxWidth: 120),
+                                        constraints: const BoxConstraints(
+                                          minWidth: 64,
+                                          maxWidth: 120,
+                                        ),
                                         child: DropdownButtonFormField<int>(
                                           isExpanded: true,
                                           initialValue: frequencyValue,
@@ -748,7 +910,9 @@ class _MaintenanceInspectionDialogState
                                           ),
                                           onChanged: (value) {
                                             if (value != null) {
-                                              setState(() => frequencyValue = value);
+                                              setState(
+                                                () => frequencyValue = value,
+                                              );
                                             }
                                           },
                                           decoration: _dropdownDecoration(),
@@ -760,13 +924,24 @@ class _MaintenanceInspectionDialogState
                                           isExpanded: true,
                                           initialValue: frequencyUnit,
                                           items: const [
-                                            DropdownMenuItem(value: 'Jaar', child: Text('Jaar')),
-                                            DropdownMenuItem(value: 'Maand', child: Text('Maand')),
-                                            DropdownMenuItem(value: 'Dag', child: Text('Dag')),
+                                            DropdownMenuItem(
+                                              value: 'Jaar',
+                                              child: Text('Jaar'),
+                                            ),
+                                            DropdownMenuItem(
+                                              value: 'Maand',
+                                              child: Text('Maand'),
+                                            ),
+                                            DropdownMenuItem(
+                                              value: 'Dag',
+                                              child: Text('Dag'),
+                                            ),
                                           ],
                                           onChanged: (value) {
                                             if (value != null) {
-                                              setState(() => frequencyUnit = value);
+                                              setState(
+                                                () => frequencyUnit = value,
+                                              );
                                             }
                                           },
                                           decoration: _dropdownDecoration(),
@@ -784,12 +959,14 @@ class _MaintenanceInspectionDialogState
                                       ChoiceChip(
                                         label: const Text('Ja'),
                                         selected: selfContact,
-                                        onSelected: (_) => setState(() => selfContact = true),
+                                        onSelected: (_) =>
+                                            setState(() => selfContact = true),
                                       ),
                                       ChoiceChip(
                                         label: const Text('Nee'),
                                         selected: !selfContact,
-                                        onSelected: (_) => setState(() => selfContact = false),
+                                        onSelected: (_) =>
+                                            setState(() => selfContact = false),
                                       ),
                                     ],
                                   ),
@@ -808,7 +985,9 @@ class _MaintenanceInspectionDialogState
                           const SizedBox(height: 8),
                           TextField(
                             controller: equipmentController,
-                            decoration: _inputDecoration('Drukvat compressor').copyWith(errorText: _equipmentError),
+                            decoration: _inputDecoration(
+                              'Drukvat compressor',
+                            ).copyWith(errorText: _equipmentError),
                           ),
                           const SizedBox(height: 16),
                           _buildLabel('Type Keuring *'),
@@ -817,9 +996,18 @@ class _MaintenanceInspectionDialogState
                             initialValue: inspectionType,
                             isExpanded: true,
                             items: const [
-                              DropdownMenuItem(value: 'Kalibratie', child: Text('Kalibratie')),
-                              DropdownMenuItem(value: 'Controle', child: Text('Controle')),
-                              DropdownMenuItem(value: 'Revisie', child: Text('Revisie')),
+                              DropdownMenuItem(
+                                value: 'Kalibratie',
+                                child: Text('Kalibratie'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Controle',
+                                child: Text('Controle'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Revisie',
+                                child: Text('Revisie'),
+                              ),
                             ],
                             onChanged: (value) {
                               if (value != null) {
@@ -833,14 +1021,18 @@ class _MaintenanceInspectionDialogState
                           const SizedBox(height: 8),
                           TextField(
                             controller: institutionController,
-                            decoration: _inputDecoration('Vinçotte').copyWith(errorText: _institutionError),
+                            decoration: _inputDecoration(
+                              'Vinçotte',
+                            ).copyWith(errorText: _institutionError),
                           ),
                           const SizedBox(height: 16),
                           _buildLabel('Contactgegevens'),
                           const SizedBox(height: 8),
                           TextField(
                             controller: contactController,
-                            decoration: _inputDecoration('buildingsalesnorth@vincotte.be'),
+                            decoration: _inputDecoration(
+                              'buildingsalesnorth@vincotte.be',
+                            ),
                           ),
                           const SizedBox(height: 16),
                         ],
@@ -848,6 +1040,32 @@ class _MaintenanceInspectionDialogState
                     },
                   ),
                   const SizedBox(height: 12),
+                  _buildLabel('Status'),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    initialValue: status,
+                    isExpanded: true,
+                    items: const [
+                      DropdownMenuItem(value: null, child: Text('Geen')),
+                      DropdownMenuItem(
+                        value: 'In uitvoering',
+                        child: Text('In uitvoering'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Uitgevoerd',
+                        child: Text('Uitgevoerd'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() => status = value);
+                      } else {
+                        setState(() => status = null);
+                      }
+                    },
+                    decoration: _dropdownDecoration(),
+                  ),
+                  const SizedBox(height: 16),
                   _buildLabel('Vestigingen *'),
                   const SizedBox(height: 8),
                   Container(
@@ -867,10 +1085,14 @@ class _MaintenanceInspectionDialogState
                               controller: _locationsScrollController,
                               padding: EdgeInsets.zero,
                               children: branches.map((branch) {
-                                final selected = selectedLocationIds.contains(branch.id);
+                                final selected = selectedLocationIds.contains(
+                                  branch.id,
+                                );
                                 return CheckboxListTile(
                                   dense: true,
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                  ),
                                   title: Text(
                                     branch.name,
                                     style: TextStyle(
@@ -884,7 +1106,9 @@ class _MaintenanceInspectionDialogState
                                     setState(() {
                                       if (isChecked == true) {
                                         selectedLocationIds.add(branch.id);
-                                        if (_branchesError != null && selectedLocationIds.isNotEmpty) _branchesError = null;
+                                        if (_branchesError != null &&
+                                            selectedLocationIds.isNotEmpty)
+                                          _branchesError = null;
                                       } else {
                                         selectedLocationIds.remove(branch.id);
                                       }
@@ -892,7 +1116,7 @@ class _MaintenanceInspectionDialogState
                                   },
                                 );
                               }).toList(),
-                                                          ),
+                            ),
                           ),
                   ),
                   Visibility(
@@ -901,20 +1125,23 @@ class _MaintenanceInspectionDialogState
                       padding: const EdgeInsets.only(top: 8.0, left: 4.0),
                       child: Text(
                         _branchesError ?? '',
-                        style: const TextStyle(color: Colors.redAccent, fontSize: 12),
-                            ),
-                          ),
+                        style: const TextStyle(
+                          color: Colors.redAccent,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
                   ),
-                                    const SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   _buildLabel('Opmerkingen'),
                   const SizedBox(height: 8),
                   TextField(
                     controller: notesController,
                     maxLines: 4,
                     minLines: 3,
-                    decoration: _inputDecoration('Extra opmerkingen of aandachtspunten').copyWith(
-                      alignLabelWithHint: true,
-                    ),
+                    decoration: _inputDecoration(
+                      'Extra opmerkingen of aandachtspunten',
+                    ).copyWith(alignLabelWithHint: true),
                   ),
                   const SizedBox(height: 18),
                   Row(
@@ -929,7 +1156,8 @@ class _MaintenanceInspectionDialogState
                               controller: lastInspectionController,
                               readOnly: true,
                               decoration: _dateDecoration(
-                                onTap: () => _pickDate(lastInspectionController),
+                                onTap: () =>
+                                    _pickDate(lastInspectionController),
                               ),
                             ),
                           ],
@@ -961,7 +1189,10 @@ class _MaintenanceInspectionDialogState
                       TextButton(
                         style: TextButton.styleFrom(
                           foregroundColor: const Color(0xFF8BC34A),
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 14,
+                          ),
                         ),
                         onPressed: () => Navigator.pop(context),
                         child: const Text('Annuleren'),
@@ -971,8 +1202,13 @@ class _MaintenanceInspectionDialogState
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF8BC34A),
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 14,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(28),
+                          ),
                         ),
                         onPressed: () {
                           // Parse dates from text fields if not already set
@@ -982,7 +1218,9 @@ class _MaintenanceInspectionDialogState
                           if (parsedLastInspection == null &&
                               lastInspectionController.text.trim().isNotEmpty) {
                             try {
-                              final parts = lastInspectionController.text.split('/');
+                              final parts = lastInspectionController.text.split(
+                                '/',
+                              );
                               if (parts.length == 3) {
                                 parsedLastInspection = DateTime(
                                   int.parse(parts[2]),
@@ -1008,22 +1246,34 @@ class _MaintenanceInspectionDialogState
                           }
 
                           final missing = <String>[];
-                          if (equipmentController.text.trim().isEmpty) missing.add('Toestel/Installatie');
-                          if (institutionController.text.trim().isEmpty) missing.add('Naam keurinstelling');
-                          if (selectedLocationIds.isEmpty) missing.add('Vestiging');
+                          if (equipmentController.text.trim().isEmpty)
+                            missing.add('Toestel/Installatie');
+                          if (institutionController.text.trim().isEmpty)
+                            missing.add('Naam keurinstelling');
+                          if (selectedLocationIds.isEmpty)
+                            missing.add('Vestiging');
 
                           if (missing.isNotEmpty) {
                             setState(() {
-                              _equipmentError = missing.contains('Toestel/Installatie') ? 'Verplicht' : null;
-                              _institutionError = missing.contains('Naam keurinstelling') ? 'Verplicht' : null;
-                              _branchesError = missing.contains('Vestiging') ? 'Kies minstens één vestiging' : null;
+                              _equipmentError =
+                                  missing.contains('Toestel/Installatie')
+                                  ? 'Verplicht'
+                                  : null;
+                              _institutionError =
+                                  missing.contains('Naam keurinstelling')
+                                  ? 'Verplicht'
+                                  : null;
+                              _branchesError = missing.contains('Vestiging')
+                                  ? 'Kies minstens één vestiging'
+                                  : null;
                             });
                             return;
                           }
                           final form = MaintenanceInspectionForm()
                             ..equipment = equipmentController.text.trim()
                             ..inspectionType = inspectionType
-                            ..inspectionInstitution = institutionController.text.trim()
+                            ..inspectionInstitution = institutionController.text
+                                .trim()
                             ..contactInfo = contactController.text.trim()
                             ..notes = notesController.text.trim().isEmpty
                                 ? null
@@ -1031,6 +1281,7 @@ class _MaintenanceInspectionDialogState
                             ..frequencyValue = frequencyValue
                             ..frequencyUnit = frequencyUnit
                             ..selfContact = selfContact
+                            ..status = status
                             ..selectedBranchIds = selectedLocationIds.toList()
                             ..lastInspectionDate = parsedLastInspection
                             ..nextInspectionDate = parsedDueDate;
@@ -1062,9 +1313,7 @@ class _MaintenanceInspectionDialogState
       hintText: hintText,
       filled: true,
       fillColor: Colors.white,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
         borderSide: const BorderSide(color: Color(0xFFD8D8D8)),
@@ -1081,9 +1330,7 @@ class _MaintenanceInspectionDialogState
     return InputDecoration(
       filled: true,
       fillColor: Colors.white,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
         borderSide: const BorderSide(color: Color(0xFFD8D8D8)),
@@ -1099,16 +1346,15 @@ class _MaintenanceInspectionDialogState
   InputDecoration _dateDecoration({required VoidCallback onTap}) {
     final now = DateTime.now();
     return InputDecoration(
-      hintText: '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}',
+      hintText:
+          '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}',
       filled: true,
       fillColor: Colors.white,
       suffixIcon: IconButton(
         icon: const Icon(Icons.calendar_month_outlined),
         onPressed: onTap,
       ),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
         borderSide: const BorderSide(color: Color(0xFFD8D8D8)),

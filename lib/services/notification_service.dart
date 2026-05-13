@@ -184,6 +184,26 @@ class NotificationService extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> deleteNotification(int notificationId) async {
+    final token = await _requireToken();
+    await ApiService.deleteNotification(
+      token: token,
+      notificationId: notificationId,
+    );
+    _notifications =
+        _notifications.where((item) => item.id != notificationId).toList();
+    _unreadCount = _notifications.where((item) => !item.isRead).length;
+    notifyListeners();
+  }
+
+  Future<void> deleteAllNotifications() async {
+    final token = await _requireToken();
+    await ApiService.deleteAllNotifications(token: token);
+    _notifications = const [];
+    _unreadCount = 0;
+    notifyListeners();
+  }
+
   Future<String> _requireToken() async {
     final authService = _authService;
     if (authService == null || !authService.isAuthenticated) {

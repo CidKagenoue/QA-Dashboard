@@ -542,6 +542,29 @@ class ApiService {
     );
   }
 
+  static Future<void> deleteNotification({
+    required String token,
+    required int notificationId,
+  }) async {
+    await _requestObject(
+      () => http.delete(
+        Uri.parse('$baseUrl/notifications/$notificationId'),
+        headers: _headers(token: token),
+      ),
+    );
+  }
+
+  static Future<void> deleteAllNotifications({
+    required String token,
+  }) async {
+    await _requestObject(
+      () => http.delete(
+        Uri.parse('$baseUrl/notifications'),
+        headers: _headers(token: token),
+      ),
+    );
+  }
+
   static Future<Map<String, dynamic>> _requestObject(
     Future<http.Response> Function() request,
   ) async {

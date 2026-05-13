@@ -9,7 +9,14 @@ import '../services/auth_service.dart';
 import 'ova_ticket_wizard_screen.dart';
 
 class OvaActionsScreen extends StatefulWidget {
-  const OvaActionsScreen({super.key});
+  const OvaActionsScreen({
+    super.key,
+    this.embedded = false,
+    this.onNavigateBack,
+  });
+
+  final bool embedded;
+  final VoidCallback? onNavigateBack;
 
   @override
   State<OvaActionsScreen> createState() => _OvaActionsScreenState();
@@ -112,7 +119,10 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
   Future<void> _openTicket(int ticketId) async {
     final result = await Navigator.of(context).push<String?>(
       MaterialPageRoute(
-        builder: (_) => OvaTicketWizardScreen(ticketId: ticketId),
+        builder: (_) => OvaTicketWizardScreen(
+          ticketId: ticketId,
+          embedded: widget.embedded,
+        ),
       ),
     );
 
@@ -135,58 +145,72 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final content = RefreshIndicator(
+      onRefresh: _loadActions,
+      child: ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x0F000000),
+                  blurRadius: 20,
+                  offset: Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (widget.embedded && widget.onNavigateBack != null) ...[
+                  TextButton.icon(
+                    onPressed: widget.onNavigateBack,
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    label: const Text('OVA overzicht'),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                Text(
+                  'Mijn acties-overzicht',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(_summaryText),
+                const SizedBox(height: 28),
+                if (_isLoading)
+                  const Center(child: CircularProgressIndicator())
+                else if (_error != null)
+                  _ActionErrorState(message: _error!, onRetry: _loadActions)
+                else if (_actions.isEmpty)
+                  const _ActionEmptyState()
+                else
+                  _ActionsOverview(
+                    actions: _actions,
+                    savingActionIds: _savingActionIds,
+                    onOpenTicket: (item) => _openTicket(item.ticket.id),
+                    onStatusChanged: _updateActionStatus,
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (widget.embedded) {
+      return ColoredBox(color: const Color(0xFFF6F6F3), child: content);
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF6F6F3),
       appBar: const MainAppBar(title: 'Mijn OVA-acties'),
-      body: RefreshIndicator(
-        onRefresh: _loadActions,
-        child: ListView(
-          padding: const EdgeInsets.all(24),
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x0F000000),
-                    blurRadius: 20,
-                    offset: Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Mijn acties-overzicht',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(_summaryText),
-                  const SizedBox(height: 28),
-                  if (_isLoading)
-                    const Center(child: CircularProgressIndicator())
-                  else if (_error != null)
-                    _ActionErrorState(message: _error!, onRetry: _loadActions)
-                  else if (_actions.isEmpty)
-                    const _ActionEmptyState()
-                  else
-                    _ActionsOverview(
-                      actions: _actions,
-                      savingActionIds: _savingActionIds,
-                      onOpenTicket: (item) => _openTicket(item.ticket.id),
-                      onStatusChanged: _updateActionStatus,
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+      body: content,
     );
   }
 }

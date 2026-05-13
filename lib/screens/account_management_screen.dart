@@ -235,6 +235,15 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
     bool isAdmin,
     AccountAccess access,
   ) async {
+    if (!_hasAccessChange(account, isAdmin, access)) {
+      return;
+    }
+
+    final confirmed = await _confirmAccessChange(account, isAdmin, access);
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
     try {
       await context.read<AccountManagementService>().updateAccount(
         account: account,
@@ -253,6 +262,91 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
         ),
       );
     }
+  }
+
+  Future<bool?> _confirmAccessChange(
+    User account,
+    bool isAdmin,
+    AccountAccess access,
+  ) {
+    final changedRights = _changedAccessLabels(account, isAdmin, access);
+    final removedRights = _removedAccessLabels(account, isAdmin, access);
+    final isRemovingRights = removedRights.isNotEmpty;
+    final changedRightsText = changedRights.join(', ');
+
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(
+            isRemovingRights ? 'Recht verwijderen?' : 'Rechten wijzigen?',
+          ),
+          content: Text(
+            isRemovingRights
+                ? 'Je staat op het punt om $changedRightsText voor ${account.displayName} te wijzigen. Verwijderde rechten kunnen de toegang tot onderdelen beperken.'
+                : 'Je staat op het punt om $changedRightsText voor ${account.displayName} te wijzigen.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Annuleren'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: isRemovingRights
+                  ? FilledButton.styleFrom(backgroundColor: Colors.red.shade700)
+                  : null,
+              child: Text(
+                isRemovingRights ? 'Ja, verwijderen' : 'Ja, wijzigen',
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  bool _hasAccessChange(User account, bool isAdmin, AccountAccess access) {
+    return account.isAdmin != isAdmin ||
+        account.access.basis != access.basis ||
+        account.access.whsTours != access.whsTours ||
+        account.access.ova != access.ova ||
+        account.access.japGpp != access.japGpp ||
+        account.access.maintenanceInspections != access.maintenanceInspections;
+  }
+
+  List<String> _changedAccessLabels(
+    User account,
+    bool isAdmin,
+    AccountAccess access,
+  ) {
+    return [
+      if (account.isAdmin != isAdmin) 'Admin',
+      if (account.access.basis != access.basis) 'Basis (Eigen OVA-acties)',
+      if (account.access.whsTours != access.whsTours) 'WHS-Tours',
+      if (account.access.ova != access.ova) 'OVA',
+      if (account.access.japGpp != access.japGpp) 'JAP & GPP',
+      if (account.access.maintenanceInspections !=
+          access.maintenanceInspections)
+        'Onderhoud & Keuringen',
+    ];
+  }
+
+  List<String> _removedAccessLabels(
+    User account,
+    bool isAdmin,
+    AccountAccess access,
+  ) {
+    return [
+      if (account.isAdmin && !isAdmin) 'Admin',
+      if (account.access.basis && !access.basis) 'Basis (Eigen OVA-acties)',
+      if (account.access.whsTours && !access.whsTours) 'WHS-Tours',
+      if (account.access.ova && !access.ova) 'OVA',
+      if (account.access.japGpp && !access.japGpp) 'JAP & GPP',
+      if (account.access.maintenanceInspections &&
+          !access.maintenanceInspections)
+        'Onderhoud & Keuringen',
+    ];
   }
 
   Future<void> _handleEditAccount(User account) async {

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -59,6 +60,24 @@ export class NotificationsController {
   @Patch('mark-all-read')
   async markAllRead(@Req() req: AuthenticatedRequest) {
     return this.notificationService.markAllRead(this.readActorId(req));
+  }
+
+  @Delete(':id')
+  async deleteOne(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') notificationId: string,
+  ) {
+    const id = parseInt(notificationId, 10);
+    if (!Number.isInteger(id) || id <= 0) {
+      return { success: false, message: 'Invalid notification ID' };
+    }
+
+    return this.notificationService.deleteOne(this.readActorId(req), id);
+  }
+
+  @Delete()
+  async deleteAll(@Req() req: AuthenticatedRequest) {
+    return this.notificationService.deleteAll(this.readActorId(req));
   }
 
   private readActorId(req: AuthenticatedRequest) {

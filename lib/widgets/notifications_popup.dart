@@ -33,6 +33,40 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         actions: [
           Consumer<NotificationService>(
             builder: (context, notificationService, child) {
+              final hasNotifications = notificationService.notifications.isNotEmpty;
+
+              return TextButton.icon(
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFFD32F2F),
+                  disabledForegroundColor: const Color(0xFFD32F2F).withOpacity(0.38),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  minimumSize: const Size(0, 36),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                ),
+                onPressed: hasNotifications
+                    ? () async {
+                        final confirmed = await _confirmDelete(
+                          context,
+                          title: 'Alle notificaties verwijderen?',
+                          message:
+                              'Weet je zeker dat je alle notificaties wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.',
+                        );
+
+                        if (!confirmed || !context.mounted) {
+                          return;
+                        }
+
+                        await notificationService.deleteAllNotifications();
+                      }
+                    : null,
+                
+                label: const Text('Alles verwijderen'),
+              );
+            },
+          ),
+          Consumer<NotificationService>(
+            builder: (context, notificationService, child) {
               final canMarkAllRead =
                   notificationService.notifications.any((item) => !item.isRead);
 
@@ -70,6 +104,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
                 return _NotificationTile(
                   item: item,
+                  onDelete: () async {
+                    final confirmed = await _confirmDelete(
+                      context,
+                      title: 'Notificatie verwijderen?',
+                      message:
+                          'Weet je zeker dat je deze notificatie wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.',
+                    );
+
+                    if (!confirmed || !context.mounted) {
+                      return;
+                    }
+
+                    await notificationService.deleteNotification(item.id);
+                  },
                   onTap: () async {
                     if (!item.isRead) {
                       await notificationService.markAsRead([item.id]);
@@ -112,10 +160,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 }
 
 class _NotificationTile extends StatelessWidget {
-  const _NotificationTile({required this.item, required this.onTap});
+  const _NotificationTile({
+    required this.item,
+    required this.onTap,
+    required this.onDelete,
+  });
 
   final AppNotification item;
   final VoidCallback onTap;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -149,6 +202,16 @@ class _NotificationTile extends StatelessWidget {
                       size: 10,
                       color: Color(0xFF6B8F2A),
                     ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    tooltip: 'Verwijder notificatie',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: onDelete,
+                    icon: const Icon(
+                      Icons.delete_outline,
+                      size: 20,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 6),
@@ -222,4 +285,30 @@ class _NotificationTile extends StatelessWidget {
 
     return item.type.replaceAll('_', ' ');
   }
+}
+
+Future<bool> _confirmDelete(
+  BuildContext context, {
+  required String title,
+  required String message,
+}) async {
+  final result = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: Text(title),
+      content: Text(message),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: const Text('Annuleren'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: const Text('Verwijderen'),
+        ),
+      ],
+    ),
+  );
+
+  return result ?? false;
 }

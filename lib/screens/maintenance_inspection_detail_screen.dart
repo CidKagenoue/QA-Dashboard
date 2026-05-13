@@ -284,6 +284,7 @@ class _MaintenanceInspectionDetailScreenState
 
     final equipment = _equipmentController.text.trim();
     final inspectionInstitution = _inspectionInstitutionController.text.trim();
+    
     final missing = <String>[];
     if (equipment.isEmpty) missing.add('Toestel / Installatie');
     if (inspectionInstitution.isEmpty) missing.add('Naam keurinstelling');

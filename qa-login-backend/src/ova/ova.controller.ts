@@ -72,9 +72,17 @@ export class OvaController {
     );
   }
 
+  @Get('actions')
+  async listActions(
+    @Req() req: AuthenticatedRequest,
+    @Query('scope') scope?: string,
+  ) {
+    return this.ovaService.listActions(this.readActorId(req), scope);
+  }
+
   @Get('actions/my')
   async listMyActions(@Req() req: AuthenticatedRequest) {
-    return this.ovaService.listMyActions(this.readActorId(req));
+    return this.ovaService.listActions(this.readActorId(req), 'mine');
   }
 
   @Patch('actions/:id')

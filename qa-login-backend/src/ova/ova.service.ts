@@ -569,28 +569,39 @@ export class OvaService {
     }).format(value);
   }
 
-  async listMyActions(actorId: number) {
-    await this.assertActorExists(actorId);
+  async listActions(actorId: number, scope?: string) {
+    const actor = await this.assertCanAccessOva(actorId);
+    const canViewAllActions = actor.isAdmin || actor.ovaAccess;
+    const resolvedScope =
+      scope === 'all' && canViewAllActions ? 'all' : 'mine';
 
-    const actions = (await this.prisma.ovaFollowUpAction.findMany({
-      where: {
-        internalAssigneeId: actorId,
-        ticket: {
-          currentStep: {
-            lte: 5,
-          },
-          status: {
-            not: 'closed',
-          },
+    const where: Prisma.OvaFollowUpActionWhereInput = {
+      ...(resolvedScope === 'mine' ? { internalAssigneeId: actor.id } : {}),
+      ticket: {
+        currentStep: {
+          lte: 5,
+        },
+        status: {
+          notIn: ['closed', 'completed'],
         },
       },
+    };
+
+    const actions = (await this.prisma.ovaFollowUpAction.findMany({
+      where,
       orderBy: [{ dueDate: 'asc' }, { id: 'asc' }],
       select: assignedActionSelect,
     })) as AssignedActionRecord[];
 
     return {
+      scope: resolvedScope,
+      canViewAllActions,
       actions: actions.map((action) => this.serializeAssignedAction(action)),
     };
+  }
+
+  async listMyActions(actorId: number) {
+    return this.listActions(actorId, 'mine');
   }
 
   async updateAction(

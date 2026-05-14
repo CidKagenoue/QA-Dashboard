@@ -412,13 +412,7 @@ class ApiService {
   static Future<List<Map<String, dynamic>>> fetchMyOvaActions({
     required String token,
   }) async {
-    final response = await _requestObject(
-      () => http.get(
-        Uri.parse('$baseUrl/ova/actions/my'),
-        headers: _headers(token: token),
-      ),
-    );
-
+    final response = await fetchOvaActions(token: token, scope: 'mine');
     final actions = response['actions'];
     if (actions is! List) {
       throw Exception('Invalid OVA action list received from the server');
@@ -428,6 +422,21 @@ class ApiService {
         .whereType<Map>()
         .map((action) => Map<String, dynamic>.from(action))
         .toList();
+  }
+
+  static Future<Map<String, dynamic>> fetchOvaActions({
+    required String token,
+    String scope = 'mine',
+  }) async {
+    final response = await _requestObject(
+      () => http.get(
+        Uri.parse(
+          '$baseUrl/ova/actions',
+        ).replace(queryParameters: {'scope': scope}),
+        headers: _headers(token: token),
+      ),
+    );
+    return response;
   }
 
   static Future<Map<String, dynamic>> updateOvaAction({

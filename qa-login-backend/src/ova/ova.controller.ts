@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
@@ -70,6 +71,14 @@ export class OvaController {
       this.readActorId(req),
       updateOvaTicketDto,
     );
+  }
+
+  @Delete('tickets/:id')
+  async deleteTicket(
+    @Param('id', ParseIntPipe) ticketId: number,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.ovaService.deleteTicket(ticketId, this.readActorId(req));
   }
 
   @Get('actions')

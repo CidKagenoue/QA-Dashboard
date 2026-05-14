@@ -265,10 +265,13 @@ class _MaintenanceInspectionsScreenState
 
   String _getStatusLabel(String? status) {
     if (status?.trim().isEmpty ?? true) {
-      return 'Nog niet uitgevoerd';
+      return 'Geen';
     }
 
     switch (status!.trim().toLowerCase()) {
+      case 'none':
+      case 'geen':
+        return 'Geen';
       case 'open':
         return 'In uitvoering';
       case 'closed':
@@ -440,15 +443,33 @@ class _MaintenanceInspectionsScreenState
                     runSpacing: 8,
                     children: [
                       _FilterChip(
-                        label: 'In uitvoering',
-                        selected: selectedStatus == 'In uitvoering',
+                        label: 'Geen',
+                        selected: selectedStatus == 'Geen',
                         onTap: () {
                           setState(
                             () => selectedStatus =
-                                selectedStatus == 'In uitvoering'
-                                ? null
-                                : 'In uitvoering',
+                                selectedStatus == 'Geen' ? null : 'Geen',
                           );
+                          syncAndApply();
+                        },
+                      ),
+                      _FilterChip(
+                        label: 'In uitvoering',
+                        selected: selectedStatus == 'In uitvoering',
+                        onTap: () {
+                          setState(() {
+                            selectedStatus = selectedStatus == 'In uitvoering' ? null : 'In uitvoering';
+                          });
+                          syncAndApply();
+                        },
+                      ),
+                      _FilterChip(
+                        label: 'Nog niet uitgevoerd',
+                        selected: selectedStatus == 'Nog niet uitgevoerd',
+                        onTap: () {
+                          setState(() {
+                            selectedStatus = selectedStatus == 'Nog niet uitgevoerd' ? null : 'Nog niet uitgevoerd';
+                          });
                           syncAndApply();
                         },
                       ),
@@ -461,19 +482,6 @@ class _MaintenanceInspectionsScreenState
                                 selectedStatus == 'Uitgevoerd'
                                 ? null
                                 : 'Uitgevoerd',
-                          );
-                          syncAndApply();
-                        },
-                      ),
-                      _FilterChip(
-                        label: 'Nog niet uitgevoerd',
-                        selected: selectedStatus == 'Nog niet uitgevoerd',
-                        onTap: () {
-                          setState(
-                            () => selectedStatus =
-                                selectedStatus == 'Nog niet uitgevoerd'
-                                ? null
-                                : 'Nog niet uitgevoerd',
                           );
                           syncAndApply();
                         },
@@ -1290,7 +1298,7 @@ class _MaintenanceInspectionDialogState
       case 'Uitgevoerd':
         return 'Closed';
       case 'Nog niet uitgevoerd':
-        return 'Open';
+        return 'Pending';
       default:
         return status.trim();
     }
@@ -1603,6 +1611,10 @@ class _MaintenanceInspectionDialogState
                       DropdownMenuItem(
                         value: 'In uitvoering',
                         child: Text('In uitvoering'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Nog niet uitgevoerd',
+                        child: Text('Nog niet uitgevoerd'),
                       ),
                       DropdownMenuItem(
                         value: 'Uitgevoerd',

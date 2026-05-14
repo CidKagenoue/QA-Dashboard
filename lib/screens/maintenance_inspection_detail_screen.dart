@@ -1128,11 +1128,11 @@ class _MaintenanceInspectionDetailScreenState
       items: const [
         DropdownMenuItem(value: null, child: Text('Geen')),
         DropdownMenuItem(value: 'In uitvoering', child: Text('In uitvoering')),
-        DropdownMenuItem(value: 'Uitgevoerd', child: Text('Uitgevoerd')),
         DropdownMenuItem(
           value: 'Nog niet uitgevoerd',
           child: Text('Nog niet uitgevoerd'),
         ),
+        DropdownMenuItem(value: 'Uitgevoerd', child: Text('Uitgevoerd')),
       ],
       onChanged: (value) {
         setState(() {
@@ -1239,14 +1239,31 @@ class _MaintenanceInspectionDetailScreenState
     if (mappedStatus != null && mappedStatus.isNotEmpty) {
       return mappedStatus;
     }
-    return 'Nog niet uitgevoerd';
+    return 'Geen';
   }
 
   String _getStatusLabel(String? status) {
     if (status?.trim().isEmpty ?? true) {
-      return 'Nog niet uitgevoerd';
+      return 'Geen';
     }
-    return status!.trim();
+
+    switch (status!.trim().toLowerCase()) {
+      case 'none':
+      case 'geen':
+        return 'Geen';
+      case 'open':
+        return 'In uitvoering';
+      case 'closed':
+      case 'executed':
+      case 'done':
+        return 'Uitgevoerd';
+      case 'pending':
+      case 'not executed':
+      case 'nog niet uitgevoerd':
+        return 'Nog niet uitgevoerd';
+      default:
+        return status.trim();
+    }
   }
 
   /// Map English backend status to Dutch frontend values
@@ -1257,6 +1274,9 @@ class _MaintenanceInspectionDetailScreenState
 
     final trimmedStatus = status!.trim().toLowerCase();
     switch (trimmedStatus) {
+      case 'none':
+      case 'geen':
+        return 'Geen';
       case 'open':
         return 'In uitvoering';
       case 'closed':
@@ -1286,7 +1306,9 @@ class _MaintenanceInspectionDetailScreenState
       case 'Uitgevoerd':
         return 'Closed';
       case 'Nog niet uitgevoerd':
-        return 'Open';
+        return 'Pending';
+      case 'Geen':
+        return null;
       default:
         return null;
     }
@@ -1301,7 +1323,7 @@ class _MaintenanceInspectionDetailScreenState
     if (mappedStatus == 'In uitvoering') {
       return Colors.blue;
     }
-    return Colors.red;
+    return Colors.grey;
   }
 }
 

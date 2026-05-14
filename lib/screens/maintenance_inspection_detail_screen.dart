@@ -1317,11 +1317,17 @@ class _MaintenanceInspectionDetailScreenState
   Color _statusColor(MaintenanceInspection inspection) {
     // Map backend English status to Dutch for color assignment
     final mappedStatus = _mapBackendStatusToFrontend(inspection.status);
+    if (mappedStatus == null || mappedStatus == 'Geen') {
+      return Colors.grey;
+    }
     if (mappedStatus == 'Uitgevoerd') {
       return Colors.green;
     }
     if (mappedStatus == 'In uitvoering') {
       return Colors.blue;
+    }
+    if (mappedStatus == 'Nog niet uitgevoerd') {
+      return Colors.red;
     }
     return Colors.grey;
   }

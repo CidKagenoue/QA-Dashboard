@@ -10,7 +10,7 @@ import {
   Request,
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
-import { OvaActionsService } from './ova_actions_service';
+import { OvaActionsService } from './ova-actions.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('ova/actions')
@@ -19,11 +19,10 @@ export class OvaActionsController {
 
   /**
    * GET /ova/actions/my
-   * Geeft alle opvolgacties terug die zijn toegewezen aan de ingelogde gebruiker.
+   * Retrieves all follow-up actions assigned to the logged-in user.
    */
   @Get('my')
   async getMyActions(@Request() req) {
-    // JWT payload kan 'sub', 'id', of 'userId' bevatten afhankelijk van je auth setup
     const userId: number = req.user.sub ?? req.user.id ?? req.user.userId;
     const actions = await this.ovaActionsService.findByAssignee(userId);
     return { actions };
@@ -31,7 +30,7 @@ export class OvaActionsController {
 
   /**
    * PATCH /ova/actions/:id
-   * Wijzigt de status van een specifieke opvolgactie.
+   * Updates the status of a specific follow-up action.
    */
   @Patch(':id')
   async updateAction(

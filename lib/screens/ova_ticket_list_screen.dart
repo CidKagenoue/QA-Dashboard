@@ -1,7 +1,7 @@
 import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:qa_dashboard/screens/ova_ticket_detail_screen.dart';
 import 'package:qa_dashboard/widgets/app_bars/main_app_bar.dart';
 
 import '../models/ova_ticket.dart';
@@ -102,6 +102,22 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
         _selectedOvaType = null;
       }
     });
+  }
+
+  Future<void> _openTicketDetail(OvaTicket ticket) async {
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (context) => OvaTicketDetailScreen(
+          ticket: ticket,
+          onClose: () => Navigator.of(context).pop(true),
+        ),
+      ),
+    );
+    
+    // Reload als er wijzigingen waren
+    if (result == true && mounted) {
+      await _loadTickets();
+    }
   }
 
   void _selectSection(_TicketSection section) {
@@ -544,79 +560,44 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
 
   Widget _buildSelectedTable() {
     return _TicketTable(
-      minWidth: 1560,
+      minWidth: 0,
       columns: const [
-        _TableColumnData(label: 'ID', flex: 6),
-        _TableColumnData(label: 'Status', flex: 9),
-        _TableColumnData(label: 'Type OVA', flex: 9),
-        _TableColumnData(label: 'Datum vaststelling', flex: 13),
-        _TableColumnData(label: 'Omschrijving', flex: 34),
-        _TableColumnData(label: 'Aanleiding', flex: 24),
-        _TableColumnData(label: 'Oorzakenanalyse', flex: 18),
-        _TableColumnData(
-          label: 'Opvolgacties',
-          flex: 12,
-          alignment: Alignment.center,
-        ),
-        _TableColumnData(label: 'Effectiviteit', flex: 14),
-        _TableColumnData(label: 'Laatst bewerkt', flex: 22),
-        _TableColumnData(label: 'Afsluiting', flex: 18),
+        _TableColumnData(label: 'ID', flex: 8),
+        _TableColumnData(label: 'Status', flex: 12),
+        _TableColumnData(label: 'Type OVA', flex: 12),
+        _TableColumnData(label: 'Datum vaststelling', flex: 16),
+        _TableColumnData(label: 'Omschrijving', flex: 52),
       ],
       rows: List<Widget>.generate(_filteredTickets.length, (index) {
         final ticket = _filteredTickets[index];
         return _TicketTableRow(
           striped: index.isOdd,
-          onTap: () => _openTicket(ticketId: ticket.id),
+          onTap: () => _openTicketDetail(ticket),
           cells: [
             _TableCellData(
-              flex: 6,
+              flex: 8,
               child: Text(
                 ticket.id.toString().padLeft(4, '0'),
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
             _TableCellData(
-              flex: 9,
+              flex: 12,
               child: _TicketStatusChip(label: _sectionStatusLabel(ticket)),
             ),
             _TableCellData(
-              flex: 9,
+              flex: 12,
               child: _OvaTypeChip(label: _ticketTypeLabel(ticket)),
             ),
             _TableCellData(
-              flex: 13,
+              flex: 16,
               child: _CellText(
                 formatOvaDate(ticket.findingDate ?? ticket.updatedAt),
               ),
             ),
             _TableCellData(
-              flex: 34,
+              flex: 52,
               child: _CellText(_ticketDescription(ticket), emphasized: true),
-            ),
-            _TableCellData(flex: 24, child: _CellText(_reasonsLabel(ticket))),
-            _TableCellData(
-              flex: 18,
-              child: _CellText(_causeAnalysisLabel(ticket)),
-            ),
-            _TableCellData(
-              flex: 12,
-              alignment: Alignment.center,
-              child: Text(
-                _actionProgressLabel(ticket),
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-            ),
-            _TableCellData(
-              flex: 14,
-              child: _CellText(_effectivenessLabel(ticket)),
-            ),
-            _TableCellData(
-              flex: 22,
-              child: _CellText(_lastEditedLabel(ticket)),
-            ),
-            _TableCellData(
-              flex: 18,
-              child: _CellText(_closedInfoLabel(ticket)),
             ),
           ],
         );
@@ -624,7 +605,6 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
     );
   }
 }
-
 // ---------------------------------------------------------------------------
 // Sectie tabs
 // ---------------------------------------------------------------------------

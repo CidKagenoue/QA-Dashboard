@@ -461,6 +461,30 @@ export class OvaService {
       ticket: this.serializeTicket(ticket),
     };
   }
+
+  async deleteTicket(ticketId: number, actorId: number) {
+    await this.assertAdmin(actorId);
+
+    const existingTicket = await this.prisma.ovaTicket.findUnique({
+      where: { id: ticketId },
+      select: { id: true },
+    });
+
+    if (!existingTicket) {
+      throw new NotFoundException('OVA-ticket niet gevonden');
+    }
+
+    await this.prisma.ovaTicket.delete({
+      where: { id: ticketId },
+      select: { id: true },
+    });
+
+    return {
+      deleted: true,
+      ticketId,
+    };
+  }
+
   private async notifyInternalAssignmentChanges(params: {
     actorId: number;
     ticketId: number;
@@ -656,6 +680,16 @@ export class OvaService {
 
     if (!actor.isAdmin && !actor.ovaAccess && !actor.basisAccess) {
       throw new ForbiddenException('OVA-toegang is vereist');
+    }
+
+    return actor;
+  }
+
+  private async assertAdmin(actorId: number): Promise<OvaActor> {
+    const actor = await this.assertActorExists(actorId);
+
+    if (!actor.isAdmin) {
+      throw new ForbiddenException('Adminrechten zijn vereist');
     }
 
     return actor;

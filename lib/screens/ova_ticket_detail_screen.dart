@@ -24,24 +24,9 @@ class OvaTicketDetailScreen extends StatefulWidget {
 
 class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
   OvaTicket? _ticket;
-  bool _editing = false;
   bool _isLoading = false;
-  bool _isSaving = false;
   bool _isDeleting = false;
   String? _error;
-
-  // Controllers
-  final TextEditingController _otherReasonController = TextEditingController();
-  final TextEditingController _incidentController = TextEditingController();
-  final TextEditingController _causeNotesController = TextEditingController();
-  final TextEditingController _effectivenessNotesController = TextEditingController();
-
-  // State
-  String? _ovaType;
-  Set<String> _selectedReasons = <String>{};
-  String? _causeMethod;
-  DateTime? _findingDate;
-  DateTime? _effectivenessDate;
 
   @override
   void initState() {
@@ -49,22 +34,11 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
     _ticket = widget.ticket;
     if (_ticket == null) {
       _loadTicket();
-    } else {
-      _syncFromTicket(_ticket!);
     }
   }
 
-  @override
-  void dispose() {
-    _otherReasonController.dispose();
-    _incidentController.dispose();
-    _causeNotesController.dispose();
-    _effectivenessNotesController.dispose();
-    super.dispose();
-  }
-
   Future<void> _loadTicket() async {
-    final ticketId = widget.ticketId;
+    final ticketId = widget.ticketId ?? _ticket?.id;
     if (ticketId == null) return;
 
     setState(() {
@@ -78,13 +52,12 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
         token: token,
         ticketId: ticketId,
       );
-      
+
       if (!mounted) return;
 
       final ticket = OvaTicket.fromJson(response);
       setState(() {
         _ticket = ticket;
-        _syncFromTicket(ticket);
       });
     } catch (error) {
       if (!mounted) return;
@@ -100,102 +73,21 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
     }
   }
 
-  void _syncFromTicket(OvaTicket ticket) {
-    _ovaType = ticket.ovaType;
-    _selectedReasons = ticket.reasons.toSet();
-    _otherReasonController.text = ticket.otherReason ?? '';
-    _incidentController.text = ticket.incidentDescription ?? '';
-    _causeMethod = ticket.causeAnalysisMethod;
-    _causeNotesController.text = ticket.causeAnalysisNotes ?? '';
-    _findingDate = ticket.findingDate ?? ticket.createdAt;
-    _effectivenessDate = ticket.effectivenessDate;
-    _effectivenessNotesController.text = ticket.effectivenessNotes ?? '';
-  }
-
-  void _startEditing() {
+  Future<void> _openTicketWizard() async {
     final ticket = _ticket;
     if (ticket == null) return;
 
-    setState(() {
-      _editing = true;
-      _error = null;
-      _syncFromTicket(ticket);
-    });
-  }
+    final result = await Navigator.of(context).push<String?>(
+      MaterialPageRoute(
+        builder: (context) =>
+            OvaTicketWizardScreen(ticketId: ticket.id, embedded: true),
+      ),
+    );
 
-  void _cancelEditing() {
-    final ticket = _ticket;
-    if (ticket == null) return;
+    if (!mounted) return;
 
-    setState(() {
-      _editing = false;
-      _error = null;
-      _syncFromTicket(ticket);
-    });
-  }
-
-  Future<void> _save() async {
-    final ticket = _ticket;
-    if (ticket == null) return;
-
-    setState(() {
-      _isSaving = true;
-      _error = null;
-    });
-
-    try {
-      final token = await context.read<AuthService>().getValidAccessToken();
-      
-      // Build payload met alleen editable velden
-      final payload = <String, dynamic>{
-        'ovaType': _ovaType?.trim(),
-        'reasons': _selectedReasons.toList(),
-        'otherReason': _otherReasonController.text.trim().isEmpty 
-            ? null 
-            : _otherReasonController.text.trim(),
-        'incidentDescription': _incidentController.text.trim().isEmpty
-            ? null
-            : _incidentController.text.trim(),
-        'causeAnalysisMethod': _causeMethod?.trim(),
-        'causeAnalysisNotes': _causeNotesController.text.trim().isEmpty
-            ? null
-            : _causeNotesController.text.trim(),
-        'findingDate': _findingDate?.toUtc().toIso8601String(),
-        'effectivenessDate': _effectivenessDate?.toUtc().toIso8601String(),
-        'effectivenessNotes': _effectivenessNotesController.text.trim().isEmpty
-            ? null
-            : _effectivenessNotesController.text.trim(),
-      };
-
-      final updated = await ApiService.updateOvaTicket(
-        token: token,
-        ticketId: ticket.id,
-        payload: payload,
-      );
-
-      if (!mounted) return;
-
-      final updatedTicket = OvaTicket.fromJson(updated);
-      setState(() {
-        _ticket = updatedTicket;
-        _editing = false;
-        _syncFromTicket(updatedTicket);
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ticket opgeslagen')),
-      );
-    } catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _error = error.toString().replaceFirst('Exception: ', '');
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isSaving = false;
-        });
-      }
+    if (result != null) {
+      await _loadTicket();
     }
   }
 
@@ -207,7 +99,9 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Ticket verwijderen'),
-        content: const Text('Weet je zeker dat je dit OVA-ticket wilt verwijderen?'),
+        content: const Text(
+          'Weet je zeker dat je dit OVA-ticket wilt verwijderen?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -226,21 +120,24 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
     );
 
     if (confirmed != true) return;
+    if (!mounted) return;
 
     setState(() {
       _isDeleting = true;
     });
 
     try {
-      final token = await context.read<AuthService>().getValidAccessToken();
+      final authService = context.read<AuthService>();
+      final messenger = ScaffoldMessenger.of(context);
+      final token = await authService.getValidAccessToken();
       await ApiService.deleteOvaTicket(token: token, ticketId: ticket.id);
-      
+
       if (!mounted) return;
-      
-      widget.onClose();
-      ScaffoldMessenger.of(context).showSnackBar(
+
+      messenger.showSnackBar(
         const SnackBar(content: Text('Ticket verwijderd')),
       );
+      widget.onClose();
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -268,32 +165,32 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null && _ticket == null
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                _error!,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(color: Colors.red[700]),
-                              ),
-                              const SizedBox(height: 12),
-                              ElevatedButton(
-                                onPressed: _loadTicket,
-                                child: const Text('Opnieuw proberen'),
-                              ),
-                            ],
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _error!,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.red[700]),
                           ),
-                        ),
-                      )
-                    : _ticket == null
-                        ? const Center(child: Text('Ticket niet beschikbaar'))
-                        : Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
-                            child: _buildMainCard(context, _ticket!),
+                          const SizedBox(height: 12),
+                          ElevatedButton(
+                            onPressed: _loadTicket,
+                            child: const Text('Opnieuw proberen'),
                           ),
+                        ],
+                      ),
+                    ),
+                  )
+                : _ticket == null
+                ? const Center(child: Text('Ticket niet beschikbaar'))
+                : Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+                    child: _buildMainCard(context, _ticket!),
+                  ),
           ),
         ],
       ),
@@ -301,6 +198,8 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
   }
 
   Widget _buildMainCard(BuildContext context, OvaTicket ticket) {
+    final isAdmin = context.watch<AuthService>().user?.isAdmin == true;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -321,7 +220,7 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          
+
           // Header row
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -362,44 +261,34 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
                 ),
               ),
               const SizedBox(width: 16),
-              
+
               // Action buttons
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 alignment: WrapAlignment.end,
                 children: [
-                  if (_editing)
-                    TextButton(
-                      onPressed: _isSaving ? null : _cancelEditing,
-                      child: const Text('Annuleren'),
+                  if (isAdmin)
+                    TextButton.icon(
+                      onPressed: _isDeleting ? null : _confirmDelete,
+                      icon: const Icon(Icons.delete_outline, size: 18),
+                      label: const Text('Verwijderen'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFFD32F2F),
+                      ),
                     ),
-                  TextButton.icon(
-                    onPressed: (_isDeleting || _isSaving) ? null : _confirmDelete,
-                    icon: const Icon(Icons.delete_outline, size: 18),
-                    label: const Text('Verwijderen'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFFD32F2F),
-                    ),
-                  ),
                   if (!ticket.isClosed)
                     ElevatedButton.icon(
-                      onPressed: _isDeleting ? null : (_editing ? _save : _startEditing),
-                      icon: _isSaving
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Icon(_editing ? Icons.save_outlined : Icons.edit_outlined, size: 18),
-                      label: Text(_editing ? 'Opslaan' : 'Bewerken'),
+                      onPressed: _isDeleting ? null : _openTicketWizard,
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      label: const Text('Bewerken'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF8CC63F),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(999),
                         ),
@@ -410,13 +299,9 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          
+
           // Content
-          Expanded(
-            child: SingleChildScrollView(
-              child: _buildContent(ticket),
-            ),
-          ),
+          Expanded(child: SingleChildScrollView(child: _buildContent(ticket))),
         ],
       ),
     );
@@ -439,10 +324,10 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
           const SizedBox(height: 16),
           const Divider(color: Color(0xFFE4E9DD)),
           const SizedBox(height: 16),
-          
+
           // Editable velden
           _buildFieldsGrid(ticket),
-          
+
           if (_error != null) ...[
             const SizedBox(height: 16),
             Text(
@@ -461,7 +346,7 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
   Widget _buildStatusBadge(OvaTicket ticket) {
     final Color bgColor;
     final Color textColor;
-    
+
     if (ticket.isClosed) {
       bgColor = const Color(0xFFEAF4D9);
       textColor = const Color(0xFF6F972D);
@@ -495,29 +380,13 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
         // ── Algemeen ──────────────────────────────────────────
         _buildSectionTitle('Algemeen'),
         const SizedBox(height: 12),
-        _buildField(
-          'Type OVA',
-          _editing
-              ? DropdownButtonFormField<String?>(
-                  initialValue: _ovaType,
-                  decoration: _inputDecoration(),
-                  items: const [
-                    DropdownMenuItem(value: null, child: Text('Niet gekend')),
-                    DropdownMenuItem(value: 'Near Miss', child: Text('Near Miss')),
-                    DropdownMenuItem(value: 'OVA 1', child: Text('OVA 1')),
-                    DropdownMenuItem(value: 'OVA 2', child: Text('OVA 2')),
-                    DropdownMenuItem(value: 'OVA 3', child: Text('OVA 3')),
-                  ],
-                  onChanged: (value) => setState(() => _ovaType = value),
-                )
-              : _buildReadOnlyText(_ovaType ?? '-'),
-        ),
+        _buildField('Type OVA', _buildReadOnlyText(ticket.ovaType ?? '-')),
         const SizedBox(height: 16),
         _buildField(
           'Datum vaststelling',
           _buildReadOnlyText(
-            _findingDate != null
-                ? formatOvaDateTime(_findingDate!)
+            ticket.findingDate != null
+                ? formatOvaDateTime(ticket.findingDate!)
                 : formatOvaDateTime(ticket.createdAt),
           ),
         ),
@@ -530,20 +399,19 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
         ),
         if (ticket.otherReason?.trim().isNotEmpty == true) ...[
           const SizedBox(height: 16),
-          _buildField('Andere reden', _buildReadOnlyText(ticket.otherReason!.trim())),
+          _buildField(
+            'Andere reden',
+            _buildReadOnlyText(ticket.otherReason!.trim()),
+          ),
         ],
         const SizedBox(height: 16),
         _buildField(
           'Omschrijving incident',
-          _editing
-              ? TextField(
-                  controller: _incidentController,
-                  maxLines: 4,
-                  decoration: _inputDecoration(),
-                )
-              : _buildReadOnlyText(
-                  _incidentController.text.isEmpty ? '-' : _incidentController.text,
-                ),
+          _buildReadOnlyText(
+            ticket.incidentDescription?.trim().isNotEmpty == true
+                ? ticket.incidentDescription!.trim()
+                : '-',
+          ),
         ),
 
         const SizedBox(height: 28),
@@ -555,32 +423,16 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
         const SizedBox(height: 12),
         _buildField(
           'Methode',
-          _editing
-              ? DropdownButtonFormField<String?>(
-                  initialValue: _causeMethod,
-                  decoration: _inputDecoration(),
-                  items: const [
-                    DropdownMenuItem(value: null, child: Text('Niet ingevuld')),
-                    DropdownMenuItem(value: '5x Why', child: Text('5x Why')),
-                    DropdownMenuItem(value: 'Ishikawa', child: Text('Ishikawa')),
-                    DropdownMenuItem(value: 'FMEA', child: Text('FMEA')),
-                  ],
-                  onChanged: (value) => setState(() => _causeMethod = value),
-                )
-              : _buildReadOnlyText(_causeMethod ?? '-'),
+          _buildReadOnlyText(ticket.causeAnalysisMethod ?? '-'),
         ),
         const SizedBox(height: 16),
         _buildField(
           'Notities',
-          _editing
-              ? TextField(
-                  controller: _causeNotesController,
-                  maxLines: 4,
-                  decoration: _inputDecoration(),
-                )
-              : _buildReadOnlyText(
-                  _causeNotesController.text.isEmpty ? '-' : _causeNotesController.text,
-                ),
+          _buildReadOnlyText(
+            ticket.causeAnalysisNotes?.trim().isNotEmpty == true
+                ? ticket.causeAnalysisNotes!.trim()
+                : '-',
+          ),
         ),
 
         const SizedBox(height: 28),
@@ -604,28 +456,20 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
         const SizedBox(height: 12),
         _buildField(
           'Datum effectiviteit',
-          _editing
-              ? _buildReadOnlyText(_effectivenessDate != null
-                  ? formatOvaDateTime(_effectivenessDate!)
-                  : '-')
-              : _buildReadOnlyText(_effectivenessDate != null
-                  ? formatOvaDateTime(_effectivenessDate!)
-                  : '-'),
+          _buildReadOnlyText(
+            ticket.effectivenessDate != null
+                ? formatOvaDateTime(ticket.effectivenessDate!)
+                : '-',
+          ),
         ),
         const SizedBox(height: 16),
         _buildField(
           'Notities effectiviteit',
-          _editing
-              ? TextField(
-                  controller: _effectivenessNotesController,
-                  maxLines: 3,
-                  decoration: _inputDecoration(),
-                )
-              : _buildReadOnlyText(
-                  _effectivenessNotesController.text.isEmpty
-                      ? '-'
-                      : _effectivenessNotesController.text,
-                ),
+          _buildReadOnlyText(
+            ticket.effectivenessNotes?.trim().isNotEmpty == true
+                ? ticket.effectivenessNotes!.trim()
+                : '-',
+          ),
         ),
 
         if (ticket.isClosed) ...[
@@ -639,7 +483,9 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
           _buildField(
             'Gesloten op',
             _buildReadOnlyText(
-              ticket.closedAt != null ? formatOvaDateTime(ticket.closedAt!) : '-',
+              ticket.closedAt != null
+                  ? formatOvaDateTime(ticket.closedAt!)
+                  : '-',
             ),
           ),
           const SizedBox(height: 16),
@@ -650,9 +496,11 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
           const SizedBox(height: 16),
           _buildField(
             'Sluitingsnotities',
-            _buildReadOnlyText(ticket.closureNotes?.trim().isEmpty == true
-                ? '-'
-                : ticket.closureNotes ?? '-'),
+            _buildReadOnlyText(
+              ticket.closureNotes?.trim().isEmpty == true
+                  ? '-'
+                  : ticket.closureNotes ?? '-',
+            ),
           ),
         ],
 
@@ -663,7 +511,10 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
         // ── Meta ──────────────────────────────────────────────
         _buildSectionTitle('Meta'),
         const SizedBox(height: 12),
-        _buildField('Aangemaakt door', _buildReadOnlyText(ticket.createdBy.displayName)),
+        _buildField(
+          'Aangemaakt door',
+          _buildReadOnlyText(ticket.createdBy.displayName),
+        ),
         const SizedBox(height: 16),
         _buildField(
           'Aangemaakt op',
@@ -741,7 +592,9 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    color: isOk ? const Color(0xFF6F972D) : const Color(0xFFC43C33),
+                    color: isOk
+                        ? const Color(0xFF6F972D)
+                        : const Color(0xFFC43C33),
                   ),
                 ),
               ),
@@ -751,7 +604,9 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
-                  color: isOk ? const Color(0xFF6F972D) : const Color(0xFFC43C33),
+                  color: isOk
+                      ? const Color(0xFF6F972D)
+                      : const Color(0xFFC43C33),
                 ),
               ),
             ],
@@ -792,24 +647,6 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
           height: 1.3,
         ),
       ),
-    );
-  }
-
-  InputDecoration _inputDecoration() {
-    return InputDecoration(
-      isDense: true,
-      filled: true,
-      fillColor: Colors.white,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: Color(0xFFDDE3D2)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: Color(0xFF8CC63F)),
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
     );
   }
 }

@@ -1,7 +1,7 @@
 import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:qa_dashboard/screens/ova_ticket_detail_screen.dart';
 import 'package:qa_dashboard/widgets/app_bars/main_app_bar.dart';
 
 import '../models/ova_ticket.dart';
@@ -102,6 +102,22 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
         _selectedOvaType = null;
       }
     });
+  }
+
+  Future<void> _openTicketDetail(OvaTicket ticket) async {
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (context) => OvaTicketDetailScreen(
+          ticket: ticket,
+          onClose: () => Navigator.of(context).pop(true),
+        ),
+      ),
+    );
+    
+    // Reload als er wijzigingen waren
+    if (result == true && mounted) {
+      await _loadTickets();
+    }
   }
 
   void _selectSection(_TicketSection section) {
@@ -566,7 +582,7 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
         final ticket = _filteredTickets[index];
         return _TicketTableRow(
           striped: index.isOdd,
-          onTap: () => _openTicket(ticketId: ticket.id),
+          onTap: () => _openTicketDetail(ticket),
           cells: [
             _TableCellData(
               flex: 6,

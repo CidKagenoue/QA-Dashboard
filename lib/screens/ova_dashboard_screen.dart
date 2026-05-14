@@ -21,19 +21,29 @@ class OvaDashboardScreen extends StatelessWidget {
     if (initialTicketId != null) {
       return OvaTicketWizardScreen(
         ticketId: initialTicketId,
+        embedded: true,
         onClose: onCloseInitialTicket,
       );
     }
 
+    return Navigator(
+      onGenerateRoute: (_) => MaterialPageRoute<void>(
+        builder: (routeContext) => _OvaOverviewRoute(),
+      ),
+    );
+  }
+}
+
+class _OvaOverviewRoute extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
     return Consumer<AuthService>(
       builder: (context, authService, child) {
         final user = authService.user;
 
         if (user == null) {
-          return const Scaffold(
-            body: Center(
-              child: Text('Geen gebruiker gevonden. Meld je opnieuw aan.'),
-            ),
+          return const Center(
+            child: Text('Geen gebruiker gevonden. Meld je opnieuw aan.'),
           );
         }
 
@@ -45,24 +55,32 @@ class OvaDashboardScreen extends StatelessWidget {
               icon: Icons.description_outlined,
               title: 'Tickets',
               subtitle: 'Open drafts en lopende OVA-tickets.',
-              pageBuilder: (_) => const OvaTicketListScreen(),
+              pageBuilder: (context) => OvaTicketListScreen(
+                embedded: true,
+                onNavigateBack: () => Navigator.of(context).pop(),
+              ),
             ),
           _OvaTileData(
             icon: Icons.format_list_bulleted_rounded,
             title: 'Acties',
             subtitle: 'Open jouw OVA-acties.',
-            pageBuilder: (_) => const OvaActionsScreen(),
+            pageBuilder: (context) => OvaActionsScreen(
+              embedded: true,
+              onNavigateBack: () => Navigator.of(context).pop(),
+            ),
           ),
           if (hasFullOvaAccess)
             _OvaTileData(
               icon: Icons.add_rounded,
               title: 'Nieuwe Ticket',
               subtitle: 'Maak een nieuw OVA-ticket aan.',
-              pageBuilder: (_) => const OvaTicketWizardScreen(),
+              pageBuilder: (context) => OvaTicketWizardScreen(
+                embedded: true,
+                onClose: () => Navigator.of(context).pop(),
+              ),
             ),
         ];
 
-        // Alleen de OVA content, geen eigen Scaffold/AppBar/navbars
         return _OvaContent(
           hasOvaAccess: hasOvaAccess,
           hasFullOvaAccess: hasFullOvaAccess,
@@ -261,13 +279,6 @@ class _OvaTileCard extends StatelessWidget {
     );
   }
 }
-
-
-
-
-
-
-
 
 class _OvaTileData {
   final IconData icon;

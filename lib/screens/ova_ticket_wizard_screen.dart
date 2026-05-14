@@ -59,9 +59,15 @@ String formatOvaDateTime(DateTime value) {
 }
 
 class OvaTicketWizardScreen extends StatefulWidget {
-  const OvaTicketWizardScreen({super.key, this.ticketId, this.onClose});
+  const OvaTicketWizardScreen({
+    super.key,
+    this.ticketId,
+    this.embedded = false,
+    this.onClose,
+  });
 
   final int? ticketId;
+  final bool embedded;
   final VoidCallback? onClose;
 
   @override
@@ -683,6 +689,158 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
         : 'OVA-ticket #${_ticket!.id}';
     final isClosed = _ticket?.isClosed ?? false;
 
+    Widget body;
+    if (_isLoading) {
+      body = const Center(child: CircularProgressIndicator());
+    } else if (_error != null && _ticket == null && widget.ticketId != null) {
+      body = Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: _WizardErrorState(message: _error!, onRetry: _loadTicket),
+          ),
+        ),
+      );
+    } else {
+      body = SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1180),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (widget.embedded) ...[
+                  _EmbeddedWizardHeader(title: title, onClose: _closeWizard),
+                  const SizedBox(height: 18),
+                ],
+                if (isClosed) ...[
+                  _ClosedTicketBanner(ticket: _ticket!),
+                  const SizedBox(height: 24),
+                ],
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x0F000000),
+                        blurRadius: 20,
+                        offset: Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Stappenplan OVA-ticket',
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'De flow volgt nu de volledige OVA-opbouw: oorzakenanalyse, concrete opvolgacties, effectiviteitscontrole en formele afsluiting.',
+                      ),
+                      const SizedBox(height: 24),
+                      _WizardStepper(
+                        currentStep: _currentStep,
+                        storedStep:
+                            (_ticket?.currentStep ?? (_currentStep + 1)),
+                        onTap: _jumpToStep,
+                        locked: isClosed,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(28),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x0D000000),
+                        blurRadius: 18,
+                        offset: Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _stepLabel(_currentStep),
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        _stepDescription(_currentStep),
+                        style: const TextStyle(
+                          color: Color(0xFF5D6656),
+                          height: 1.45,
+                        ),
+                      ),
+                      if (isClosed) ...[
+                        const SizedBox(height: 14),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF7F8F4),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFFE1E5D9)),
+                          ),
+                          child: const Text(
+                            'Dit gesloten ticket staat in alleen-lezen modus. Gebruik de stappen bovenaan of Vorige/Volgende om alle details te bekijken.',
+                            style: TextStyle(
+                              color: Color(0xFF566051),
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 28),
+                      IgnorePointer(
+                        ignoring: isClosed,
+                        child: _buildCurrentStep(),
+                      ),
+                      if (_error != null) ...[
+                        const SizedBox(height: 16),
+                        Text(
+                          _error!,
+                          style: TextStyle(
+                            color: Colors.red.shade700,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 28),
+                      _buildActionBar(),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final page = widget.embedded
+        ? ColoredBox(color: const Color(0xFFF6F6F3), child: body)
+        : Scaffold(
+            backgroundColor: const Color(0xFFF6F6F3),
+            appBar: MainAppBar(title: title),
+            body: body,
+          );
+
     return PopScope<String?>(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
@@ -692,152 +850,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
 
         _closeWizard();
       },
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF6F6F3),
-        appBar: MainAppBar(title: title),
-        body: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _error != null && _ticket == null && widget.ticketId != null
-            ? Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 520),
-                    child: _WizardErrorState(
-                      message: _error!,
-                      onRetry: _loadTicket,
-                    ),
-                  ),
-                ),
-              )
-            : SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 1180),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (isClosed) ...[
-                          _ClosedTicketBanner(ticket: _ticket!),
-                          const SizedBox(height: 24),
-                        ],
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Color(0x0F000000),
-                                blurRadius: 20,
-                                offset: Offset(0, 6),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Stappenplan OVA-ticket',
-                                style: Theme.of(context).textTheme.headlineSmall
-                                    ?.copyWith(fontWeight: FontWeight.w700),
-                              ),
-                              const SizedBox(height: 8),
-                              const Text(
-                                'De flow volgt nu de volledige OVA-opbouw: oorzakenanalyse, concrete opvolgacties, effectiviteitscontrole en formele afsluiting.',
-                              ),
-                              const SizedBox(height: 24),
-                              _WizardStepper(
-                                currentStep: _currentStep,
-                                storedStep:
-                                    (_ticket?.currentStep ??
-                                    (_currentStep + 1)),
-                                onTap: _jumpToStep,
-                                locked: isClosed,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(28),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Color(0x0D000000),
-                                blurRadius: 18,
-                                offset: Offset(0, 6),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _stepLabel(_currentStep),
-                                style: Theme.of(context).textTheme.headlineSmall
-                                    ?.copyWith(fontWeight: FontWeight.w700),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                _stepDescription(_currentStep),
-                                style: const TextStyle(
-                                  color: Color(0xFF5D6656),
-                                  height: 1.45,
-                                ),
-                              ),
-                              if (isClosed) ...[
-                                const SizedBox(height: 14),
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(14),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF7F8F4),
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(
-                                      color: const Color(0xFFE1E5D9),
-                                    ),
-                                  ),
-                                  child: const Text(
-                                    'Dit gesloten ticket staat in alleen-lezen modus. Gebruik de stappen bovenaan of Vorige/Volgende om alle details te bekijken.',
-                                    style: TextStyle(
-                                      color: Color(0xFF566051),
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                              const SizedBox(height: 28),
-                              IgnorePointer(
-                                ignoring: isClosed,
-                                child: _buildCurrentStep(),
-                              ),
-                              if (_error != null) ...[
-                                const SizedBox(height: 16),
-                                Text(
-                                  _error!,
-                                  style: TextStyle(
-                                    color: Colors.red.shade700,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                              const SizedBox(height: 28),
-                              _buildActionBar(),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-      ),
+      child: page,
     );
   }
 
@@ -1450,6 +1463,36 @@ class _ActionCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _EmbeddedWizardHeader extends StatelessWidget {
+  const _EmbeddedWizardHeader({required this.title, required this.onClose});
+
+  final String title;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        OutlinedButton.icon(
+          onPressed: onClose,
+          icon: const Icon(Icons.arrow_back_rounded),
+          label: const Text('Terug'),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF243022),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

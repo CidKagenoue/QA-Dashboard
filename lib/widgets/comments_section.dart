@@ -137,7 +137,7 @@ class _CommentsSectionState extends State<CommentsSection> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: widget.comments.length,
-              separatorBuilder: (_, __) =>
+              separatorBuilder: (_, _) =>
                   const Divider(height: 1, color: Color(0xFFEEF1E9)),
               itemBuilder: (context, index) {
                 final comment = widget.comments[index];

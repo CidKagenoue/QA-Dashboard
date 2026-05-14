@@ -393,15 +393,15 @@ class ApiService {
     required int ticketId,
     required Map<String, dynamic> payload,
   }) async {
-    final response = await _requestObject(
+    final response = await _requestObject(  
       () => http.patch(
         Uri.parse('$baseUrl/ova/tickets/$ticketId'),
-        headers: _headers(token: token),
+        headers: _headers(token: token), 
         body: jsonEncode(payload),
       ),
     );
 
-    final ticket = response['ticket'];
+    final ticket = response['ticket']; 
     if (ticket is! Map) {
       throw Exception('Invalid OVA ticket received from the server');
     }
@@ -409,16 +409,21 @@ class ApiService {
     return Map<String, dynamic>.from(ticket);
   }
 
+  static Future<void> deleteOvaTicket({
+    required String token,
+    required int ticketId,
+  }) async {
+    await _requestObject(  
+      () => http.delete(
+        Uri.parse('$baseUrl/ova/tickets/$ticketId'),
+        headers: _headers(token: token), 
+      ),
+    );
+  }
   static Future<List<Map<String, dynamic>>> fetchMyOvaActions({
     required String token,
   }) async {
-    final response = await _requestObject(
-      () => http.get(
-        Uri.parse('$baseUrl/ova/actions/my'),
-        headers: _headers(token: token),
-      ),
-    );
-
+    final response = await fetchOvaActions(token: token, scope: 'mine');
     final actions = response['actions'];
     if (actions is! List) {
       throw Exception('Invalid OVA action list received from the server');
@@ -428,6 +433,21 @@ class ApiService {
         .whereType<Map>()
         .map((action) => Map<String, dynamic>.from(action))
         .toList();
+  }
+
+  static Future<Map<String, dynamic>> fetchOvaActions({
+    required String token,
+    String scope = 'mine',
+  }) async {
+    final response = await _requestObject(
+      () => http.get(
+        Uri.parse(
+          '$baseUrl/ova/actions',
+        ).replace(queryParameters: {'scope': scope}),
+        headers: _headers(token: token),
+      ),
+    );
+    return response;
   }
 
   static Future<Map<String, dynamic>> updateOvaAction({

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../widgets/app_bars/main_app_bar.dart';
 import '../models/ova_assigned_action.dart';
 import '../models/ova_ticket.dart';

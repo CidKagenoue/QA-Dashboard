@@ -2,8 +2,8 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from 'src/prisma/prisma.module';
 import { UserModule } from 'src/user/user.module';
-import { OvaActionsController } from './ova_actions_controller';
-import { OvaActionsService } from './ova_actions_service';
+import { OvaActionsController } from './ova-actions.controller';
+import { OvaActionsService } from './ova-actions.service';
 
 
 // Importeer hier ook je bestaande OvaTickets controller/service als die al bestaat

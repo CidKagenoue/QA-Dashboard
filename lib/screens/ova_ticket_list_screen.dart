@@ -1,7 +1,7 @@
 import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:qa_dashboard/screens/ova_ticket_detail_screen.dart';
 import 'package:qa_dashboard/widgets/app_bars/main_app_bar.dart';
 
 import '../models/ova_ticket.dart';
@@ -14,8 +14,13 @@ enum _TicketSection { open, closed }
 const double _ticketTableColumnGap = 10;
 
 class OvaTicketListScreen extends StatefulWidget {
-  const OvaTicketListScreen({super.key, this.onNavigateBack});
+  const OvaTicketListScreen({
+    super.key,
+    this.embedded = false,
+    this.onNavigateBack,
+  });
 
+  final bool embedded;
   final VoidCallback? onNavigateBack;
 
   @override
@@ -76,11 +81,12 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
   }
 
   Future<void> _openTicket({int? ticketId}) async {
-    // OvaTicketWizardScreen wordt nog steeds via Navigator.push geopend
-    // zodat de wizard zijn eigen volledige scherm heeft met terug-knop.
     final resultingSection = await Navigator.of(context).push<String?>(
       MaterialPageRoute(
-        builder: (context) => OvaTicketWizardScreen(ticketId: ticketId),
+        builder: (context) => OvaTicketWizardScreen(
+          ticketId: ticketId,
+          embedded: widget.embedded,
+        ),
       ),
     );
 
@@ -96,6 +102,22 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
         _selectedOvaType = null;
       }
     });
+  }
+
+  Future<void> _openTicketDetail(OvaTicket ticket) async {
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (context) => OvaTicketDetailScreen(
+          ticket: ticket,
+          onClose: () => Navigator.of(context).pop(true),
+        ),
+      ),
+    );
+    
+    // Reload als er wijzigingen waren
+    if (result == true && mounted) {
+      await _loadTickets();
+    }
   }
 
   void _selectSection(_TicketSection section) {
@@ -352,256 +374,230 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
     final canCreate = user != null && (user.isAdmin || user.access.ova);
     final pageBackground = Theme.of(context).scaffoldBackgroundColor;
 
-    return Scaffold(
-      backgroundColor: pageBackground,
-      appBar: const MainAppBar(title: 'Vlotter'),
-      body: RefreshIndicator(
-        onRefresh: _loadTickets,
-        child: LayoutBuilder(
-          builder: (context, viewportConstraints) {
-            final isNarrowPage = viewportConstraints.maxWidth < 760;
-            final outerPadding = isNarrowPage
-                ? const EdgeInsets.all(16)
-                : const EdgeInsets.fromLTRB(24, 20, 24, 24);
-            final contentPadding = isNarrowPage
-                ? const EdgeInsets.fromLTRB(20, 20, 20, 24)
-                : const EdgeInsets.fromLTRB(32, 28, 32, 32);
-            final minContentHeight = math.max(
-              0.0,
-              viewportConstraints.maxHeight - outerPadding.vertical,
-            );
+    final content = RefreshIndicator(
+      onRefresh: _loadTickets,
+      child: LayoutBuilder(
+        builder: (context, viewportConstraints) {
+          final isNarrowPage = viewportConstraints.maxWidth < 760;
+          final outerPadding = isNarrowPage
+              ? const EdgeInsets.all(16)
+              : const EdgeInsets.fromLTRB(24, 20, 24, 24);
+          final contentPadding = isNarrowPage
+              ? const EdgeInsets.fromLTRB(20, 20, 20, 24)
+              : const EdgeInsets.fromLTRB(32, 28, 32, 32);
+          final minContentHeight = math.max(
+            0.0,
+            viewportConstraints.maxHeight - outerPadding.vertical,
+          );
 
-            return ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: outerPadding,
-              children: [
-                Container(
-                  width: double.infinity,
-                  constraints: BoxConstraints(minHeight: minContentHeight),
-                  padding: contentPadding,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(isNarrowPage ? 18 : 24),
-                    border: Border.all(color: const Color(0xFFE2E6DD)),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x12000000),
-                        blurRadius: 18,
-                        offset: Offset(0, 8),
+          return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: outerPadding,
+            children: [
+              Container(
+                width: double.infinity,
+                constraints: BoxConstraints(minHeight: minContentHeight),
+                padding: contentPadding,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(isNarrowPage ? 18 : 24),
+                  border: Border.all(color: const Color(0xFFE2E6DD)),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x12000000),
+                      blurRadius: 18,
+                      offset: Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (widget.embedded && widget.onNavigateBack != null) ...[
+                      TextButton.icon(
+                        onPressed: widget.onNavigateBack,
+                        icon: const Icon(Icons.arrow_back_rounded),
+                        label: const Text('OVA overzicht'),
                       ),
+                      const SizedBox(height: 12),
                     ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Breadcrumb
-                      const Text(
-                        'Dashboard > OVA > Tickets',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFF7B8077),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
+                    // Breadcrumb
+                    const Text(
+                      'Dashboard > OVA > Tickets',
+                      style: TextStyle(fontSize: 11, color: Color(0xFF7B8077)),
+                    ),
+                    const SizedBox(height: 18),
 
-                      // Titel + knop
-                      LayoutBuilder(
-                        builder: (context, c) {
-                          final compact = c.maxWidth < 840;
-                          final titleBlock = Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'OVA Tickets',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .headlineMedium
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                      color: const Color(0xFF243022),
-                                    ),
-                              ),
-                              const SizedBox(height: 8),
-                              const Text(
-                                'Bekijk alle tickets per status en open elk ticket rechtstreeks voor detailopvolging.',
-                                style: TextStyle(
-                                  color: Color(0xFF586154),
-                                  height: 1.45,
-                                ),
-                              ),
-                            ],
-                          );
-
-                          if (compact) {
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                titleBlock,
-                                if (canCreate) ...[
-                                  const SizedBox(height: 16),
-                                  ElevatedButton.icon(
-                                    onPressed: () => _openTicket(),
-                                    icon: const Icon(Icons.add_rounded),
-                                    label: const Text('Nieuw ticket'),
+                    // Titel + knop
+                    LayoutBuilder(
+                      builder: (context, c) {
+                        final compact = c.maxWidth < 840;
+                        final titleBlock = Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'OVA Tickets',
+                              style: Theme.of(context).textTheme.headlineMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFF243022),
                                   ),
-                                ],
-                              ],
-                            );
-                          }
-                          return Row(
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Bekijk alle tickets per status en open elk ticket rechtstreeks voor detailopvolging.',
+                              style: TextStyle(
+                                color: Color(0xFF586154),
+                                height: 1.45,
+                              ),
+                            ),
+                          ],
+                        );
+
+                        if (compact) {
+                          return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Expanded(child: titleBlock),
-                              if (canCreate)
+                              titleBlock,
+                              if (canCreate) ...[
+                                const SizedBox(height: 16),
                                 ElevatedButton.icon(
                                   onPressed: () => _openTicket(),
                                   icon: const Icon(Icons.add_rounded),
                                   label: const Text('Nieuw ticket'),
                                 ),
+                              ],
                             ],
                           );
-                        },
-                      ),
-                      const SizedBox(height: 28),
+                        }
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(child: titleBlock),
+                            if (canCreate)
+                              ElevatedButton.icon(
+                                onPressed: () => _openTicket(),
+                                icon: const Icon(Icons.add_rounded),
+                                label: const Text('Nieuw ticket'),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 28),
 
-                      // Sectie tabs
-                      _SectionTabs(
-                        selectedSection: _selectedSection,
-                        counts: {
-                          _TicketSection.open: _ticketCountForSection(
-                            _TicketSection.open,
-                          ),
-                          _TicketSection.closed: _ticketCountForSection(
-                            _TicketSection.closed,
-                          ),
-                        },
-                        onSelected: _selectSection,
+                    // Sectie tabs
+                    _SectionTabs(
+                      selectedSection: _selectedSection,
+                      counts: {
+                        _TicketSection.open: _ticketCountForSection(
+                          _TicketSection.open,
+                        ),
+                        _TicketSection.closed: _ticketCountForSection(
+                          _TicketSection.closed,
+                        ),
+                      },
+                      onSelected: _selectSection,
+                    ),
+                    const SizedBox(height: 18),
+                    _TicketStatusGuide(section: _selectedSection),
+                    const SizedBox(height: 24),
+
+                    // Content
+                    if (_isLoading)
+                      const SizedBox(
+                        height: 260,
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else if (_error != null)
+                      _ErrorState(message: _error!, onRetry: _loadTickets)
+                    else if (_tickets.isEmpty)
+                      _EmptyTicketState(
+                        canCreate: canCreate,
+                        onCreate: canCreate ? () => _openTicket() : null,
+                      )
+                    else ...[
+                      _TicketToolbar(
+                        section: _selectedSection,
+                        searchController: _searchController,
+                        hasActiveFilters: _hasActiveFilters,
+                        availableOvaTypes: _availableOvaTypes,
+                        selectedOvaType: _selectedOvaType,
+                        onToggleOvaType: _toggleOvaType,
+                        onClearFilters: _clearFilters,
+                        visibleCount: _filteredTickets.length,
                       ),
                       const SizedBox(height: 18),
-                      _TicketStatusGuide(section: _selectedSection),
-                      const SizedBox(height: 24),
-
-                      // Content
-                      if (_isLoading)
-                        const SizedBox(
-                          height: 260,
-                          child: Center(child: CircularProgressIndicator()),
-                        )
-                      else if (_error != null)
-                        _ErrorState(message: _error!, onRetry: _loadTickets)
-                      else if (_tickets.isEmpty)
-                        _EmptyTicketState(
-                          canCreate: canCreate,
-                          onCreate: canCreate ? () => _openTicket() : null,
-                        )
-                      else ...[
-                        _TicketToolbar(
-                          section: _selectedSection,
-                          searchController: _searchController,
-                          hasActiveFilters: _hasActiveFilters,
-                          availableOvaTypes: _availableOvaTypes,
-                          selectedOvaType: _selectedOvaType,
-                          onToggleOvaType: _toggleOvaType,
+                      if (_filteredTickets.isEmpty)
+                        _SectionEmptyState(
+                          title: _emptyTitleForSection(_selectedSection),
+                          message: _emptyMessageForSection(_selectedSection),
+                          filtered: _hasActiveFilters,
                           onClearFilters: _clearFilters,
-                          visibleCount: _filteredTickets.length,
-                        ),
-                        const SizedBox(height: 18),
-                        if (_filteredTickets.isEmpty)
-                          _SectionEmptyState(
-                            title: _emptyTitleForSection(_selectedSection),
-                            message: _emptyMessageForSection(_selectedSection),
-                            filtered: _hasActiveFilters,
-                            onClearFilters: _clearFilters,
-                          )
-                        else
-                          _buildSelectedTable(),
-                      ],
+                        )
+                      else
+                        _buildSelectedTable(),
                     ],
-                  ),
+                  ],
                 ),
-              ],
-            );
-          },
-        ),
+              ),
+            ],
+          );
+        },
       ),
+    );
+
+    if (widget.embedded) {
+      return ColoredBox(color: pageBackground, child: content);
+    }
+
+    return Scaffold(
+      backgroundColor: pageBackground,
+      appBar: const MainAppBar(title: 'Vlotter'),
+      body: content,
     );
   }
 
   Widget _buildSelectedTable() {
     return _TicketTable(
-      minWidth: 1560,
+      minWidth: 0,
       columns: const [
-        _TableColumnData(label: 'ID', flex: 6),
-        _TableColumnData(label: 'Status', flex: 9),
-        _TableColumnData(label: 'Type OVA', flex: 9),
-        _TableColumnData(label: 'Datum vaststelling', flex: 13),
-        _TableColumnData(label: 'Omschrijving', flex: 34),
-        _TableColumnData(label: 'Aanleiding', flex: 24),
-        _TableColumnData(label: 'Oorzakenanalyse', flex: 18),
-        _TableColumnData(
-          label: 'Opvolgacties',
-          flex: 12,
-          alignment: Alignment.center,
-        ),
-        _TableColumnData(label: 'Effectiviteit', flex: 14),
-        _TableColumnData(label: 'Laatst bewerkt', flex: 22),
-        _TableColumnData(label: 'Afsluiting', flex: 18),
+        _TableColumnData(label: 'ID', flex: 8),
+        _TableColumnData(label: 'Status', flex: 12),
+        _TableColumnData(label: 'Type OVA', flex: 12),
+        _TableColumnData(label: 'Datum vaststelling', flex: 16),
+        _TableColumnData(label: 'Omschrijving', flex: 52),
       ],
       rows: List<Widget>.generate(_filteredTickets.length, (index) {
         final ticket = _filteredTickets[index];
         return _TicketTableRow(
           striped: index.isOdd,
-          onTap: () => _openTicket(ticketId: ticket.id),
+          onTap: () => _openTicketDetail(ticket),
           cells: [
             _TableCellData(
-              flex: 6,
+              flex: 8,
               child: Text(
                 ticket.id.toString().padLeft(4, '0'),
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
             _TableCellData(
-              flex: 9,
+              flex: 12,
               child: _TicketStatusChip(label: _sectionStatusLabel(ticket)),
             ),
             _TableCellData(
-              flex: 9,
+              flex: 12,
               child: _OvaTypeChip(label: _ticketTypeLabel(ticket)),
             ),
             _TableCellData(
-              flex: 13,
+              flex: 16,
               child: _CellText(
                 formatOvaDate(ticket.findingDate ?? ticket.updatedAt),
               ),
             ),
             _TableCellData(
-              flex: 34,
+              flex: 52,
               child: _CellText(_ticketDescription(ticket), emphasized: true),
-            ),
-            _TableCellData(flex: 24, child: _CellText(_reasonsLabel(ticket))),
-            _TableCellData(
-              flex: 18,
-              child: _CellText(_causeAnalysisLabel(ticket)),
-            ),
-            _TableCellData(
-              flex: 12,
-              alignment: Alignment.center,
-              child: Text(
-                _actionProgressLabel(ticket),
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-            ),
-            _TableCellData(
-              flex: 14,
-              child: _CellText(_effectivenessLabel(ticket)),
-            ),
-            _TableCellData(
-              flex: 22,
-              child: _CellText(_lastEditedLabel(ticket)),
-            ),
-            _TableCellData(
-              flex: 18,
-              child: _CellText(_closedInfoLabel(ticket)),
             ),
           ],
         );
@@ -609,7 +605,6 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
     );
   }
 }
-
 // ---------------------------------------------------------------------------
 // Sectie tabs
 // ---------------------------------------------------------------------------

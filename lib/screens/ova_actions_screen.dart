@@ -8,8 +8,17 @@ import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import 'ova_ticket_wizard_screen.dart';
 
+enum _ActionScope { mine, all }
+
 class OvaActionsScreen extends StatefulWidget {
-  const OvaActionsScreen({super.key});
+  const OvaActionsScreen({
+    super.key,
+    this.embedded = false,
+    this.onNavigateBack,
+  });
+
+  final bool embedded;
+  final VoidCallback? onNavigateBack;
 
   @override
   State<OvaActionsScreen> createState() => _OvaActionsScreenState();
@@ -19,6 +28,9 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
   bool _isLoading = true;
   String? _error;
   List<OvaAssignedAction> _actions = const [];
+  _ActionScope _selectedScope = _ActionScope.mine;
+  bool _scopeInitialized = false;
+  bool _canViewAllActions = false;
   final Set<int> _savingActionIds = <int>{};
 
   @override
@@ -34,14 +46,44 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
     });
 
     try {
-      final token = await context.read<AuthService>().getValidAccessToken();
-      final response = await ApiService.fetchMyOvaActions(token: token);
+      final authService = context.read<AuthService>();
+      final token = await authService.getValidAccessToken();
+      final user = authService.user;
+      final canViewAll = user != null && (user.isAdmin || user.access.ova);
+      var requestedScope = _selectedScope;
+      if (!_scopeInitialized) {
+        requestedScope = canViewAll ? _ActionScope.all : _ActionScope.mine;
+      } else if (!canViewAll && requestedScope == _ActionScope.all) {
+        requestedScope = _ActionScope.mine;
+      }
+
+      final response = await ApiService.fetchOvaActions(
+        token: token,
+        scope: _scopeApiValue(requestedScope),
+      );
+      final rawActions = response['actions'];
+      if (rawActions is! List) {
+        throw Exception('Invalid OVA action list received from the server');
+      }
+
       if (!mounted) {
         return;
       }
 
       setState(() {
-        _actions = response.map(OvaAssignedAction.fromJson).toList();
+        _scopeInitialized = true;
+        _canViewAllActions =
+            response['canViewAllActions'] == true || canViewAll;
+        _selectedScope = response['scope'] == 'all'
+            ? _ActionScope.all
+            : _ActionScope.mine;
+        _actions = rawActions
+            .whereType<Map>()
+            .map(
+              (action) =>
+                  OvaAssignedAction.fromJson(Map<String, dynamic>.from(action)),
+            )
+            .toList();
       });
     } catch (error) {
       if (!mounted) {
@@ -58,6 +100,26 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
         });
       }
     }
+  }
+
+  String _scopeApiValue(_ActionScope scope) {
+    switch (scope) {
+      case _ActionScope.mine:
+        return 'mine';
+      case _ActionScope.all:
+        return 'all';
+    }
+  }
+
+  void _selectScope(_ActionScope scope) {
+    if (_selectedScope == scope || !_canViewAllActions) {
+      return;
+    }
+
+    setState(() {
+      _selectedScope = scope;
+    });
+    _loadActions();
   }
 
   Future<void> _updateActionStatus(OvaAssignedAction item, bool isOk) async {
@@ -112,7 +174,10 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
   Future<void> _openTicket(int ticketId) async {
     final result = await Navigator.of(context).push<String?>(
       MaterialPageRoute(
-        builder: (_) => OvaTicketWizardScreen(ticketId: ticketId),
+        builder: (_) => OvaTicketWizardScreen(
+          ticketId: ticketId,
+          embedded: widget.embedded,
+        ),
       ),
     );
 
@@ -123,7 +188,17 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
 
   String get _summaryText {
     if (_isLoading) {
-      return 'Openstaande opvolgacties die aan jou zijn toegewezen.';
+      return _selectedScope == _ActionScope.all
+          ? 'Openstaande opvolgacties binnen OVA.'
+          : 'Openstaande opvolgacties die aan jou zijn toegewezen.';
+    }
+
+    if (_selectedScope == _ActionScope.all) {
+      if (_actions.length == 1) {
+        return '1 openstaande opvolgactie binnen OVA.';
+      }
+
+      return '${_actions.length} openstaande opvolgacties binnen OVA.';
     }
 
     if (_actions.length == 1) {
@@ -135,58 +210,81 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final content = RefreshIndicator(
+      onRefresh: _loadActions,
+      child: ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x0F000000),
+                  blurRadius: 20,
+                  offset: Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (widget.embedded && widget.onNavigateBack != null) ...[
+                  TextButton.icon(
+                    onPressed: widget.onNavigateBack,
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    label: const Text('OVA overzicht'),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                Text(
+                  _selectedScope == _ActionScope.all
+                      ? 'Alle OVA-acties'
+                      : 'Mijn acties-overzicht',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(_summaryText),
+                if (_canViewAllActions) ...[
+                  const SizedBox(height: 18),
+                  _ActionScopeTabs(
+                    selectedScope: _selectedScope,
+                    onSelected: _selectScope,
+                  ),
+                ],
+                const SizedBox(height: 28),
+                if (_isLoading)
+                  const Center(child: CircularProgressIndicator())
+                else if (_error != null)
+                  _ActionErrorState(message: _error!, onRetry: _loadActions)
+                else if (_actions.isEmpty)
+                  _ActionEmptyState(scope: _selectedScope)
+                else
+                  _ActionsOverview(
+                    actions: _actions,
+                    savingActionIds: _savingActionIds,
+                    onOpenTicket: (item) => _openTicket(item.ticket.id),
+                    onStatusChanged: _updateActionStatus,
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (widget.embedded) {
+      return ColoredBox(color: const Color(0xFFF6F6F3), child: content);
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF6F6F3),
       appBar: const MainAppBar(title: 'Mijn OVA-acties'),
-      body: RefreshIndicator(
-        onRefresh: _loadActions,
-        child: ListView(
-          padding: const EdgeInsets.all(24),
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x0F000000),
-                    blurRadius: 20,
-                    offset: Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Mijn acties-overzicht',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(_summaryText),
-                  const SizedBox(height: 28),
-                  if (_isLoading)
-                    const Center(child: CircularProgressIndicator())
-                  else if (_error != null)
-                    _ActionErrorState(message: _error!, onRetry: _loadActions)
-                  else if (_actions.isEmpty)
-                    const _ActionEmptyState()
-                  else
-                    _ActionsOverview(
-                      actions: _actions,
-                      savingActionIds: _savingActionIds,
-                      onOpenTicket: (item) => _openTicket(item.ticket.id),
-                      onStatusChanged: _updateActionStatus,
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+      body: content,
     );
   }
 }
@@ -238,6 +336,65 @@ class _ActionsOverview extends StatelessWidget {
   }
 }
 
+class _ActionScopeTabs extends StatelessWidget {
+  const _ActionScopeTabs({
+    required this.selectedScope,
+    required this.onSelected,
+  });
+
+  final _ActionScope selectedScope;
+  final ValueChanged<_ActionScope> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        _ActionScopeChip(
+          label: 'Mijn acties',
+          selected: selectedScope == _ActionScope.mine,
+          onTap: () => onSelected(_ActionScope.mine),
+        ),
+        _ActionScopeChip(
+          label: 'Alle acties',
+          selected: selectedScope == _ActionScope.all,
+          onTap: () => onSelected(_ActionScope.all),
+        ),
+      ],
+    );
+  }
+}
+
+class _ActionScopeChip extends StatelessWidget {
+  const _ActionScopeChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onTap(),
+      selectedColor: const Color(0xFFEAF4D9),
+      labelStyle: TextStyle(
+        color: selected ? const Color(0xFF4E721C) : const Color(0xFF4C5448),
+        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+      ),
+      side: BorderSide(
+        color: selected ? const Color(0xFF98C74D) : const Color(0xFFD7DBD2),
+      ),
+    );
+  }
+}
+
 class _ActionsTable extends StatelessWidget {
   const _ActionsTable({
     required this.actions,
@@ -271,24 +428,21 @@ class _ActionsTable extends StatelessWidget {
                   Expanded(flex: 44, child: _TableHeaderLabel('Omschrijving')),
                   SizedBox(width: 12),
                   SizedBox(
-                    width: 110,
-                    child: _TableHeaderLabel('Ticketnummer'),
+                    width: 180,
+                    child: _TableHeaderLabel('Verantwoordelijke'),
                   ),
                   SizedBox(width: 12),
                   SizedBox(
                     width: 110,
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: _TableHeaderLabel('Deadline'),
-                    ),
+                    child: _TableHeaderLabel('Ticketnummer'),
                   ),
+                  SizedBox(width: 12),
+                  SizedBox(width: 110, child: _TableHeaderLabel('Deadline')),
                   SizedBox(width: 12),
                   SizedBox(
                     width: 110,
                     child: Center(child: _TableHeaderLabel('Status')),
                   ),
-                  SizedBox(width: 12),
-                  SizedBox(width: 44),
                 ],
               ),
             ),
@@ -326,89 +480,96 @@ class _ActionsTableRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: striped ? const Color(0xFFF9FAF6) : Colors.white,
-        border: const Border(top: BorderSide(color: Color(0xFFE8ECE3))),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            flex: 44,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.action.description,
+    return Material(
+      color: striped ? const Color(0xFFF9FAF6) : Colors.white,
+      child: InkWell(
+        onTap: onOpenTicket,
+        child: Container(
+          decoration: const BoxDecoration(
+            border: Border(top: BorderSide(color: Color(0xFFE8ECE3))),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                flex: 44,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.action.description,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF2F382E),
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      item.action.typeLabel,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF7B8077),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              SizedBox(
+                width: 180,
+                child: Text(
+                  item.action.assigneeLabel,
                   style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF2F382E),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF4D5548),
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  item.action.typeLabel,
+              ),
+              const SizedBox(width: 12),
+              SizedBox(
+                width: 110,
+                child: Text(
+                  '#${item.ticket.id}',
                   style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF7B8077),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF4D5548),
                   ),
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          SizedBox(
-            width: 110,
-            child: Text(
-              '#${item.ticket.id}',
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF4D5548),
               ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          SizedBox(
-            width: 110,
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                formatOvaDate(item.action.dueDate),
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF4D5548),
+              const SizedBox(width: 12),
+              SizedBox(
+                width: 110,
+                child: Text(
+                  formatOvaDate(item.action.dueDate),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF4D5548),
+                  ),
                 ),
               ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          SizedBox(
-            width: 110,
-            child: Center(
-              child: _StatusDropdown(
-                isOk: item.action.isOk,
-                isSaving: isSaving,
-                onChanged: onStatusChanged,
+              const SizedBox(width: 12),
+              SizedBox(
+                width: 110,
+                child: Center(
+                  child: _StatusDropdown(
+                    isOk: item.action.isOk,
+                    isSaving: isSaving,
+                    onChanged: onStatusChanged,
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
-          const SizedBox(width: 12),
-          SizedBox(
-            width: 44,
-            child: IconButton(
-              tooltip: 'Open ticket',
-              onPressed: onOpenTicket,
-              icon: const Icon(Icons.open_in_new_rounded, size: 20),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -429,56 +590,51 @@ class _ActionMobileTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: onOpenTicket,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE2E6DD)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFFE2E6DD)),
+          ),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Text(
-                  item.action.description,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF2F382E),
-                  ),
+              Text(
+                item.action.description,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF2F382E),
                 ),
               ),
-              const SizedBox(width: 8),
-              IconButton(
-                tooltip: 'Open ticket',
-                onPressed: onOpenTicket,
-                icon: const Icon(Icons.open_in_new_rounded),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  _InfoPill(label: 'Ticket #${item.ticket.id}'),
+                  _InfoPill(label: item.action.assigneeLabel),
+                  _InfoPill(
+                    label: 'Deadline ${formatOvaDate(item.action.dueDate)}',
+                  ),
+                  _InfoPill(label: item.action.typeLabel),
+                  _StatusDropdown(
+                    isOk: item.action.isOk,
+                    isSaving: isSaving,
+                    onChanged: onStatusChanged,
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              _InfoPill(label: 'Ticket #${item.ticket.id}'),
-              _InfoPill(
-                label: 'Deadline ${formatOvaDate(item.action.dueDate)}',
-              ),
-              _InfoPill(label: item.action.typeLabel),
-              _StatusDropdown(
-                isOk: item.action.isOk,
-                isSaving: isSaving,
-                onChanged: onStatusChanged,
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -646,10 +802,14 @@ class _TableHeaderLabel extends StatelessWidget {
 }
 
 class _ActionEmptyState extends StatelessWidget {
-  const _ActionEmptyState();
+  const _ActionEmptyState({required this.scope});
+
+  final _ActionScope scope;
 
   @override
   Widget build(BuildContext context) {
+    final isAllScope = scope == _ActionScope.all;
+
     return Container(
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
@@ -657,17 +817,25 @@ class _ActionEmptyState extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: const Color(0xFFDCE6C7)),
       ),
-      child: const Column(
+      child: Column(
         children: [
-          Icon(Icons.task_alt_rounded, size: 44, color: Color(0xFF6B8F2A)),
-          SizedBox(height: 14),
-          Text(
-            'Je hebt geen openstaande acties',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          const Icon(
+            Icons.task_alt_rounded,
+            size: 44,
+            color: Color(0xFF6B8F2A),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 14),
           Text(
-            'Zodra een opvolgactie aan jou is toegewezen, verschijnt ze hier automatisch.',
+            isAllScope
+                ? 'Geen openstaande OVA-acties'
+                : 'Je hebt geen openstaande acties',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            isAllScope
+                ? 'Zodra er een opvolgactie op een open OVA-ticket staat, verschijnt ze hier automatisch.'
+                : 'Zodra een opvolgactie aan jou is toegewezen, verschijnt ze hier automatisch.',
             textAlign: TextAlign.center,
           ),
         ],

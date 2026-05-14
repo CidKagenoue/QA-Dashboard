@@ -493,6 +493,9 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // ── Algemeen ──────────────────────────────────────────
+        _buildSectionTitle('Algemeen'),
+        const SizedBox(height: 12),
         _buildField(
           'Type OVA',
           _editing
@@ -511,17 +514,26 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
               : _buildReadOnlyText(_ovaType ?? '-'),
         ),
         const SizedBox(height: 16),
-        
         _buildField(
           'Datum vaststelling',
           _buildReadOnlyText(
-            _findingDate != null 
-                ? formatOvaDateTime(_findingDate!) 
+            _findingDate != null
+                ? formatOvaDateTime(_findingDate!)
                 : formatOvaDateTime(ticket.createdAt),
           ),
         ),
         const SizedBox(height: 16),
-        
+        _buildField(
+          'Redenen',
+          _buildReadOnlyText(
+            ticket.reasons.isEmpty ? '-' : ticket.reasons.join(', '),
+          ),
+        ),
+        if (ticket.otherReason?.trim().isNotEmpty == true) ...[
+          const SizedBox(height: 16),
+          _buildField('Andere reden', _buildReadOnlyText(ticket.otherReason!.trim())),
+        ],
+        const SizedBox(height: 16),
         _buildField(
           'Omschrijving incident',
           _editing
@@ -530,7 +542,143 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
                   maxLines: 4,
                   decoration: _inputDecoration(),
                 )
-              : _buildReadOnlyText(_incidentController.text.isEmpty ? '-' : _incidentController.text),
+              : _buildReadOnlyText(
+                  _incidentController.text.isEmpty ? '-' : _incidentController.text,
+                ),
+        ),
+
+        const SizedBox(height: 28),
+        const Divider(color: Color(0xFFE4E9DD)),
+        const SizedBox(height: 20),
+
+        // ── Oorzakenanalyse ───────────────────────────────────
+        _buildSectionTitle('Oorzakenanalyse'),
+        const SizedBox(height: 12),
+        _buildField(
+          'Methode',
+          _editing
+              ? DropdownButtonFormField<String?>(
+                  initialValue: _causeMethod,
+                  decoration: _inputDecoration(),
+                  items: const [
+                    DropdownMenuItem(value: null, child: Text('Niet ingevuld')),
+                    DropdownMenuItem(value: '5x Why', child: Text('5x Why')),
+                    DropdownMenuItem(value: 'Ishikawa', child: Text('Ishikawa')),
+                    DropdownMenuItem(value: 'FMEA', child: Text('FMEA')),
+                  ],
+                  onChanged: (value) => setState(() => _causeMethod = value),
+                )
+              : _buildReadOnlyText(_causeMethod ?? '-'),
+        ),
+        const SizedBox(height: 16),
+        _buildField(
+          'Notities',
+          _editing
+              ? TextField(
+                  controller: _causeNotesController,
+                  maxLines: 4,
+                  decoration: _inputDecoration(),
+                )
+              : _buildReadOnlyText(
+                  _causeNotesController.text.isEmpty ? '-' : _causeNotesController.text,
+                ),
+        ),
+
+        const SizedBox(height: 28),
+        const Divider(color: Color(0xFFE4E9DD)),
+        const SizedBox(height: 20),
+
+        // ── Opvolgacties ──────────────────────────────────────
+        _buildSectionTitle('Opvolgacties'),
+        const SizedBox(height: 12),
+        if (ticket.actions.isEmpty)
+          _buildReadOnlyText('-')
+        else
+          ...ticket.actions.map((action) => _buildActionCard(action)),
+
+        const SizedBox(height: 28),
+        const Divider(color: Color(0xFFE4E9DD)),
+        const SizedBox(height: 20),
+
+        // ── Effectiviteit ─────────────────────────────────────
+        _buildSectionTitle('Effectiviteit'),
+        const SizedBox(height: 12),
+        _buildField(
+          'Datum effectiviteit',
+          _editing
+              ? _buildReadOnlyText(_effectivenessDate != null
+                  ? formatOvaDateTime(_effectivenessDate!)
+                  : '-')
+              : _buildReadOnlyText(_effectivenessDate != null
+                  ? formatOvaDateTime(_effectivenessDate!)
+                  : '-'),
+        ),
+        const SizedBox(height: 16),
+        _buildField(
+          'Notities effectiviteit',
+          _editing
+              ? TextField(
+                  controller: _effectivenessNotesController,
+                  maxLines: 3,
+                  decoration: _inputDecoration(),
+                )
+              : _buildReadOnlyText(
+                  _effectivenessNotesController.text.isEmpty
+                      ? '-'
+                      : _effectivenessNotesController.text,
+                ),
+        ),
+
+        if (ticket.isClosed) ...[
+          const SizedBox(height: 28),
+          const Divider(color: Color(0xFFE4E9DD)),
+          const SizedBox(height: 20),
+
+          // ── Afsluiting ────────────────────────────────────
+          _buildSectionTitle('Afsluiting'),
+          const SizedBox(height: 12),
+          _buildField(
+            'Gesloten op',
+            _buildReadOnlyText(
+              ticket.closedAt != null ? formatOvaDateTime(ticket.closedAt!) : '-',
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildField(
+            'Gesloten door',
+            _buildReadOnlyText(ticket.closedBy?.displayName ?? '-'),
+          ),
+          const SizedBox(height: 16),
+          _buildField(
+            'Sluitingsnotities',
+            _buildReadOnlyText(ticket.closureNotes?.trim().isEmpty == true
+                ? '-'
+                : ticket.closureNotes ?? '-'),
+          ),
+        ],
+
+        const SizedBox(height: 28),
+        const Divider(color: Color(0xFFE4E9DD)),
+        const SizedBox(height: 20),
+
+        // ── Meta ──────────────────────────────────────────────
+        _buildSectionTitle('Meta'),
+        const SizedBox(height: 12),
+        _buildField('Aangemaakt door', _buildReadOnlyText(ticket.createdBy.displayName)),
+        const SizedBox(height: 16),
+        _buildField(
+          'Aangemaakt op',
+          _buildReadOnlyText(formatOvaDateTime(ticket.createdAt)),
+        ),
+        const SizedBox(height: 16),
+        _buildField(
+          'Laatst bewerkt door',
+          _buildReadOnlyText(ticket.lastEditedBy.displayName),
+        ),
+        const SizedBox(height: 16),
+        _buildField(
+          'Laatst bewerkt op',
+          _buildReadOnlyText(formatOvaDateTime(ticket.updatedAt)),
         ),
       ],
     );
@@ -551,6 +699,84 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
         const SizedBox(height: 6),
         child,
       ],
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        color: Color(0xFF6B7A62),
+        letterSpacing: 0.4,
+      ),
+    );
+  }
+
+  Widget _buildActionCard(OvaFollowUpAction action) {
+    final isOk = action.isOk;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isOk ? const Color(0xFFEAF4D9) : const Color(0xFFFFE1DD),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isOk ? const Color(0xFF98C74D) : const Color(0xFFF4A49E),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  action.typeLabel,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: isOk ? const Color(0xFF6F972D) : const Color(0xFFC43C33),
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Text(
+                isOk ? 'OK' : 'NOK',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: isOk ? const Color(0xFF6F972D) : const Color(0xFFC43C33),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            action.description,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF243022),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Verantwoordelijke: ${action.assigneeLabel}',
+            style: const TextStyle(fontSize: 12, color: Color(0xFF586154)),
+          ),
+          Text(
+            'Vervaldatum: ${formatOvaDate(action.dueDate)}',
+            style: const TextStyle(fontSize: 12, color: Color(0xFF586154)),
+          ),
+        ],
+      ),
     );
   }
 

@@ -558,25 +558,15 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
     );
   }
 
-  Widget _buildSelectedTable() {
+Widget _buildSelectedTable() {
     return _TicketTable(
-      minWidth: 1560,
+      minWidth: 760,
       columns: const [
         _TableColumnData(label: 'ID', flex: 6),
-        _TableColumnData(label: 'Status', flex: 9),
-        _TableColumnData(label: 'Type OVA', flex: 9),
-        _TableColumnData(label: 'Datum vaststelling', flex: 13),
-        _TableColumnData(label: 'Omschrijving', flex: 34),
-        _TableColumnData(label: 'Aanleiding', flex: 24),
-        _TableColumnData(label: 'Oorzakenanalyse', flex: 18),
-        _TableColumnData(
-          label: 'Opvolgacties',
-          flex: 12,
-          alignment: Alignment.center,
-        ),
-        _TableColumnData(label: 'Effectiviteit', flex: 14),
-        _TableColumnData(label: 'Laatst bewerkt', flex: 22),
-        _TableColumnData(label: 'Afsluiting', flex: 18),
+        _TableColumnData(label: 'Status', flex: 10),
+        _TableColumnData(label: 'Type OVA', flex: 10),
+        _TableColumnData(label: 'Datum vaststelling', flex: 14),
+        _TableColumnData(label: 'Omschrijving', flex: 60),
       ],
       rows: List<Widget>.generate(_filteredTickets.length, (index) {
         final ticket = _filteredTickets[index];
@@ -592,54 +582,29 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
               ),
             ),
             _TableCellData(
-              flex: 9,
+              flex: 10,
               child: _TicketStatusChip(label: _sectionStatusLabel(ticket)),
             ),
             _TableCellData(
-              flex: 9,
+              flex: 10,
               child: _OvaTypeChip(label: _ticketTypeLabel(ticket)),
             ),
             _TableCellData(
-              flex: 13,
+              flex: 14,
               child: _CellText(
                 formatOvaDate(ticket.findingDate ?? ticket.updatedAt),
               ),
             ),
             _TableCellData(
-              flex: 34,
+              flex: 60,
               child: _CellText(_ticketDescription(ticket), emphasized: true),
-            ),
-            _TableCellData(flex: 24, child: _CellText(_reasonsLabel(ticket))),
-            _TableCellData(
-              flex: 18,
-              child: _CellText(_causeAnalysisLabel(ticket)),
-            ),
-            _TableCellData(
-              flex: 12,
-              alignment: Alignment.center,
-              child: Text(
-                _actionProgressLabel(ticket),
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-            ),
-            _TableCellData(
-              flex: 14,
-              child: _CellText(_effectivenessLabel(ticket)),
-            ),
-            _TableCellData(
-              flex: 22,
-              child: _CellText(_lastEditedLabel(ticket)),
-            ),
-            _TableCellData(
-              flex: 18,
-              child: _CellText(_closedInfoLabel(ticket)),
             ),
           ],
         );
       }),
     );
   }
-}
+} 
 
 // ---------------------------------------------------------------------------
 // Sectie tabs

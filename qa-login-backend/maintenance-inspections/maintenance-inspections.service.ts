@@ -211,7 +211,7 @@ export class MaintenanceInspectionsService {
       selfContact: dto.selfContact ?? false,
       lastInspectionDate: this.parseDate(dto.lastInspectionDate, 'lastInspectionDate'),
       dueDate: dueDateComputed!,
-      status: dto.status?.trim() || 'Open',
+      status: dto.status?.trim() || null,
       notes: dto.notes?.trim() || null,
     };
   }

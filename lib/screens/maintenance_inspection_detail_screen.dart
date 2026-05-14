@@ -49,7 +49,7 @@ class _MaintenanceInspectionDetailScreenState
   String _inspectionType = 'Kalibratie';
   String _frequencyUnit = 'Jaar';
   bool _selfContact = false;
-  String _status = 'Open';
+  String? _status;
   DateTime? _lastInspectionDate;
   DateTime? _dueDate;
   final Set<int> _selectedBranchIds = <int>{};
@@ -65,12 +65,14 @@ class _MaintenanceInspectionDetailScreenState
     }
     _loadBranches();
     _equipmentController.addListener(() {
-      if (_equipmentError != null && _equipmentController.text.trim().isNotEmpty) {
+      if (_equipmentError != null &&
+          _equipmentController.text.trim().isNotEmpty) {
         setState(() => _equipmentError = null);
       }
     });
     _inspectionInstitutionController.addListener(() {
-      if (_inspectionInstitutionError != null && _inspectionInstitutionController.text.trim().isNotEmpty) {
+      if (_inspectionInstitutionError != null &&
+          _inspectionInstitutionController.text.trim().isNotEmpty) {
         setState(() => _inspectionInstitutionError = null);
       }
     });
@@ -175,13 +177,14 @@ class _MaintenanceInspectionDetailScreenState
         ? inspection.inspectionType
         : 'Kalibratie';
     _selfContact = inspection.selfContact;
-    _status = inspection.status?.trim().isNotEmpty == true
-        ? inspection.status!.trim()
-        : 'Open';
+    // Map backend status to frontend Dutch values
+    _status = _mapBackendStatusToFrontend(inspection.status);
     _lastInspectionDate = inspection.lastInspectionDate;
     _dueDate = inspection.dueDate;
 
-    final (frequencyValue, frequencyUnit) = _parseFrequency(inspection.frequency);
+    final (frequencyValue, frequencyUnit) = _parseFrequency(
+      inspection.frequency,
+    );
     _frequencyValueController.text = frequencyValue.toString();
     _frequencyUnit = frequencyUnit;
 
@@ -235,13 +238,15 @@ class _MaintenanceInspectionDetailScreenState
         : _inspectionType.trim();
     form.inspectionInstitution = _inspectionInstitutionController.text.trim();
     form.contactInfo = _contactInfoController.text.trim();
-    form.frequencyValue = int.tryParse(_frequencyValueController.text.trim()) ?? 1;
+    form.frequencyValue =
+        int.tryParse(_frequencyValueController.text.trim()) ?? 1;
     form.frequencyUnit = _frequencyUnit;
     form.selfContact = _selfContact;
     form.selectedBranchIds = _resolvedBranchIds();
     form.lastInspectionDate = _lastInspectionDate;
     form.nextInspectionDate = _dueDate;
-    form.status = _status.trim().isEmpty ? 'Open' : _status.trim();
+    // Map frontend Dutch status back to backend English values
+    form.status = _mapFrontendStatusToBackend(_status);
     form.notes = _notesController.text.trim().isEmpty
         ? null
         : _notesController.text.trim();
@@ -265,8 +270,10 @@ class _MaintenanceInspectionDetailScreenState
   }
 
   (int, String) _parseFrequency(String value) {
-    final match = RegExp(r'^Elke\s+(\d+)\s+(.+)$', caseSensitive: false)
-        .firstMatch(value.trim());
+    final match = RegExp(
+      r'^Elke\s+(\d+)\s+(.+)$',
+      caseSensitive: false,
+    ).firstMatch(value.trim());
     if (match == null) {
       return (1, 'Jaar');
     }
@@ -274,6 +281,69 @@ class _MaintenanceInspectionDetailScreenState
     final frequencyValue = int.tryParse(match.group(1) ?? '') ?? 1;
     final frequencyUnit = (match.group(2) ?? 'Jaar').trim();
     return (frequencyValue, frequencyUnit.isEmpty ? 'Jaar' : frequencyUnit);
+  }
+
+  Future<void> _showAddInspectionTypeDialog() async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Nieuw keuringstype toevoegen'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            hintText: 'Bijvoorbeeld: Kwaliteitscontrole, Inspectie, etc.',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuleren'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final value = controller.text.trim();
+              if (value.isNotEmpty) {
+                Navigator.pop(context, value);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF8CC63F),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Toevoegen'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result.isNotEmpty && mounted) {
+      setState(() {
+        _inspectionType = result;
+      });
+    }
+    controller.dispose();
+  }
+
+  List<DropdownMenuItem<String>> _inspectionTypeItems() {
+    const defaultTypes = ['Kalibratie', 'Controle', 'Revisie'];
+    final types = <String>[
+      ...defaultTypes,
+      if (_inspectionType.trim().isNotEmpty &&
+          !defaultTypes.contains(_inspectionType))
+        _inspectionType,
+    ];
+
+    return [
+      ...types.map(
+        (type) => DropdownMenuItem(value: type, child: Text(type)),
+      ),
+      const DropdownMenuItem(
+        value: 'new',
+        child: Text('+ Nieuw type toevoegen'),
+      ),
+    ];
   }
 
   Future<void> _save() async {
@@ -284,6 +354,7 @@ class _MaintenanceInspectionDetailScreenState
 
     final equipment = _equipmentController.text.trim();
     final inspectionInstitution = _inspectionInstitutionController.text.trim();
+
     final missing = <String>[];
     if (equipment.isEmpty) missing.add('Toestel / Installatie');
     if (inspectionInstitution.isEmpty) missing.add('Naam keurinstelling');
@@ -291,9 +362,15 @@ class _MaintenanceInspectionDetailScreenState
 
     if (missing.isNotEmpty) {
       setState(() {
-        _equipmentError = missing.contains('Toestel / Installatie') ? 'Verplicht' : null;
-        _inspectionInstitutionError = missing.contains('Naam keurinstelling') ? 'Verplicht' : null;
-        _branchesError = missing.contains('Vestiging') ? 'Kies minstens één vestiging' : null;
+        _equipmentError = missing.contains('Toestel / Installatie')
+            ? 'Verplicht'
+            : null;
+        _inspectionInstitutionError = missing.contains('Naam keurinstelling')
+            ? 'Verplicht'
+            : null;
+        _branchesError = missing.contains('Vestiging')
+            ? 'Kies minstens één vestiging'
+            : null;
       });
       return;
     }
@@ -324,7 +401,9 @@ class _MaintenanceInspectionDetailScreenState
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString().replaceFirst('Exception: ', ''))),
+        SnackBar(
+          content: Text(error.toString().replaceFirst('Exception: ', '')),
+        ),
       );
     } finally {
       if (mounted) {
@@ -345,7 +424,9 @@ class _MaintenanceInspectionDetailScreenState
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Onderhoud/keuring verwijderen'),
-        content: const Text('Weet je zeker dat je dit onderhouds- of keuringsitem wilt verwijderen?'),
+        content: const Text(
+          'Weet je zeker dat je dit onderhouds- of keuringsitem wilt verwijderen?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -373,7 +454,10 @@ class _MaintenanceInspectionDetailScreenState
 
     try {
       final token = await context.read<AuthService>().getValidAccessToken();
-      await MaintenanceApiService.deleteInspection(token: token, id: inspection.id);
+      await MaintenanceApiService.deleteInspection(
+        token: token,
+        id: inspection.id,
+      );
       if (!mounted) {
         return;
       }
@@ -386,7 +470,9 @@ class _MaintenanceInspectionDetailScreenState
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString().replaceFirst('Exception: ', ''))),
+        SnackBar(
+          content: Text(error.toString().replaceFirst('Exception: ', '')),
+        ),
       );
     } finally {
       if (mounted) {
@@ -401,53 +487,63 @@ class _MaintenanceInspectionDetailScreenState
   Widget build(BuildContext context) {
     final inspection = _inspection;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _isLoadingBranches
-                  ? const Center(child: CircularProgressIndicator())
-              : _error != null
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              _error!,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: Colors.red[700]),
-                            ),
-                            const SizedBox(height: 12),
-                            ElevatedButton(
-                              onPressed: _loadInspection,
-                              child: const Text('Opnieuw proberen'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                  : inspection == null
-                      ? const Center(child: Text('Pagina nog niet zichtbaar'))
-                      : Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
-                          child: SizedBox.expand(
-                            child: _buildMainCard(context, inspection),
+    return Theme(
+      data: Theme.of(context).copyWith(
+        highlightColor: const Color(0xFFEAF4D9),
+        splashColor: const Color(0x338CC63F),
+        hoverColor: const Color(0x228CC63F),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _isLoadingBranches
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _error!,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.red[700]),
                           ),
-                        ),
-        ),
-      ],
+                          const SizedBox(height: 12),
+                          ElevatedButton(
+                            onPressed: _loadInspection,
+                            child: const Text('Opnieuw proberen'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : inspection == null
+                ? const Center(child: Text('Pagina nog niet zichtbaar'))
+                : Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+                    child: SizedBox.expand(
+                      child: _buildMainCard(context, inspection),
+                    ),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildMainCard(BuildContext context, MaintenanceInspection inspection) {
+  Widget _buildMainCard(
+    BuildContext context,
+    MaintenanceInspection inspection,
+  ) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFE4E9DD)),
       ),
       padding: const EdgeInsets.all(18),
@@ -522,7 +618,9 @@ class _MaintenanceInspectionDetailScreenState
                       child: const Text('Annuleren'),
                     ),
                   TextButton.icon(
-                    onPressed: (_isDeleting || _isSaving) ? null : _confirmDelete,
+                    onPressed: (_isDeleting || _isSaving)
+                        ? null
+                        : _confirmDelete,
                     icon: const Icon(Icons.delete_outline, size: 18),
                     label: const Text('Verwijderen'),
                     style: TextButton.styleFrom(
@@ -530,7 +628,9 @@ class _MaintenanceInspectionDetailScreenState
                     ),
                   ),
                   ElevatedButton.icon(
-                    onPressed: _isDeleting ? null : (_editing ? _save : _startEditing),
+                    onPressed: _isDeleting
+                        ? null
+                        : (_editing ? _save : _startEditing),
                     icon: _isSaving
                         ? const SizedBox(
                             width: 18,
@@ -540,12 +640,20 @@ class _MaintenanceInspectionDetailScreenState
                               color: Colors.white,
                             ),
                           )
-                        : Icon(_editing ? Icons.save_outlined : Icons.edit_outlined, size: 18),
+                        : Icon(
+                            _editing
+                                ? Icons.save_outlined
+                                : Icons.edit_outlined,
+                            size: 18,
+                          ),
                     label: Text(_editing ? 'Opslaan' : 'Bewerken'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF8CC63F),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(999),
                       ),
@@ -564,7 +672,7 @@ class _MaintenanceInspectionDetailScreenState
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFBFCF8),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(18),
                   border: Border.all(color: const Color(0xFFE4E9DD)),
                 ),
                 child: Column(
@@ -586,7 +694,9 @@ class _MaintenanceInspectionDetailScreenState
                         const SizedBox(height: 10),
                         _Pill(
                           label: _statusLabel(inspection),
-                          background: _statusColor(inspection).withValues(alpha: 0.12),
+                          background: _statusColor(
+                            inspection,
+                          ).withValues(alpha: 0.12),
                           foreground: _statusColor(inspection),
                         ),
                       ],
@@ -596,72 +706,118 @@ class _MaintenanceInspectionDetailScreenState
                     const SizedBox(height: 12),
                     LayoutBuilder(
                       builder: (context, constraints) {
-                    final wide = constraints.maxWidth >= 760;
-                    // On wide screens show three fields per row, otherwise full width
-                    final columnWidth = wide ? (constraints.maxWidth - 40) / 3 : constraints.maxWidth;
+                        final wide = constraints.maxWidth >= 760;
+                        // On wide screens show three fields per row, otherwise full width
+                        final columnWidth = wide
+                            ? (constraints.maxWidth - 40) / 3
+                            : constraints.maxWidth;
 
-                    Widget field(
-                      String label,
-                      Widget child, {
-                      double? width,
-                    }) {
-                      return SizedBox(
-                        width: width ?? columnWidth,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              label,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                color: Color(0xFF9CA39A),
-                                height: 1.2,
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            child,
-                            if (label == 'Vestigingen' && _branchesError != null)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 6.0),
-                                child: Text(
-                                  _branchesError!,
-                                  style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+                        Widget field(
+                          String label,
+                          Widget child, {
+                          double? width,
+                        }) {
+                          return SizedBox(
+                            width: width ?? columnWidth,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  label,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    color: Color(0xFF9CA39A),
+                                    height: 1.2,
+                                  ),
                                 ),
+                                const SizedBox(height: 3),
+                                child,
+                                if (label == 'Vestigingen' &&
+                                    _branchesError != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 6.0),
+                                    child: Text(
+                                      _branchesError!,
+                                      style: const TextStyle(
+                                        color: Colors.redAccent,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                const SizedBox(height: 8),
+                              ],
+                            ),
+                          );
+                        }
+
+                        return Wrap(
+                          spacing: 20,
+                          runSpacing: 6,
+                          children: [
+                            // First row: Keurinstelling | Vestigingen | Frequentie
+                            field(
+                              'Keurinstelling',
+                              _buildEditableField(
+                                _inspectionInstitutionController,
                               ),
-                            const SizedBox(height: 8),
+                              width: columnWidth,
+                            ),
+                            field(
+                              'Vestigingen',
+                              _buildBranchField(),
+                              width: columnWidth,
+                            ),
+                            field(
+                              'Frequentie',
+                              _buildFrequencyField(),
+                              width: columnWidth,
+                            ),
+
+                            // Second row: Laatste keuring | Keuren voor | Keurtype
+                            field(
+                              'Laatste keuring',
+                              _buildDateField(
+                                value: _lastInspectionDate,
+                                onChanged: (date) =>
+                                    setState(() => _lastInspectionDate = date),
+                              ),
+                              width: columnWidth,
+                            ),
+                            field(
+                              'Keuren voor',
+                              _buildDateField(
+                                value: _dueDate,
+                                onChanged: (date) =>
+                                    setState(() => _dueDate = date),
+                              ),
+                              width: columnWidth,
+                            ),
+                            field(
+                              'Keurtype',
+                              _buildInspectionTypeField(),
+                              width: columnWidth,
+                            ),
+
+                            // Third row: Contactinfo | Zelf contact | Status
+                            field(
+                              'Contactinfo',
+                              _buildEditableField(_contactInfoController),
+                              width: columnWidth,
+                            ),
+                            field(
+                              'Zelf contact',
+                              _buildSelfContactField(),
+                              width: columnWidth,
+                            ),
+                            field(
+                              'Status',
+                              _buildStatusField(),
+                              width: columnWidth,
+                            ),
                           ],
-                        ),
-                      );
-                    }
-
-                      return Wrap(
-                        spacing: 20,
-                        runSpacing: 6,
-                        children: [
-                          // First row: Keurinstelling | Vestigingen | Frequentie
-                          field('Keurinstelling', _buildEditableField(_inspectionInstitutionController), width: columnWidth),
-                          field('Vestigingen', _buildBranchField(), width: columnWidth),
-                          field('Frequentie', _buildFrequencyField(), width: columnWidth),
-
-                          // Second row: Laatste keuring | Keuren voor | Keurtype
-                          field('Laatste keuring', _buildDateField(
-                            value: _lastInspectionDate,
-                            onChanged: (date) => setState(() => _lastInspectionDate = date),
-                          ), width: columnWidth),
-                          field('Keuren voor', _buildDateField(
-                            value: _dueDate,
-                            onChanged: (date) => setState(() => _dueDate = date),
-                          ), width: columnWidth),
-                          field('Keurtype', _buildInspectionTypeField(), width: columnWidth),
-
-                          // Third row: Contactinfo | Zelf contact | Status
-                          field('Contactinfo', _buildEditableField(_contactInfoController), width: columnWidth),
-                          field('Zelf contact', _buildSelfContactField(), width: columnWidth),
-                          field('Status', _buildStatusField(), width: columnWidth),
-                        ],
-                      );
-                    },
+                        );
+                      },
                     ),
                     const SizedBox(height: 8),
                     const Text(
@@ -684,7 +840,10 @@ class _MaintenanceInspectionDetailScreenState
     );
   }
 
-  Widget _buildEditableField(TextEditingController controller, {int maxLines = 1}) {
+  Widget _buildEditableField(
+    TextEditingController controller, {
+    int maxLines = 1,
+  }) {
     if (!_editing) {
       return _buildReadOnlyBox(controller.text);
     }
@@ -692,23 +851,31 @@ class _MaintenanceInspectionDetailScreenState
     return TextField(
       controller: controller,
       maxLines: maxLines,
-      decoration: InputDecoration(
-        isDense: true,
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFFDDE3D2)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFF8CC63F)),
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      ).copyWith(
-        errorText: controller == _equipmentController ? _equipmentError : (controller == _inspectionInstitutionController ? _inspectionInstitutionError : null),
-      ),
+      decoration:
+          InputDecoration(
+            isDense: true,
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Color(0xFFDDE3D2)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Color(0xFF8CC63F)),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
+            ),
+          ).copyWith(
+            errorText: controller == _equipmentController
+                ? _equipmentError
+                : (controller == _inspectionInstitutionController
+                      ? _inspectionInstitutionError
+                      : null),
+          ),
     );
   }
 
@@ -720,28 +887,33 @@ class _MaintenanceInspectionDetailScreenState
     return DropdownButtonFormField<String>(
       initialValue: _inspectionType,
       isExpanded: true,
+      borderRadius: BorderRadius.circular(16),
+      dropdownColor: Colors.white,
       decoration: InputDecoration(
         isDense: true,
         filled: true,
         fillColor: Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFFDDE3D2)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: Color(0xFF8CC63F)),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Color(0xFF8CC63F)),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
       ),
-      items: const [
-        DropdownMenuItem(value: 'Kalibratie', child: Text('Kalibratie')),
-        DropdownMenuItem(value: 'Controle', child: Text('Controle')),
-        DropdownMenuItem(value: 'Revisie', child: Text('Revisie')),
-      ],
+      items: _inspectionTypeItems(),
       onChanged: (value) {
         if (value == null) {
+          return;
+        }
+        if (value == 'new') {
+          _showAddInspectionTypeDialog();
           return;
         }
         setState(() {
@@ -767,16 +939,21 @@ class _MaintenanceInspectionDetailScreenState
               isDense: true,
               filled: true,
               fillColor: Colors.white,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(14),
                 borderSide: const BorderSide(color: Color(0xFFDDE3D2)),
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(14),
                 borderSide: const BorderSide(color: Color(0xFF8CC63F)),
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 12,
+              ),
             ),
           ),
         ),
@@ -786,20 +963,27 @@ class _MaintenanceInspectionDetailScreenState
           child: DropdownButtonFormField<String>(
             initialValue: _frequencyUnit,
             isExpanded: true,
+            borderRadius: BorderRadius.circular(16),
+            dropdownColor: Colors.white,
             decoration: InputDecoration(
               isDense: true,
               filled: true,
               fillColor: Colors.white,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(14),
                 borderSide: const BorderSide(color: Color(0xFFDDE3D2)),
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(14),
                 borderSide: const BorderSide(color: Color(0xFF8CC63F)),
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 12,
+              ),
             ),
             items: const [
               DropdownMenuItem(value: 'Jaar', child: Text('Jaar')),
@@ -848,16 +1032,19 @@ class _MaintenanceInspectionDetailScreenState
           isDense: true,
           filled: true,
           fillColor: Colors.white,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(14),
             borderSide: const BorderSide(color: Color(0xFFDDE3D2)),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(14),
             borderSide: const BorderSide(color: Color(0xFF8CC63F)),
           ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 12,
+          ),
         ),
         child: Text(displayValue),
       ),
@@ -866,7 +1053,9 @@ class _MaintenanceInspectionDetailScreenState
 
   Widget _buildBranchField() {
     if (!_editing) {
-      return _buildReadOnlyBox(_inspection == null ? '-' : _inspection!.locations.join(', '));
+      return _buildReadOnlyBox(
+        _inspection == null ? '-' : _inspection!.locations.join(', '),
+      );
     }
 
     if (_branches.isEmpty) {
@@ -877,7 +1066,7 @@ class _MaintenanceInspectionDetailScreenState
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFDDE3D2)),
       ),
       child: Wrap(
@@ -888,11 +1077,17 @@ class _MaintenanceInspectionDetailScreenState
           return FilterChip(
             label: Text(branch.name),
             selected: selected,
+            selectedColor: const Color(0xFFEAF4D9),
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(999),
+            ),
             onSelected: (isSelected) {
               setState(() {
                 if (isSelected) {
                   _selectedBranchIds.add(branch.id);
-                  if (_branchesError != null && _selectedBranchIds.isNotEmpty) _branchesError = null;
+                  if (_branchesError != null && _selectedBranchIds.isNotEmpty)
+                    _branchesError = null;
                 } else {
                   _selectedBranchIds.remove(branch.id);
                 }
@@ -906,35 +1101,40 @@ class _MaintenanceInspectionDetailScreenState
 
   Widget _buildStatusField() {
     if (!_editing) {
-      return _buildReadOnlyBox(_status);
+      return _buildReadOnlyBox(_getStatusLabel(_status));
     }
 
-    return DropdownButtonFormField<String>(
+    return DropdownButtonFormField<String?>(
       initialValue: _status,
       isExpanded: true,
       decoration: InputDecoration(
         isDense: true,
         filled: true,
         fillColor: Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: Color(0xFFDDE3D2)),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: Color(0xFF8CC63F)),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
       ),
       items: const [
-        DropdownMenuItem(value: 'Open', child: Text('Open')),
-        DropdownMenuItem(value: 'Closed', child: Text('Gesloten')),
+        DropdownMenuItem(value: null, child: Text('Geen')),
+        DropdownMenuItem(value: 'In uitvoering', child: Text('In uitvoering')),
+        DropdownMenuItem(
+          value: 'Nog niet uitgevoerd',
+          child: Text('Nog niet uitgevoerd'),
+        ),
+        DropdownMenuItem(value: 'Uitgevoerd', child: Text('Uitgevoerd')),
       ],
       onChanged: (value) {
-        if (value == null) {
-          return;
-        }
         setState(() {
           _status = value;
         });
@@ -971,7 +1171,9 @@ class _MaintenanceInspectionDetailScreenState
   Widget _buildNotesField() {
     if (!_editing) {
       final notes = _notesController.text.trim();
-      return _buildReadOnlyBox(notes.isEmpty ? 'Geen opmerkingen toegevoegd.' : notes);
+      return _buildReadOnlyBox(
+        notes.isEmpty ? 'Geen opmerkingen toegevoegd.' : notes,
+      );
     }
 
     return TextField(
@@ -981,16 +1183,19 @@ class _MaintenanceInspectionDetailScreenState
         isDense: true,
         filled: true,
         fillColor: Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: Color(0xFFDDE3D2)),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: Color(0xFF8CC63F)),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
       ),
     );
   }
@@ -1029,24 +1234,96 @@ class _MaintenanceInspectionDetailScreenState
   }
 
   String _statusLabel(MaintenanceInspection inspection) {
-    final status = inspection.status?.trim();
-    if (status != null && status.isNotEmpty) {
-      return status;
+    // Map backend English status to Dutch for display
+    final mappedStatus = _mapBackendStatusToFrontend(inspection.status);
+    if (mappedStatus != null && mappedStatus.isNotEmpty) {
+      return mappedStatus;
     }
-    return inspection.dueDate.isBefore(DateTime.now()) ? 'Te laat' : 'Open';
+    return 'Geen';
+  }
+
+  String _getStatusLabel(String? status) {
+    if (status?.trim().isEmpty ?? true) {
+      return 'Geen';
+    }
+
+    switch (status!.trim().toLowerCase()) {
+      case 'none':
+      case 'geen':
+        return 'Geen';
+      case 'open':
+        return 'In uitvoering';
+      case 'closed':
+      case 'executed':
+      case 'done':
+        return 'Uitgevoerd';
+      case 'pending':
+      case 'not executed':
+      case 'nog niet uitgevoerd':
+        return 'Nog niet uitgevoerd';
+      default:
+        return status.trim();
+    }
+  }
+
+  /// Map English backend status to Dutch frontend values
+  String? _mapBackendStatusToFrontend(String? status) {
+    if (status?.trim().isEmpty ?? true) {
+      return null;
+    }
+
+    final trimmedStatus = status!.trim().toLowerCase();
+    switch (trimmedStatus) {
+      case 'none':
+      case 'geen':
+        return 'Geen';
+      case 'open':
+        return 'In uitvoering';
+      case 'closed':
+      case 'executed':
+      case 'done':
+        return 'Uitgevoerd';
+      case 'pending':
+      case 'not executed':
+      case 'nog niet uitgevoerd':
+        return 'Nog niet uitgevoerd';
+      default:
+        // If it's already a Dutch value, return it as is
+        return status;
+    }
+  }
+
+  /// Map Dutch frontend status to English backend values
+  String? _mapFrontendStatusToBackend(String? status) {
+    if (status?.trim().isEmpty ?? true) {
+      return null;
+    }
+
+    final trimmedStatus = status!.trim();
+    switch (trimmedStatus) {
+      case 'In uitvoering':
+        return 'Open';
+      case 'Uitgevoerd':
+        return 'Closed';
+      case 'Nog niet uitgevoerd':
+        return 'Pending';
+      case 'Geen':
+        return null;
+      default:
+        return null;
+    }
   }
 
   Color _statusColor(MaintenanceInspection inspection) {
-    final status = _statusLabel(inspection).toLowerCase();
-    if (status.contains('te laat') || status.contains('vervallen') || status.contains('open')) {
-      if (status.contains('te laat')) {
-        return Colors.red;
-      }
-      if (status.contains('open')) {
-        return Colors.orange;
-      }
+    // Map backend English status to Dutch for color assignment
+    final mappedStatus = _mapBackendStatusToFrontend(inspection.status);
+    if (mappedStatus == 'Uitgevoerd') {
+      return Colors.green;
     }
-    return const Color(0xFF4A7A1E);
+    if (mappedStatus == 'In uitvoering') {
+      return Colors.blue;
+    }
+    return Colors.grey;
   }
 }
 

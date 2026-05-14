@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../widgets/vlotter_logo.dart';
 import 'login_screen.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
@@ -145,14 +146,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     ),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
-                  const Text(
-                    'vlotter',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+                  const VlotterLogo(color: VlotterLogoColor.white, height: 28),
                 ],
               ),
             ),

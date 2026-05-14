@@ -6,6 +6,7 @@ import '../notifications_popup.dart';
 import '../../services/notification_service.dart';
 import '../../models/notification_setting.dart' show AppNotification;
 import '../../screens/login_screen.dart';
+import '../vlotter_logo.dart';
 
 class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
@@ -18,7 +19,9 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
     return AppBar(
       backgroundColor: const Color(0xFF8BC34A),
       foregroundColor: Colors.white,
-      title: Text(title, style: const TextStyle(color: Colors.white)),
+      title: title.trim().toLowerCase() == 'vlotter'
+          ? const VlotterLogo(color: VlotterLogoColor.white, height: 28)
+          : Text(title, style: const TextStyle(color: Colors.white)),
       actions: [
         Consumer<NotificationService>(
           builder: (context, notificationService, child) {

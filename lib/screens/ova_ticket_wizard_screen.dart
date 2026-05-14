@@ -33,6 +33,13 @@ const List<String> _kReasonOptions = [
 
 const List<String> _kCauseMethodOptions = ['5 Why', 'Fishbone', 'Andere'];
 
+final ButtonStyle _wizardOutlineButtonStyle = OutlinedButton.styleFrom(
+  foregroundColor: const Color(0xFF7DBA32),
+  side: const BorderSide(color: Color(0xFFBFD9A6)),
+  shape: const StadiumBorder(),
+  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+);
+
 String _requiredLabel(String label) => '$label *';
 
 String _stepLabel(int index) {
@@ -869,6 +876,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
               },
               icon: const Icon(Icons.arrow_back_rounded),
               label: const Text('Vorige'),
+              style: _wizardOutlineButtonStyle,
             ),
           const Spacer(),
           if (_currentStep < 6) ...[
@@ -880,6 +888,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
               },
               icon: const Icon(Icons.arrow_forward_rounded),
               label: const Text('Volgende'),
+              style: _wizardOutlineButtonStyle,
             ),
             const SizedBox(width: 12),
           ],
@@ -905,6 +914,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
                   },
             icon: const Icon(Icons.arrow_back_rounded),
             label: const Text('Vorige'),
+            style: _wizardOutlineButtonStyle,
           ),
         const Spacer(),
         if (_currentStep >= 2) ...[
@@ -912,6 +922,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
             onPressed: _isSaving ? null : _saveDraft,
             icon: const Icon(Icons.save_outlined),
             label: const Text('Opslaan'),
+            style: _wizardOutlineButtonStyle,
           ),
           const SizedBox(width: 12),
         ],
@@ -1481,6 +1492,7 @@ class _EmbeddedWizardHeader extends StatelessWidget {
           onPressed: onClose,
           icon: const Icon(Icons.arrow_back_rounded),
           label: const Text('Terug'),
+          style: _wizardOutlineButtonStyle,
         ),
         const SizedBox(width: 16),
         Expanded(

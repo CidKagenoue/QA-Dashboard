@@ -1,8 +1,11 @@
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import 'package:archive/archive.dart';
 import 'dart:typed_data';
+import 'export_stub.dart'
+  if (dart.library.html) 'export_web.dart'
+  if (dart.library.io) 'export_io.dart';
+import 'package:archive/archive.dart';
 import '../models/jap_gpp_entry.dart';
 
 extension JapPriorityExt on JapPriority {
@@ -35,16 +38,23 @@ extension JapRealisationExt on JapRealisation {
 
 class JapExportService {
   /// Export a single year's JAP entries as PDF
-  static Future<void> exportJapForYear(int year, List<JapEntry> entries) async {
+  /// Export a single year's JAP entries as PDF and save to Downloads with auto-name.
+  /// Returns the saved file path or null on failure.
+  static Future<String?> exportJapForYear(int year, List<JapEntry> entries) async {
     try {
       final pdf = _generateYearPdf(year, entries);
       final pdfBytes = await pdf.save();
-      
-      // Use printing plugin to display PDF with print/save options
-      await Printing.layoutPdf(
-        onLayout: (pageFormat) async => pdfBytes,
-        name: 'JAP_$year.pdf',
-      );
+
+      final fileName = 'vlotter_jap_$year.pdf';
+
+      try {
+        final savedPath = await savePdfToDownloads(fileName, pdfBytes);
+        if (savedPath != null) return savedPath;
+      } catch (_) {}
+
+      // Fallback: open print/share dialog (best effort)
+      await Printing.layoutPdf(onLayout: (format) async => pdfBytes, name: fileName);
+      return null;
     } catch (e) {
       rethrow;
     }

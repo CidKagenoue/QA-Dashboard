@@ -2,7 +2,6 @@ import { Router, Request, Response } from 'express';
 import { NotificationType } from '@prisma/client';
 import * as multer from 'multer';
 import * as XLSX from 'xlsx';
-import { store, GppStoreEntry, JapStoreEntry } from './jap-gpp-store';
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -215,110 +214,28 @@ function normaliseYearRange(startYear: number, endYear: number): [number, number
   return [endYear, startYear];
 }
 
-function createGppFromImportRow(
-  row: unknown[],
-  indexes: Record<string, number>,
-  startYear: number,
-  endYear: number,
-): GppStoreEntry {
-  const startFromDate = parseExcelDate(row[indexes.startdatum]);
-  const endFromDate = parseExcelDate(row[indexes.einddatum]);
-
+function formatGppEntry(entry: any) {
   return {
-    id: Date.now() + Math.floor(Math.random() * 1000000),
-    startJaar: startYear,
-    eindJaar: endYear,
-    doelstellingMaatregel: readCell(row, indexes.doelstellingMaatregel),
-    domein: readCell(row, indexes.domein) || 'Vul aan',
-    risicoveld: readCell(row, indexes.risicoveld) || 'Algemeen',
-    prioriteit: parsePriority(readCell(row, indexes.prioriteit)),
-    realisatie: parseRealisatie(readCell(row, indexes.realisatie)),
-    uitvoerder: readCell(row, indexes.uitvoerder),
-    middelenBudgetWerkuren: readCell(row, indexes.middelenBudgetWerkuren),
-    startdatum: coerceDateForYear(row[indexes.startdatum], startYear, `01.01.${startYear}`),
-    einddatum: coerceDateForYear(row[indexes.einddatum], endYear, `31.12.${endYear}`),
-    opmerking: readCell(row, indexes.opmerking),
+    id: entry.id,
+    startJaar: entry.startYear,
+    eindJaar: entry.endYear,
+    doelstellingMaatregel: entry.goalMeasure,
+    domein: entry.domain?.name,
+    risicoveld: entry.riskField,
+    prioriteit: entry.priority,
+    realisatie: entry.realisation,
+    uitvoerder: entry.executor,
+    middelenBudgetWerkuren: entry.resourcesBudget,
+    startdatum: entry.startDate,
+    einddatum: entry.endDate,
+    opmerking: entry.remark,
+    comments: entry.comments?.map((c: any) => ({
+      id: c.id,
+      author: c.author,
+      text: c.text,
+      createdAt: c.createdAt.toISOString(),
+    })) ?? [],
   };
-}
-
-function buildGeneratedJapEntry(gpp: GppStoreEntry, year: number): JapStoreEntry {
-  return {
-    id: Date.now() + Math.floor(Math.random() * 1000000),
-    jaar: year,
-    doelstellingMaatregel: gpp.doelstellingMaatregel,
-    domein: gpp.domein,
-    risicoveld: gpp.risicoveld ?? 'Algemeen',
-    prioriteit: gpp.prioriteit ?? 'laag',
-    realisatie: gpp.realisatie ?? 'vul_aan',
-    uitvoerder: gpp.uitvoerder ?? '',
-    middelenBudgetWerkuren: gpp.middelenBudgetWerkuren ?? '',
-    startdatum: buildDateForYear(gpp.startdatum ?? '', year, `01.01.${year}`),
-    einddatum: buildDateForYear(gpp.einddatum ?? '', year, `31.12.${year}`),
-    opmerking: gpp.opmerking ?? '',
-    generatedFromGppId: gpp.id,
-  };
-}
-
-function buildImportedJapEntry(
-  masterGpp: GppStoreEntry,
-  row: unknown[],
-  year: number,
-  indexes: Record<string, number>,
-): JapStoreEntry {
-  const startFromDate = parseExcelDate(row[indexes.startdatum]);
-  const endFromDate = parseExcelDate(row[indexes.einddatum]);
-
-  return {
-    id: Date.now() + Math.floor(Math.random() * 1000000),
-    jaar: year,
-    doelstellingMaatregel: readCell(row, indexes.doelstellingMaatregel),
-    domein: readCell(row, indexes.domein) || masterGpp.domein,
-    risicoveld: readCell(row, indexes.risicoveld) || masterGpp.risicoveld || 'Algemeen',
-    prioriteit: parsePriority(readCell(row, indexes.prioriteit)),
-    realisatie: parseRealisatie(readCell(row, indexes.realisatie)),
-    uitvoerder: readCell(row, indexes.uitvoerder),
-    middelenBudgetWerkuren: readCell(row, indexes.middelenBudgetWerkuren),
-    startdatum: startFromDate || `01.01.${year}`,
-    einddatum: endFromDate || `31.12.${year}`,
-    opmerking: readCell(row, indexes.opmerking),
-    generatedFromGppId: masterGpp.id,
-  };
-}
-
-function syncGeneratedJapEntriesForGpp(gpp: GppStoreEntry): void {
-  const [startYear, endYear] = normaliseYearRange(gpp.startJaar, gpp.eindJaar);
-  const expectedYears = new Set<number>();
-  for (let year = startYear; year <= endYear; year += 1) {
-    expectedYears.add(year);
-  }
-
-  const existingForGpp = store.japEntries.filter((e) => e.generatedFromGppId === gpp.id);
-
-  for (const year of expectedYears) {
-    const alreadyExists = existingForGpp.some((e) => e.jaar === year);
-    if (!alreadyExists) {
-      store.japEntries.push(buildGeneratedJapEntry(gpp, year));
-    }
-  }
-
-  store.japEntries = store.japEntries
-    .filter((entry) => entry.generatedFromGppId !== gpp.id || expectedYears.has(entry.jaar))
-    .map((entry) => {
-      if (entry.generatedFromGppId !== gpp.id) return entry;
-      return {
-        ...entry,
-        doelstellingMaatregel: gpp.doelstellingMaatregel,
-        domein: gpp.domein,
-        risicoveld: gpp.risicoveld ?? entry.risicoveld,
-        prioriteit: gpp.prioriteit ?? entry.prioriteit,
-        realisatie: gpp.realisatie ?? entry.realisatie,
-        uitvoerder: gpp.uitvoerder ?? entry.uitvoerder,
-        middelenBudgetWerkuren: gpp.middelenBudgetWerkuren ?? entry.middelenBudgetWerkuren,
-        startdatum: buildDateForYear(gpp.startdatum ?? '', entry.jaar, entry.startdatum ?? `01.01.${entry.jaar}`),
-        einddatum: buildDateForYear(gpp.einddatum ?? '', entry.jaar, entry.einddatum ?? `31.12.${entry.jaar}`),
-        opmerking: gpp.opmerking ?? entry.opmerking,
-      };
-    });
 }
 
 export default function createGppRouter(
@@ -327,7 +244,74 @@ export default function createGppRouter(
 ) {
   const router = Router();
 
-  router.post('/import-excel', upload.single('file'), (req: Request, res: Response) => {
+  // Helper to sync generated JAP entries for a GPP entry
+  const syncGeneratedJapEntriesForGpp = async (gpp: any) => {
+    const [startYear, endYear] = normaliseYearRange(gpp.startYear, gpp.endYear);
+    const expectedYears = new Set<number>();
+    for (let year = startYear; year <= endYear; year += 1) {
+      expectedYears.add(year);
+    }
+
+    // Delete JAP entries that are no longer in the expected range
+    await prismaService.japGppEntry.deleteMany({
+      where: {
+        AND: [
+          { generatedFromGppId: gpp.id },
+          { year: { notIn: Array.from(expectedYears) } },
+        ],
+      },
+    });
+
+    // Create or update JAP entries for each year
+    for (const year of expectedYears) {
+      const existing = await prismaService.japGppEntry.findFirst({
+        where: {
+          generatedFromGppId: gpp.id,
+          year,
+        },
+      });
+
+      if (existing) {
+        // Update existing
+        await prismaService.japGppEntry.update({
+          where: { id: existing.id },
+          data: {
+            goalMeasure: gpp.goalMeasure,
+            domainId: gpp.domainId,
+            riskField: gpp.riskField,
+            priority: gpp.priority,
+            realisation: gpp.realisation,
+            executor: gpp.executor,
+            resourcesBudget: gpp.resourcesBudget,
+            startDate: gpp.startDate,
+            endDate: gpp.endDate,
+            remark: gpp.remark,
+          },
+        });
+      } else {
+        // Create new
+        await prismaService.japGppEntry.create({
+          data: {
+            source: 'JAP',
+            year,
+            goalMeasure: gpp.goalMeasure,
+            domainId: gpp.domainId,
+            riskField: gpp.riskField,
+            priority: gpp.priority,
+            realisation: gpp.realisation,
+            executor: gpp.executor,
+            resourcesBudget: gpp.resourcesBudget,
+            startDate: gpp.startDate,
+            endDate: gpp.endDate,
+            remark: gpp.remark,
+            generatedFromGppId: gpp.id,
+          },
+        });
+      }
+    }
+  };
+
+  router.post('/import-excel', upload.single('file'), async (req: Request, res: Response) => {
     try {
       const file = (req as any).file;
       if (!file?.buffer) {
@@ -336,8 +320,16 @@ export default function createGppRouter(
 
       const shouldClear = String(req.query.clearExisting ?? 'true').toLowerCase() !== 'false';
       if (shouldClear) {
-        store.gppEntries = [];
-        store.japEntries = store.japEntries.filter((e) => e.generatedFromGppId == null);
+        // Delete generated JAP entries
+        await prismaService.japGppEntry.deleteMany({
+          where: {
+            generatedFromGppId: { not: null },
+          },
+        });
+        // Delete GPP entries
+        await prismaService.japGppEntry.deleteMany({
+          where: { source: 'GPP' },
+        });
       }
 
       const { rows, sourceName } = readImportRows(file);
@@ -349,7 +341,9 @@ export default function createGppRouter(
 
       const indexes = findColumnIndexes(rows[headerIndex]);
       const dataRows = rows.slice(headerIndex + 1).filter((row) => (row ?? []).some((cell) => String(cell ?? '').trim() !== ''));
-      const importedGppEntries: GppStoreEntry[] = [];
+
+      let importedGppCount = 0;
+      let generatedJapCount = 0;
 
       for (const row of dataRows) {
         const doelstelling = readCell(row, indexes.doelstellingMaatregel);
@@ -365,19 +359,70 @@ export default function createGppRouter(
         const endYear = range?.[1] ?? (parsedEndYear || startYear);
         const [normalizedStart, normalizedEnd] = normaliseYearRange(startYear, endYear);
 
-        importedGppEntries.push(createGppFromImportRow(row, indexes, normalizedStart, normalizedEnd));
-      }
+        // Find or create domain
+        let domainId = null;
+        const domeinName = readCell(row, indexes.domein);
+        if (domeinName && domeinName !== 'Vul aan') {
+          let domain = await prismaService.domain.findUnique({
+            where: { name: domeinName },
+          });
+          if (!domain) {
+            domain = await prismaService.domain.create({
+              data: { name: domeinName },
+            });
+          }
+          domainId = domain.id;
+        }
 
-      store.gppEntries.push(...importedGppEntries);
-      for (const entry of importedGppEntries) {
-        syncGeneratedJapEntriesForGpp(entry);
+        // Create GPP entry
+        const gppEntry = await prismaService.japGppEntry.create({
+          data: {
+            source: 'GPP',
+            startYear: normalizedStart,
+            endYear: normalizedEnd,
+            goalMeasure: doelstelling,
+            domainId,
+            riskField: readCell(row, indexes.risicoveld) || 'Algemeen',
+            priority: parsePriority(readCell(row, indexes.prioriteit)),
+            realisation: parseRealisatie(readCell(row, indexes.realisatie)),
+            executor: readCell(row, indexes.uitvoerder),
+            resourcesBudget: readCell(row, indexes.middelenBudgetWerkuren),
+            startDate: startFromDate ? new Date(startFromDate.replace(/(\d{2})\.(\d{2})\.(\d{4})/, '$3-$2-$1')) : null,
+            endDate: endFromDate ? new Date(endFromDate.replace(/(\d{2})\.(\d{2})\.(\d{4})/, '$3-$2-$1')) : null,
+            remark: readCell(row, indexes.opmerking),
+          },
+        });
+
+        importedGppCount++;
+
+        // Generate JAP entries for each year in the range
+        for (let year = normalizedStart; year <= normalizedEnd; year += 1) {
+          await prismaService.japGppEntry.create({
+            data: {
+              source: 'JAP',
+              year,
+              goalMeasure: doelstelling,
+              domainId,
+              riskField: readCell(row, indexes.risicoveld) || 'Algemeen',
+              priority: parsePriority(readCell(row, indexes.prioriteit)),
+              realisation: parseRealisatie(readCell(row, indexes.realisatie)),
+              executor: readCell(row, indexes.uitvoerder),
+              resourcesBudget: readCell(row, indexes.middelenBudgetWerkuren),
+              startDate: startFromDate ? new Date(startFromDate.replace(/(\d{2})\.(\d{2})\.(\d{4})/, '$3-$2-$1')) : null,
+              endDate: endFromDate ? new Date(endFromDate.replace(/(\d{2})\.(\d{2})\.(\d{4})/, '$3-$2-$1')) : null,
+              remark: readCell(row, indexes.opmerking),
+              generatedFromGppId: gppEntry.id,
+            },
+          });
+          generatedJapCount++;
+        }
       }
 
       return res.status(201).json({
         message: `Import gelukt vanuit ${sourceName}`,
-        importedGppCount: importedGppEntries.length,
-        importedJapCount: store.japEntries.filter((e) => importedGppEntries.some((gpp) => gpp.id === e.generatedFromGppId)).length,
-        totalGeneratedJapCount: store.japEntries.filter((e) => e.generatedFromGppId != null).length,
+        importedGppCount,
+        importedJapCount: generatedJapCount,
+        totalGeneratedJapCount: generatedJapCount,
       });
     } catch (error: any) {
       return res.status(500).json({
@@ -387,141 +432,91 @@ export default function createGppRouter(
     }
   });
 
-  router.get('/', (req: Request, res: Response) => {
-    const { search } = req.query;
-    let result = [...store.gppEntries];
+  router.get('/', async (req: Request, res: Response) => {
+    try {
+      const { search } = req.query;
+      const where: any = { source: 'GPP' };
 
-    if (search && typeof search === 'string') {
-      const q = search.toLowerCase();
-      result = result.filter(
-        (e) =>
-          e.doelstellingMaatregel?.toLowerCase().includes(q) ||
-          e.domein?.toLowerCase().includes(q),
-      );
+      if (search && typeof search === 'string') {
+        const q = search.toLowerCase();
+        where.OR = [
+          { goalMeasure: { contains: q, mode: 'insensitive' } },
+          { domain: { name: { contains: q, mode: 'insensitive' } } },
+        ];
+      }
+
+      const entries = await prismaService.japGppEntry.findMany({
+        where,
+        include: {
+          domain: true,
+          comments: true,
+        },
+        orderBy: [{ startYear: 'desc' }, { id: 'desc' }],
+      });
+
+      const result = entries.map(formatGppEntry);
+      res.json({ entries: result });
+    } catch (error) {
+      console.error('Error fetching GPP entries:', error);
+      res.status(500).json({ message: 'Fout bij ophalen GPP entries' });
     }
-
-    result.sort((a, b) => b.startJaar - a.startJaar || b.id - a.id);
-
-    res.json({ entries: result });
   });
 
+  router.get('/:id/comments', async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const entry = await prismaService.japGppEntry.findUnique({
+        where: { id },
+        include: {
+          comments: {
+            orderBy: { createdAt: 'desc' },
+          },
+        },
+      });
 
-  // GET /gpp/:id/comments
-  router.get('/:id/comments', (req: Request, res: Response) => {
-    const id = Number(req.params.id);
-    const entry = store.gppEntries.find((e) => e.id === id);
-    if (!entry) return res.status(404).json({ message: 'Entry niet gevonden' });
-    res.json({ comments: entry.comments ?? [] });
+      if (!entry) {
+        return res.status(404).json({ message: 'Entry niet gevonden' });
+      }
+
+      const comments = entry.comments.map((c: any) => ({
+        id: c.id,
+        author: c.author,
+        text: c.text,
+        createdAt: c.createdAt.toISOString(),
+      }));
+
+      res.json({ comments });
+    } catch (error) {
+      console.error('Error fetching comments:', error);
+      res.status(500).json({ message: 'Fout bij ophalen commentaar' });
+    }
   });
 
-  // POST /gpp/:id/comments
   router.post('/:id/comments', async (req: Request, res: Response) => {
-    const id = Number(req.params.id);
-    const index = store.gppEntries.findIndex((e) => e.id === id);
-    if (index === -1) return res.status(404).json({ message: 'Entry niet gevonden' });
-
-    const { author, text } = req.body;
-    if (!text?.trim()) return res.status(400).json({ message: 'Tekst is verplicht' });
-
-    const comment: any = {
-      id: Date.now(),
-      author: author?.trim() || 'Onbekend',
-      text: text.trim(),
-      createdAt: new Date().toISOString(),
-    };
-
-    if (!store.gppEntries[index].comments) {
-      store.gppEntries[index].comments = [];
-    }
-    store.gppEntries[index].comments!.push(comment);
-
-    // Notify
     try {
-      const users = await prismaService.user.findMany({
-        where: { OR: [{ isAdmin: true }, { japGppAccess: true }] },
-        select: { id: true },
-      });
-      const recipientIds = users.map((u: any) => u.id);
-      if (recipientIds.length > 0) {
-        await notificationsService.notifyUsers({
-          recipientUserIds: recipientIds,
-          type: NotificationType.JAP_COMMENT,
-          title: 'Nieuwe opmerking op GPP',
-          body: text.trim().slice(0, 200),
-          metadata: { entryId: id, module: 'GPP' },
-        });
+      const id = Number(req.params.id);
+      const { author, text } = req.body;
+
+      if (!text?.trim()) {
+        return res.status(400).json({ message: 'Tekst is verplicht' });
       }
-    } catch (_) {}
 
-    res.status(201).json({ comment });
-  });
-
-  router.post('/', async (req: Request, res: Response) => {
-    const entry: GppStoreEntry = {
-      ...req.body,
-      id: Date.now(),
-      startJaar: Number(req.body?.startJaar) || new Date().getFullYear(),
-      eindJaar: Number(req.body?.eindJaar) || new Date().getFullYear(),
-      risicoveld: String(req.body?.risicoveld ?? 'Algemeen'),
-      prioriteit: String(req.body?.prioriteit ?? 'laag'),
-      realisatie: String(req.body?.realisatie ?? 'vul_aan'),
-      middelenBudgetWerkuren: String(req.body?.middelenBudgetWerkuren ?? ''),
-      startdatum: String(req.body?.startdatum ?? `01.01.${Number(req.body?.startJaar) || new Date().getFullYear()}`),
-      einddatum: String(req.body?.einddatum ?? `31.12.${Number(req.body?.eindJaar) || new Date().getFullYear()}`),
-    };
-    const [startYear, endYear] = normaliseYearRange(entry.startJaar, entry.eindJaar);
-    entry.startJaar = startYear;
-    entry.eindJaar = endYear;
-
-    store.gppEntries.push(entry);
-    syncGeneratedJapEntriesForGpp(entry);
-
-    // Notify relevant users: admins + users with japGppAccess
-    try {
-      const users = await prismaService.user.findMany({
-        where: { OR: [{ isAdmin: true }, { japGppAccess: true }] },
-        select: { id: true },
+      const entry = await prismaService.japGppEntry.findUnique({
+        where: { id },
       });
-      const recipientIds = users.map((u: any) => u.id);
-      if (recipientIds.length > 0) {
-        await notificationsService.notifyUsers({
-          recipientUserIds: recipientIds,
-          type: NotificationType.JAP_NEW,
-          title: `Nieuwe GPP entry toegevoegd`,
-          body: `${entry.doelstellingMaatregel ?? 'Nieuwe GPP'}`,
-          metadata: { entryId: entry.id, module: 'GPP' },
-        });
+
+      if (!entry) {
+        return res.status(404).json({ message: 'Entry niet gevonden' });
       }
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.warn('Failed to notify users for GPP creation', err);
-    }
 
-    res.status(201).json({ entry });
-  });
+      const comment = await prismaService.japComment.create({
+        data: {
+          entryId: id,
+          author: author?.trim() || 'Onbekend',
+          text: text.trim(),
+        },
+      });
 
-  router.patch('/:id', async (req: Request, res: Response) => {
-    const id = Number(req.params.id);
-    const index = store.gppEntries.findIndex((e) => e.id === id);
-    if (index === -1) return res.status(404).json({ message: 'Entry niet gevonden' });
-    const previous = { ...store.gppEntries[index] };
-    store.gppEntries[index] = {
-      ...store.gppEntries[index],
-      ...req.body,
-      startJaar: Number(req.body?.startJaar ?? store.gppEntries[index].startJaar),
-      eindJaar: Number(req.body?.eindJaar ?? store.gppEntries[index].eindJaar),
-    };
-    const [startYear, endYear] = normaliseYearRange(
-      store.gppEntries[index].startJaar,
-      store.gppEntries[index].eindJaar,
-    );
-    store.gppEntries[index].startJaar = startYear;
-    store.gppEntries[index].eindJaar = endYear;
-    syncGeneratedJapEntriesForGpp(store.gppEntries[index]);
-    const updated = store.gppEntries[index];
-
-    // If a remark/comment was added, notify relevant users
-    if (req.body && typeof req.body.opmerking === 'string' && req.body.opmerking.trim() !== '') {
       try {
         const users = await prismaService.user.findMany({
           where: { OR: [{ isAdmin: true }, { japGppAccess: true }] },
@@ -532,21 +527,110 @@ export default function createGppRouter(
           await notificationsService.notifyUsers({
             recipientUserIds: recipientIds,
             type: NotificationType.JAP_COMMENT,
-            title: `Nieuwe opmerking op GPP`,
-            body: req.body.opmerking.toString().slice(0, 200),
-            metadata: { entryId: updated.id, module: 'GPP' },
+            title: 'Nieuwe opmerking op GPP',
+            body: text.trim().slice(0, 200),
+            metadata: { entryId: id, module: 'GPP' },
           });
         }
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.warn('Failed to notify users for GPP comment', err);
+      } catch (notifyError) {
+        console.warn('Failed to notify users for GPP comment', notifyError);
       }
-    }
 
+      res.status(201).json({
+        comment: {
+          id: comment.id,
+          author: comment.author,
+          text: comment.text,
+          createdAt: comment.createdAt.toISOString(),
+        },
+      });
+    } catch (error) {
+      console.error('Error creating comment:', error);
+      res.status(500).json({ message: 'Fout bij aanmaken commentaar' });
+    }
+  });
+
+  router.post('/', async (req: Request, res: Response) => {
     try {
-      const prevStatus = (previous.status ?? '').toString();
-      const nextStatus = (updated.status ?? '').toString();
-      if (prevStatus !== nextStatus) {
+      const {
+        startJaar,
+        eindJaar,
+        doelstellingMaatregel,
+        domein,
+        risicoveld,
+        prioriteit,
+        realisatie,
+        uitvoerder,
+        middelenBudgetWerkuren,
+        startdatum,
+        einddatum,
+        opmerking,
+      } = req.body;
+
+      const [startYear, endYear] = normaliseYearRange(
+        Number(startJaar) || new Date().getFullYear(),
+        Number(eindJaar) || new Date().getFullYear(),
+      );
+
+      // Find or create domain
+      let domainId = null;
+      if (domein) {
+        let domain = await prismaService.domain.findUnique({
+          where: { name: domein },
+        });
+        if (!domain) {
+          domain = await prismaService.domain.create({
+            data: { name: domein },
+          });
+        }
+        domainId = domain.id;
+      }
+
+      const gppEntry = await prismaService.japGppEntry.create({
+        data: {
+          source: 'GPP',
+          startYear,
+          endYear,
+          goalMeasure: doelstellingMaatregel,
+          domainId,
+          riskField: risicoveld || 'Algemeen',
+          priority: prioriteit || 'laag',
+          realisation: realisatie || 'vul_aan',
+          executor: uitvoerder,
+          resourcesBudget: middelenBudgetWerkuren,
+          startDate: startdatum ? new Date(startdatum) : null,
+          endDate: einddatum ? new Date(einddatum) : null,
+          remark: opmerking,
+        },
+        include: {
+          domain: true,
+          comments: true,
+        },
+      });
+
+      // Generate JAP entries
+      for (let year = startYear; year <= endYear; year += 1) {
+        await prismaService.japGppEntry.create({
+          data: {
+            source: 'JAP',
+            year,
+            goalMeasure: doelstellingMaatregel,
+            domainId,
+            riskField: risicoveld || 'Algemeen',
+            priority: prioriteit || 'laag',
+            realisation: realisatie || 'vul_aan',
+            executor: uitvoerder,
+            resourcesBudget: middelenBudgetWerkuren,
+            startDate: startdatum ? new Date(startdatum) : null,
+            endDate: einddatum ? new Date(einddatum) : null,
+            remark: opmerking,
+            generatedFromGppId: gppEntry.id,
+          },
+        });
+      }
+
+      // Notify
+      try {
         const users = await prismaService.user.findMany({
           where: { OR: [{ isAdmin: true }, { japGppAccess: true }] },
           select: { id: true },
@@ -555,26 +639,144 @@ export default function createGppRouter(
         if (recipientIds.length > 0) {
           await notificationsService.notifyUsers({
             recipientUserIds: recipientIds,
-            type: NotificationType.JAP_STATUS_CHANGE,
-            title: `GPP status gewijzigd`,
-            body: `Status veranderde van ${prevStatus} naar ${nextStatus}`,
-            metadata: { entryId: updated.id, previousStatus: prevStatus, nextStatus, module: 'GPP' },
+            type: NotificationType.JAP_NEW,
+            title: `Nieuwe GPP entry toegevoegd`,
+            body: `${doelstellingMaatregel ?? 'Nieuwe GPP'}`,
+            metadata: { entryId: gppEntry.id, module: 'GPP' },
           });
         }
+      } catch (err) {
+        console.warn('Failed to notify users for GPP creation', err);
       }
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.warn('Failed to notify users for GPP status change', err);
-    }
 
-    res.json({ entry: store.gppEntries[index] });
+      res.status(201).json({ entry: formatGppEntry(gppEntry) });
+    } catch (error) {
+      console.error('Error creating GPP entry:', error);
+      res.status(500).json({ message: 'Fout bij aanmaken GPP entry' });
+    }
   });
 
-  router.delete('/:id', (req: Request, res: Response) => {
-    const id = Number(req.params.id);
-    store.gppEntries = store.gppEntries.filter((e) => e.id !== id);
-    store.japEntries = store.japEntries.filter((e) => e.generatedFromGppId !== id);
-    res.status(204).send();
+  router.patch('/:id', async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+
+      const previous = await prismaService.japGppEntry.findUnique({
+        where: { id },
+      });
+
+      if (!previous) {
+        return res.status(404).json({ message: 'Entry niet gevonden' });
+      }
+
+      const {
+        startJaar,
+        eindJaar,
+        doelstellingMaatregel,
+        domein,
+        risicoveld,
+        prioriteit,
+        realisatie,
+        uitvoerder,
+        middelenBudgetWerkuren,
+        startdatum,
+        einddatum,
+        opmerking,
+      } = req.body;
+
+      let domainId = previous.domainId;
+      if (domein !== undefined) {
+        if (domein) {
+          let domain = await prismaService.domain.findUnique({
+            where: { name: domein },
+          });
+          if (!domain) {
+            domain = await prismaService.domain.create({
+              data: { name: domein },
+            });
+          }
+          domainId = domain.id;
+        } else {
+          domainId = null;
+        }
+      }
+
+      const startYear = startJaar !== undefined ? Number(startJaar) : previous.startYear;
+      const endYear = eindJaar !== undefined ? Number(eindJaar) : previous.endYear;
+      const [normalizedStart, normalizedEnd] = normaliseYearRange(startYear, endYear);
+
+      const updated = await prismaService.japGppEntry.update({
+        where: { id },
+        data: {
+          startYear: normalizedStart,
+          endYear: normalizedEnd,
+          goalMeasure: doelstellingMaatregel !== undefined ? doelstellingMaatregel : undefined,
+          domainId: domein !== undefined ? domainId : undefined,
+          riskField: risicoveld !== undefined ? risicoveld : undefined,
+          priority: prioriteit !== undefined ? prioriteit : undefined,
+          realisation: realisatie !== undefined ? realisatie : undefined,
+          executor: uitvoerder !== undefined ? uitvoerder : undefined,
+          resourcesBudget: middelenBudgetWerkuren !== undefined ? middelenBudgetWerkuren : undefined,
+          startDate: startdatum !== undefined ? (startdatum ? new Date(startdatum) : null) : undefined,
+          endDate: einddatum !== undefined ? (einddatum ? new Date(einddatum) : null) : undefined,
+          remark: opmerking !== undefined ? opmerking : undefined,
+        },
+        include: {
+          domain: true,
+          comments: true,
+        },
+      });
+
+      // Sync generated JAP entries
+      await syncGeneratedJapEntriesForGpp(updated);
+
+      // Notify if remark was added
+      if (opmerking && opmerking.trim() !== '' && (!previous.remark || previous.remark.trim() === '')) {
+        try {
+          const users = await prismaService.user.findMany({
+            where: { OR: [{ isAdmin: true }, { japGppAccess: true }] },
+            select: { id: true },
+          });
+          const recipientIds = users.map((u: any) => u.id);
+          if (recipientIds.length > 0) {
+            await notificationsService.notifyUsers({
+              recipientUserIds: recipientIds,
+              type: NotificationType.JAP_COMMENT,
+              title: `Nieuwe opmerking op GPP`,
+              body: opmerking.toString().slice(0, 200),
+              metadata: { entryId: updated.id, module: 'GPP' },
+            });
+          }
+        } catch (err) {
+          console.warn('Failed to notify users for GPP comment', err);
+        }
+      }
+
+      res.json({ entry: formatGppEntry(updated) });
+    } catch (error) {
+      console.error('Error updating GPP entry:', error);
+      res.status(500).json({ message: 'Fout bij bijwerken GPP entry' });
+    }
+  });
+
+  router.delete('/:id', async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      // Delete generated JAP entries
+      await prismaService.japGppEntry.deleteMany({
+        where: { generatedFromGppId: id },
+      });
+      // Delete GPP entry
+      await prismaService.japGppEntry.delete({
+        where: { id },
+      });
+      res.status(204).send();
+    } catch (error: any) {
+      if (error.code === 'P2025') {
+        return res.status(404).json({ message: 'Entry niet gevonden' });
+      }
+      console.error('Error deleting GPP entry:', error);
+      res.status(500).json({ message: 'Fout bij verwijderen GPP entry' });
+    }
   });
 
   return router;

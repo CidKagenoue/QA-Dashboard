@@ -1,20 +1,11 @@
-// lib/screens/jap_gpp_screen.dart
-
-import 'package:flutter/material.dart';
-import 'package:qa_dashboard/services/jap_gpp_api_service.dart';
-import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
-import '../services/notification_service.dart';
-import '../services/domain_service.dart';
-import '../services/jap_export_service.dart';
-import '../models/jap_gpp_entry.dart';
-import 'jap_detail_screen.dart';
-import 'gpp_detail_screen.dart';
-import '../widgets/domain_dropdown_field.dart';
+import 'package:flutter/material.dart';
 
-// ---------------------------------------------------------------------------
-// Screen
-// ---------------------------------------------------------------------------
+import '../models/jap_gpp_entry.dart';
+import '../services/jap_export_service.dart';
+import '../services/jap_gpp_api_service.dart';
+import 'jap_gpp_detail_pane.dart';
+
 class JapGppScreen extends StatefulWidget {
   final String token;
   final String? initialModule;
@@ -34,83 +25,322 @@ class JapGppScreen extends StatefulWidget {
 }
 
 class _JapGppScreenState extends State<JapGppScreen> {
-  // ── data ──────────────────────────────────────────────────────────────────
-  List<JapEntry> _allEntries = [];
-  List<JapEntry> _filtered = [];
+  final TextEditingController _searchController = TextEditingController();
+
+  List<JapEntry> _japEntries = [];
+  List<GppEntry> _gppEntries = [];
   bool _loading = true;
+  bool _savingImport = false;
   String? _error;
-  JapEntry? _selectedEntry;
-  GppEntry? _selectedGppEntry;
 
-  // ── search ────────────────────────────────────────────────────────────────
-  final _searchController = TextEditingController();
-  final _gppSearchController = TextEditingController();
-  List<GppEntry> _filteredGpp = [];
-  String? _filterGppDomein;
-
-  String? _filterPriority;
-  int? _filterYear;
-
-  // ── active tab (JAP | GPP) ────────────────────────────────────────────────
-  int _tabIndex = 0;
-  List<GppEntry> _allGppEntries = [];
-  bool _importingGppExcel = false;
-  List<String> _domains = DomainService.defaultDomains;
-  bool _loadedJapOnce = false;
-  bool _loadedGppOnce = false;
-  bool _japLoadFailed = false;
-  bool _gppLoadFailed = false;
-  bool _initialContextApplied = false;
-  late final String? _requestedInitialModule;
-  late final int? _requestedInitialEntryId;
+  JapEntry? _selectedJap;
+  GppEntry? _selectedGpp;
+  bool _initialContextConsumed = false;
 
   @override
   void initState() {
     super.initState();
-    _requestedInitialModule = widget.initialModule;
-    _requestedInitialEntryId = widget.initialEntryId;
-    _loadEntries();
-    _loadGppEntries();
-    _loadDomains();
-    _searchController.addListener(_applyFilter);
-    _gppSearchController.addListener(_applyGppFilter); // ← voeg toe
-  }
-
-  Future<void> _loadGppEntries() async {
-    try {
-      final entries = await JapApiService.fetchGppEntries(token: widget.token);
-      if (!mounted) return;
-      setState(() {
-        _allGppEntries = entries;
-        _loadedGppOnce = true;
-        _gppLoadFailed = false;
-      });
-      _applyGppFilter(); // ← voeg toe
-      _tryApplyInitialContext();
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _gppLoadFailed = true;
-      });
-      _tryApplyInitialContext();
-    }
-  }
-
-  Future<void> _loadDomains() async {
-    final domains = await DomainService.loadDomains();
-    if (!mounted) return;
-    setState(() => _domains = domains);
+    _searchController.addListener(_onSearchChanged);
+    _reloadAll();
   }
 
   @override
   void dispose() {
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
-    _gppSearchController.dispose(); // ← voeg toe
     super.dispose();
   }
 
+  void _onSearchChanged() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _reloadAll() async {
+    if (!mounted) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final results = await Future.wait<List<dynamic>>([
+        JapApiService.fetchJapEntries(token: widget.token),
+        JapApiService.fetchGppEntries(token: widget.token),
+      ]);
+
+      final japEntries = List<JapEntry>.from(results[0] as List<JapEntry>);
+      final gppEntries = List<GppEntry>.from(results[1] as List<GppEntry>);
+
+      japEntries.sort((a, b) => b.year.compareTo(a.year));
+      gppEntries.sort((a, b) {
+        final endCompare = b.endYear.compareTo(a.endYear);
+        if (endCompare != 0) return endCompare;
+        return b.startYear.compareTo(a.startYear);
+      });
+
+      if (!mounted) return;
+      setState(() {
+        _japEntries = japEntries;
+        _gppEntries = gppEntries;
+        _loading = false;
+      });
+
+      _applyInitialContext();
+      _consumeInitialContextIfNeeded();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = e.toString();
+      });
+    }
+  }
+
+  void _consumeInitialContextIfNeeded() {
+    if (_initialContextConsumed) return;
+    if (widget.initialModule == null && widget.initialEntryId == null) return;
+    _initialContextConsumed = true;
+    widget.onInitialContextConsumed?.call();
+  }
+
+  void _applyInitialContext() {
+    if (_initialContextConsumed) return;
+
+    final module = (widget.initialModule ?? '').trim().toUpperCase();
+    final id = widget.initialEntryId;
+    if (module.isEmpty && id == null) return;
+
+    if (module == 'GPP') {
+      final match = id == null
+          ? (_gppEntries.isNotEmpty ? _gppEntries.first : null)
+          : _gppEntries.where((entry) => entry.id == id).cast<GppEntry?>().firstWhere((entry) => entry != null, orElse: () => null);
+      if (match != null) {
+        _selectGpp(match);
+      }
+      return;
+    }
+
+    if (module == 'JAP') {
+      final match = id == null
+          ? (_japEntries.isNotEmpty ? _japEntries.first : null)
+          : _japEntries.where((entry) => entry.id == id).cast<JapEntry?>().firstWhere((entry) => entry != null, orElse: () => null);
+      if (match != null) {
+        _selectJap(match);
+      }
+      return;
+    }
+
+    if (_japEntries.isNotEmpty) {
+      _selectJap(_japEntries.first);
+    } else if (_gppEntries.isNotEmpty) {
+      _selectGpp(_gppEntries.first);
+    }
+  }
+
+  void _selectJap(JapEntry entry) {
+    setState(() {
+      _selectedJap = entry;
+      _selectedGpp = null;
+    });
+  }
+
+  void _selectGpp(GppEntry entry) {
+    setState(() {
+      _selectedGpp = entry;
+      _selectedJap = null;
+    });
+  }
+
+  List<JapEntry> _filteredJapEntries() {
+    final query = _searchController.text.trim().toLowerCase();
+    if (query.isEmpty) return _japEntries;
+    return _japEntries.where((entry) {
+      return entry.goalMeasure.toLowerCase().contains(query) ||
+          entry.domain.toLowerCase().contains(query) ||
+          entry.executor.toLowerCase().contains(query) ||
+          entry.remark.toLowerCase().contains(query) ||
+          entry.year.toString().contains(query);
+    }).toList();
+  }
+
+  List<GppEntry> _filteredGppEntries() {
+    final query = _searchController.text.trim().toLowerCase();
+    if (query.isEmpty) return _gppEntries;
+    return _gppEntries.where((entry) {
+      return entry.goalMeasure.toLowerCase().contains(query) ||
+          entry.domain.toLowerCase().contains(query) ||
+          entry.executor.toLowerCase().contains(query) ||
+          entry.remark.toLowerCase().contains(query) ||
+          entry.yearLabel.toLowerCase().contains(query);
+    }).toList();
+  }
+
+  List<int> _availableYears() {
+    final years = <int>{};
+    for (final entry in _japEntries) {
+      years.add(entry.year);
+    }
+    for (final entry in _gppEntries) {
+      for (var year = entry.startYear; year <= entry.endYear; year++) {
+        years.add(year);
+      }
+    }
+    return years.toList()..sort((a, b) => b.compareTo(a));
+  }
+
+  List<JapEntry> _entriesForExportYear(int year) {
+    return [
+      ..._japEntries.where((entry) => entry.year == year),
+      ..._gppEntries
+          .where((entry) => entry.startYear <= year && year <= entry.endYear)
+          .map(
+            (entry) => JapEntry(
+              id: -entry.id,
+              year: year,
+              goalMeasure: entry.goalMeasure,
+              domain: entry.domain,
+              riskField: entry.riskField,
+              resourcesBudget: entry.resourcesBudget,
+              priority: _gppPriorityToJapPriority(entry.priority),
+              realisation: _gppRealisationToJapRealisation(entry.realisation),
+              executor: entry.executor,
+              startDate: entry.startDate,
+              endDate: entry.endDate,
+              remark: entry.remark,
+            ),
+          ),
+    ];
+  }
+
+  JapPriority _gppPriorityToJapPriority(String value) {
+    switch (value.toLowerCase()) {
+      case 'hoog':
+      case 'high':
+        return JapPriority.high;
+      case 'middel':
+      case 'middelmatig':
+      case 'medium':
+        return JapPriority.medium;
+      default:
+        return JapPriority.low;
+    }
+  }
+
+  JapRealisation _gppRealisationToJapRealisation(String value) {
+    final normalised = value.toLowerCase().replaceAll(' ', '_');
+    switch (normalised) {
+      case 'in_uitvoering':
+      case 'inuitvoering':
+      case 'in_progress':
+        return JapRealisation.inProgress;
+      case 'uitgevoerd':
+      case 'completed':
+        return JapRealisation.completed;
+      case 'nog_niet_uitgevoerd':
+      case 'neg_niet_uitgevoerd':
+        return JapRealisation.notYetCompleted;
+      default:
+        return JapRealisation.fillIn;
+    }
+  }
+
+  Future<void> _exportByYear() async {
+    final years = _availableYears();
+    if (years.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Geen jaren beschikbaar voor export.')),
+      );
+      return;
+    }
+
+    final selectedYear = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 640),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F2EA),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Kies jaar voor export',
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Selecteer het jaar dat je wil exporteren naar PDF.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[700]),
+                    ),
+                    const SizedBox(height: 20),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: years
+                          .map(
+                            (year) => ChoiceChip(
+                              label: Text(year.toString()),
+                              selected: false,
+                              onSelected: (_) => Navigator.pop(dialogContext, year),
+                              backgroundColor: Colors.white,
+                              selectedColor: const Color(0xFF8BC34A).withValues(alpha: 0.18),
+                              labelStyle: const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                    const SizedBox(height: 16),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(dialogContext),
+                        child: const Text('Annuleren'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (selectedYear == null) return;
+    final entries = _entriesForExportYear(selectedYear);
+    if (entries.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Geen items voor dit jaar.')),
+      );
+      return;
+    }
+
+    final savedPath = await JapExportService.exportJapForYear(selectedYear, entries);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          savedPath != null ? 'PDF opgeslagen: $savedPath' : 'PDF-export gestart voor $selectedYear',
+        ),
+      ),
+    );
+  }
+
   Future<void> _importGppExcel() async {
-    if (_importingGppExcel) return;
+    if (_savingImport) return;
 
     final result = await FilePicker.platform.pickFiles(
       type: FileType.any,
@@ -128,7 +358,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
       return;
     }
 
-    setState(() => _importingGppExcel = true);
+    setState(() => _savingImport = true);
     try {
       final response = await JapApiService.importGppExcel(
         token: widget.token,
@@ -136,8 +366,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
         bytes: bytes,
       );
 
-      await _loadGppEntries();
-      await _loadEntries();
+      await _reloadAll();
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -150,711 +379,405 @@ class _JapGppScreenState extends State<JapGppScreen> {
       );
     } finally {
       if (mounted) {
-        setState(() => _importingGppExcel = false);
+        setState(() => _savingImport = false);
       }
     }
   }
 
-  Future<void> _exportJapByYear() async {
-    // Get available years from entries
-    final years = _allEntries.map((e) => e.year).toSet().toList()..sort();
-    
-    if (years.isEmpty) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Geen JAP entries beschikbaar.')),
-      );
-      return;
-    }
+  Future<void> _showCreateGppDialog() async {
+    final goalController = TextEditingController();
+    final riskController = TextEditingController(text: 'Algemeen');
+    final executorController = TextEditingController();
+    final budgetController = TextEditingController();
+    final remarkController = TextEditingController();
+    final startYearController = TextEditingController(text: DateTime.now().year.toString());
+    final endYearController = TextEditingController(text: (DateTime.now().year + 3).toString());
+    String priority = 'laag';
+    String realisation = 'in_uitvoering';
+    String selectedDomain = 'Arbeidsveiligheid';
 
-    // Show year selection dialog
-    if (!mounted) return;
-    showDialog(
+    final saved = await showDialog<bool>(
       context: context,
-      builder: (context) => Dialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 460),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEAF4D9),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.download_outlined, color: Color(0xFF4A7A1E)),
+      builder: (dialogContext) {
+        InputDecoration fieldDecoration(String hint) {
+          return InputDecoration(
+            hintText: hint,
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFDDE3D2)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFDDE3D2)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFF8BC34A)),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          );
+        }
+
+        Widget label(String text) {
+          return Text(
+            text,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF6B7A62),
+            ),
+          );
+        }
+
+        return StatefulBuilder(
+          builder: (buildContext, setDialogState) {
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 760),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F2EA),
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    const SizedBox(width: 12),
-                    const Expanded(
+                    padding: const EdgeInsets.all(16),
+                    child: SingleChildScrollView(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            'Selecteer jaar voor export',
-                            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Color(0xFF243022)),
+                            'Nieuwe GPP regel aanmaken',
+                            style: Theme.of(dialogContext).textTheme.headlineMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
                           ),
-                          SizedBox(height: 4),
+                          const SizedBox(height: 8),
                           Text(
-                            'Kies één jaar om de PDF-export te maken.',
-                            style: TextStyle(fontSize: 13, color: Color(0xFF6B7A62)),
+                            'Vul de gegevens in om een nieuwe JAP/GPP-lijn toe te voegen.',
+                            style: Theme.of(dialogContext).textTheme.bodyMedium?.copyWith(color: Colors.grey[700]),
+                          ),
+                          const SizedBox(height: 20),
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final twoColumn = constraints.maxWidth > 560;
+                              if (twoColumn) {
+                                return Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          label('Doelstelling - maatregel *'),
+                                          const SizedBox(height: 8),
+                                          TextField(controller: goalController, decoration: fieldDecoration('...')),
+                                          const SizedBox(height: 16),
+                                          label('Domein *'),
+                                          const SizedBox(height: 8),
+                                          DropdownButtonFormField<String>(
+                                            value: selectedDomain,
+                                            isExpanded: true,
+                                            decoration: fieldDecoration(''),
+                                            items: const [
+                                              DropdownMenuItem(value: 'Arbeidsveiligheid', child: Text('Arbeidsveiligheid')),
+                                              DropdownMenuItem(value: 'Gezondheid', child: Text('Gezondheid')),
+                                              DropdownMenuItem(value: 'Milieu', child: Text('Milieu')),
+                                              DropdownMenuItem(value: 'Kwaliteit', child: Text('Kwaliteit')),
+                                              DropdownMenuItem(value: 'Veiligheid', child: Text('Veiligheid')),
+                                            ],
+                                            onChanged: (value) {
+                                              setDialogState(() => selectedDomain = value ?? 'Arbeidsveiligheid');
+                                            },
+                                          ),
+                                          const SizedBox(height: 16),
+                                          label('Risicoveld'),
+                                          const SizedBox(height: 8),
+                                          TextField(controller: riskController, decoration: fieldDecoration('Algemeen')),
+                                          const SizedBox(height: 16),
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    label('Startjaar *'),
+                                                    const SizedBox(height: 8),
+                                                    TextField(
+                                                      controller: startYearController,
+                                                      keyboardType: TextInputType.number,
+                                                      decoration: fieldDecoration('2026'),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    label('Eindjaar *'),
+                                                    const SizedBox(height: 8),
+                                                    TextField(
+                                                      controller: endYearController,
+                                                      keyboardType: TextInputType.number,
+                                                      decoration: fieldDecoration('2027'),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 20),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          label('Uitvoerder'),
+                                          const SizedBox(height: 8),
+                                          TextField(controller: executorController, decoration: fieldDecoration('...')),
+                                          const SizedBox(height: 16),
+                                          label('Middelen / Budget / Werkuren'),
+                                          const SizedBox(height: 8),
+                                          TextField(controller: budgetController, decoration: fieldDecoration('...')),
+                                          const SizedBox(height: 16),
+                                          label('Prioriteit'),
+                                          const SizedBox(height: 8),
+                                          DropdownButtonFormField<String>(
+                                            initialValue: priority,
+                                            isExpanded: true,
+                                            decoration: fieldDecoration(''),
+                                            items: const [
+                                              DropdownMenuItem(value: 'hoog', child: Text('Hoge prioriteit')),
+                                              DropdownMenuItem(value: 'middel', child: Text('Middelhoge prioriteit')),
+                                              DropdownMenuItem(value: 'laag', child: Text('Lage prioriteit')),
+                                            ],
+                                            onChanged: (value) => priority = value ?? 'laag',
+                                          ),
+                                          const SizedBox(height: 16),
+                                          label('Realisatie'),
+                                          const SizedBox(height: 8),
+                                          DropdownButtonFormField<String>(
+                                            initialValue: realisation,
+                                            isExpanded: true,
+                                            decoration: fieldDecoration(''),
+                                            items: const [
+                                              DropdownMenuItem(value: 'in_uitvoering', child: Text('In uitvoering')),
+                                              DropdownMenuItem(value: 'uitgevoerd', child: Text('Uitgevoerd')),
+                                              DropdownMenuItem(value: 'neg_niet_uitgevoerd', child: Text('Nog niet uitgevoerd')),
+                                              DropdownMenuItem(value: 'vul_aan', child: Text('Vul aan')),
+                                            ],
+                                            onChanged: (value) => realisation = value ?? 'in_uitvoering',
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              }
+
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  label('Doelstelling - maatregel *'),
+                                  const SizedBox(height: 8),
+                                  TextField(controller: goalController, decoration: fieldDecoration('...')),
+                                  const SizedBox(height: 16),
+                                  label('Domein *'),
+                                  const SizedBox(height: 8),
+                                  DropdownButtonFormField<String>(
+                                    value: selectedDomain,
+                                    isExpanded: true,
+                                    decoration: fieldDecoration(''),
+                                    items: const [
+                                      DropdownMenuItem(value: 'Arbeidsveiligheid', child: Text('Arbeidsveiligheid')),
+                                      DropdownMenuItem(value: 'Gezondheid', child: Text('Gezondheid')),
+                                      DropdownMenuItem(value: 'Milieu', child: Text('Milieu')),
+                                      DropdownMenuItem(value: 'Kwaliteit', child: Text('Kwaliteit')),
+                                      DropdownMenuItem(value: 'Veiligheid', child: Text('Veiligheid')),
+                                    ],
+                                    onChanged: (value) {
+                                      setDialogState(() => selectedDomain = value ?? 'Arbeidsveiligheid');
+                                    },
+                                  ),
+                                  const SizedBox(height: 16),
+                                  label('Risicoveld'),
+                                  const SizedBox(height: 8),
+                                  TextField(controller: riskController, decoration: fieldDecoration('Algemeen')),
+                                  const SizedBox(height: 16),
+                                  label('Startjaar *'),
+                                  const SizedBox(height: 8),
+                                  TextField(controller: startYearController, keyboardType: TextInputType.number, decoration: fieldDecoration('2026')),
+                                  const SizedBox(height: 16),
+                                  label('Eindjaar *'),
+                                  const SizedBox(height: 8),
+                                  TextField(controller: endYearController, keyboardType: TextInputType.number, decoration: fieldDecoration('2027')),
+                                  const SizedBox(height: 16),
+                                  label('Uitvoerder'),
+                                  const SizedBox(height: 8),
+                                  TextField(controller: executorController, decoration: fieldDecoration('...')),
+                                  const SizedBox(height: 16),
+                                  label('Middelen / Budget / Werkuren'),
+                                  const SizedBox(height: 8),
+                                  TextField(controller: budgetController, decoration: fieldDecoration('...')),
+                                  const SizedBox(height: 16),
+                                  label('Prioriteit'),
+                                  const SizedBox(height: 8),
+                                  DropdownButtonFormField<String>(
+                                    initialValue: priority,
+                                    isExpanded: true,
+                                    decoration: fieldDecoration(''),
+                                    items: const [
+                                      DropdownMenuItem(value: 'hoog', child: Text('Hoge prioriteit')),
+                                      DropdownMenuItem(value: 'middel', child: Text('Middelhoge prioriteit')),
+                                      DropdownMenuItem(value: 'laag', child: Text('Lage prioriteit')),
+                                    ],
+                                    onChanged: (value) => priority = value ?? 'laag',
+                                  ),
+                                  const SizedBox(height: 16),
+                                  label('Realisatie'),
+                                  const SizedBox(height: 8),
+                                  DropdownButtonFormField<String>(
+                                    initialValue: realisation,
+                                    isExpanded: true,
+                                    decoration: fieldDecoration(''),
+                                    items: const [
+                                      DropdownMenuItem(value: 'in_uitvoering', child: Text('In uitvoering')),
+                                      DropdownMenuItem(value: 'uitgevoerd', child: Text('Uitgevoerd')),
+                                      DropdownMenuItem(value: 'neg_niet_uitgevoerd', child: Text('Nog niet uitgevoerd')),
+                                      DropdownMenuItem(value: 'vul_aan', child: Text('Vul aan')),
+                                    ],
+                                    onChanged: (value) => realisation = value ?? 'in_uitvoering',
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          label('Opmerking'),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: remarkController,
+                            maxLines: 3,
+                            decoration: fieldDecoration('...'),
+                          ),
+                          const SizedBox(height: 20),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(dialogContext, false),
+                                child: const Text('Annuleren'),
+                              ),
+                              const SizedBox(width: 12),
+                              ElevatedButton(
+                                onPressed: () async {
+                                  final startYear = int.tryParse(startYearController.text.trim());
+                                  final endYear = int.tryParse(endYearController.text.trim());
+                                  final goal = goalController.text.trim();
+                                  if (startYear == null || endYear == null || goal.isEmpty) return;
+
+                                  try {
+                                    await JapApiService.createGppEntry(
+                                      token: widget.token,
+                                      payload: {
+                                        'doelstellingMaatregel': goal,
+                                        'domein': selectedDomain,
+                                        'risicoveld': riskController.text.trim(),
+                                        'startJaar': startYear,
+                                        'eindJaar': endYear,
+                                        'prioriteit': priority,
+                                        'realisatie': realisation,
+                                        'uitvoerder': executorController.text.trim(),
+                                        'middelenBudgetWerkuren': budgetController.text.trim(),
+                                        'startdatum': '$startYear.01.01',
+                                        'einddatum': '$endYear.12.31',
+                                        'opmerking': remarkController.text.trim(),
+                                      },
+                                    );
+                                    if (dialogContext.mounted) Navigator.pop(dialogContext, true);
+                                  } catch (e) {
+                                    if (dialogContext.mounted) {
+                                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                                        SnackBar(content: Text('Opslaan mislukt: $e')),
+                                      );
+                                    }
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF8BC34A),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                ),
+                                child: const Text('Opslaan'),
+                              ),
+                            ],
                           ),
                         ],
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAF4),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFE4E9DD)),
-                  ),
-                  child: Text(
-                    '${years.length} jaar beschikbaar',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF4D5548)),
                   ),
                 ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  height: 360,
-                  child: SingleChildScrollView(
-                    child: Column(
-                      children: years.map((year) {
-                        final count = _allEntries.where((e) => e.year == year).length;
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(14),
-                            onTap: () {
-                              Navigator.pop(context);
-                              _exportYearPdf(year);
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: const Color(0xFFE4E9DD)),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF1F5EE),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        '$year',
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          color: Color(0xFF243022),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Jaar $year',
-                                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF243022)),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          '$count acties',
-                                          style: const TextStyle(fontSize: 12, color: Color(0xFF6B7A62)),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const Icon(Icons.chevron_right, color: Color(0xFF8CC63F)),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Sluiten'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _exportYearPdf(int year) async {
-    try {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('JAP $year export gestart... PDF wordt gegenereerd.')),
-      );
-      
-      final yearEntries = _allEntries.where((e) => e.year == year).toList();
-      await JapExportService.exportJapForYear(year, yearEntries);
-      
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('JAP $year is geëxporteerd. Controleer je downloadmap.')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Export fout: $e')),
-      );
-    }
-  }
-
-  // ── data loading ──────────────────────────────────────────────────────────
-  Future<void> _loadEntries() async {
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-
-    try {
-      final entries = await JapApiService.fetchJapEntries(
-        token: widget.token,
-      );
-      entries.sort((a, b) => b.year.compareTo(a.year));
-
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _allEntries = entries;
-        _loadedJapOnce = true;
-        _japLoadFailed = false;
-        _loading = false;
-      });
-      _applyFilter();
-      _tryApplyInitialContext();
-    } catch (e) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _error = e.toString();
-        _japLoadFailed = true;
-        _loading = false;
-      });
-      _tryApplyInitialContext();
-    }
-  }
-
-  void _applyFilter() {
-    if (!mounted) {
-      return;
-    }
-    final query = _searchController.text.toLowerCase();
-    var result = _allEntries.where((e) {
-      if (query.isNotEmpty) {
-        final matchesQuery =
-            e.goalMeasure.toLowerCase().contains(query) ||
-            e.domain.toLowerCase().contains(query) ||
-            e.year.toString().contains(query);
-        if (!matchesQuery) return false;
-      }
-      if (_filterPriority != null) {
-        final priorityMatch = switch (_filterPriority) {
-          'hoog' => e.priority == JapPriority.high,
-          'middel' => e.priority == JapPriority.medium,
-          'laag' => e.priority == JapPriority.low,
-          _ => true,
-        };
-        if (!priorityMatch) return false;
-      }
-      if (_filterYear != null && e.year != _filterYear) return false;
-      return true;
-    }).toList();
-
-    setState(() => _filtered = result);
-  }
-
-  void _applyGppFilter() {
-    if (!mounted) {
-      return;
-    }
-    final query = _gppSearchController.text.toLowerCase();
-    var result = _allGppEntries.where((e) {
-      if (query.isNotEmpty) {
-        final matchesQuery =
-            e.goalMeasure.toLowerCase().contains(query) ||
-            e.domain.toLowerCase().contains(query) ||
-            e.riskField.toLowerCase().contains(query) ||
-            e.executor.toLowerCase().contains(query) ||
-            e.remark.toLowerCase().contains(query) ||
-            e.yearLabel.toLowerCase().contains(query);
-        if (!matchesQuery) return false;
-      }
-      if (_filterGppDomein != null && e.domain != _filterGppDomein) return false;
-      return true;
-    }).toList();
-
-    setState(() => _filteredGpp = result);
-  }
-
-  void _tryApplyInitialContext() {
-    if (_initialContextApplied || !mounted) {
-      return;
-    }
-
-    final normalizedModule = (_requestedInitialModule ?? '').trim().toUpperCase();
-    final initialEntryId = _requestedInitialEntryId;
-    final hasRequestedContext = normalizedModule.isNotEmpty || initialEntryId != null;
-
-    if (hasRequestedContext) {
-      debugPrint(
-        '[JapGppScreen] Try initial context: '
-        'module=$normalizedModule, '
-        'entryId=$initialEntryId, '
-        'loadedJap=$_loadedJapOnce, loadedGpp=$_loadedGppOnce, '
-        'japCount=${_allEntries.length}, gppCount=${_allGppEntries.length}',
-      );
-    }
-
-    if (initialEntryId == null) {
-      if (normalizedModule == 'GPP' && _tabIndex != 1) {
-        setState(() => _tabIndex = 1);
-      }
-      _consumeInitialContext();
-      return;
-    }
-
-    bool trySelectJap() {
-      for (final entry in _allEntries) {
-        if (entry.id == initialEntryId) {
-          setState(() {
-            _tabIndex = 0;
-            _selectedEntry = entry;
-            _selectedGppEntry = null;
-          });
-          return true;
-        }
-      }
-      return false;
-    }
-
-    bool trySelectGpp() {
-      for (final entry in _allGppEntries) {
-        if (entry.id == initialEntryId) {
-          setState(() {
-            _tabIndex = 1;
-            _selectedGppEntry = entry;
-            _selectedEntry = null;
-          });
-          return true;
-        }
-      }
-      return false;
-    }
-
-    // Prefer requested module, without blocking forever on the other list.
-    if (normalizedModule == 'JAP') {
-      if (!_loadedJapOnce) {
-        return;
-      }
-      if (trySelectJap()) {
-        _consumeInitialContext();
-        return;
-      }
-
-      if (_loadedGppOnce && trySelectGpp()) {
-        _consumeInitialContext();
-        return;
-      }
-
-      if (_loadedGppOnce || _gppLoadFailed) {
-        if (_allEntries.isNotEmpty) {
-          setState(() {
-            _tabIndex = 0;
-            _selectedEntry = _allEntries.first;
-            _selectedGppEntry = null;
-          });
-        }
-        debugPrint(
-          '[JapGppScreen] Initial JAP entryId not found; fallback to latest JAP detail',
-        );
-        _consumeInitialContext();
-        return;
-      }
-
-      return;
-    }
-
-    if (normalizedModule == 'GPP') {
-      if (!_loadedGppOnce) {
-        return;
-      }
-      if (trySelectGpp()) {
-        _consumeInitialContext();
-        return;
-      }
-
-      if (_loadedJapOnce && trySelectJap()) {
-        _consumeInitialContext();
-        return;
-      }
-
-      if (_loadedJapOnce || _japLoadFailed) {
-        if (_allGppEntries.isNotEmpty) {
-          setState(() {
-            _tabIndex = 1;
-            _selectedGppEntry = _allGppEntries.first;
-            _selectedEntry = null;
-          });
-        }
-        debugPrint(
-          '[JapGppScreen] Initial GPP entryId not found; fallback to latest GPP detail',
-        );
-        _consumeInitialContext();
-        return;
-      }
-
-      return;
-    }
-
-    final canSearchJap = _loadedJapOnce;
-    final canSearchGpp = _loadedGppOnce;
-
-    if (canSearchJap && trySelectJap()) {
-      _consumeInitialContext();
-      return;
-    }
-    if (canSearchGpp && trySelectGpp()) {
-      _consumeInitialContext();
-      return;
-    }
-
-    final japFinalized = _loadedJapOnce || _japLoadFailed;
-    final gppFinalized = _loadedGppOnce || _gppLoadFailed;
-    if (japFinalized && gppFinalized) {
-      _consumeInitialContext();
-      return;
-    }
-  }
-
-  void _consumeInitialContext() {
-    if (_initialContextApplied) {
-      return;
-    }
-    _initialContextApplied = true;
-    widget.onInitialContextConsumed?.call();
-  }
-
-  void _showFilterSheet() {
-    final years = _allEntries.map((e) => e.year).toSet().toList()..sort();
-
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Filteren',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF243022),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          setState(() {
-                            _filterPriority = null;
-                            _filterYear = null;
-                          });
-                          _applyFilter();
-                          setSheetState(() {});
-                        },
-                        child: const Text(
-                          'Wis filters',
-                          style: TextStyle(color: Color(0xFF6B7A62)),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Prioriteit',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF4D5548),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      _FilterChip(
-                        label: 'Hoge prioriteit',
-                        selected: _filterPriority == 'hoog',
-                        onTap: () {
-                          setState(() => _filterPriority =
-                              _filterPriority == 'hoog' ? null : 'hoog');
-                          _applyFilter();
-                          setSheetState(() {});
-                        },
-                      ),
-                      _FilterChip(
-                        label: 'Middelhoge prioriteit',
-                        selected: _filterPriority == 'middel',
-                        onTap: () {
-                          setState(() => _filterPriority =
-                              _filterPriority == 'middel' ? null : 'middel');
-                          _applyFilter();
-                          setSheetState(() {});
-                        },
-                      ),
-                      _FilterChip(
-                        label: 'Lage prioriteit',
-                        selected: _filterPriority == 'laag',
-                        onTap: () {
-                          setState(() => _filterPriority =
-                              _filterPriority == 'laag' ? null : 'laag');
-                          _applyFilter();
-                          setSheetState(() {});
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Jaar',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF4D5548),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children: years.map((year) {
-                      return _FilterChip(
-                        label: year.toString(),
-                        selected: _filterYear == year,
-                        onTap: () {
-                          setState(() =>
-                              _filterYear = _filterYear == year ? null : year);
-                          _applyFilter();
-                          setSheetState(() {});
-                        },
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Toepassen'),
-                    ),
-                  ),
-                ],
               ),
             );
           },
         );
       },
     );
+
+    goalController.dispose();
+    riskController.dispose();
+    executorController.dispose();
+    budgetController.dispose();
+    remarkController.dispose();
+    startYearController.dispose();
+    endYearController.dispose();
+
+    if (saved == true) {
+      await _reloadAll();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('GPP aangemaakt.')),
+      );
+    }
   }
 
-  void _showGppFilterSheet() {
-    final domains = {
-      ..._domains.where((domain) => domain.trim().isNotEmpty),
-      ..._allGppEntries
-          .map((entry) => entry.domain)
-          .where((domain) => domain.trim().isNotEmpty),
-    }.toList()
-      ..sort();
-
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Filteren',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF243022),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          setState(() => _filterGppDomein = null);
-                          _applyGppFilter();
-                          setSheetState(() {});
-                        },
-                        child: const Text(
-                          'Wis filters',
-                          style: TextStyle(color: Color(0xFF6B7A62)),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Domein',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF4D5548),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children: domains.map((domein) {
-                      return _FilterChip(
-                        label: domein,
-                        selected: _filterGppDomein == domein,
-                        onTap: () {
-                          setState(() => _filterGppDomein =
-                              _filterGppDomein == domein ? null : domein);
-                          _applyGppFilter();
-                          setSheetState(() {});
-                        },
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Toepassen'),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _showCreateJapDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 40),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 540, maxHeight: 560),
-            child: _CreateJapForm(
-              token: widget.token,
-              onSaved: () async {
-                await _loadEntries();
-                await _loadDomains();
-                try {
-                  await context.read<NotificationService>().loadNotifications(limit: 50);
-                  await context.read<NotificationService>().refreshUnreadCount();
-                } catch (_) {}
-              },
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showCreateGppDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 40),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 760, maxHeight: 720),
-            child: _CreateGppForm(
-              token: widget.token,
-              onSaved: () async {
-                await _loadGppEntries();
-                await _loadEntries();
-                await _loadDomains();
-                try {
-                  await context.read<NotificationService>().loadNotifications(limit: 50);
-                  await context.read<NotificationService>().refreshUnreadCount();
-                } catch (_) {}
-              },
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // ── build ─────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
+    // Show full-screen detail view when an entry is selected
+    if (_selectedJap != null || _selectedGpp != null) {
+      if (_selectedJap != null) {
+        return JapGppDetailPane.jap(
+          token: widget.token,
+          entry: _selectedJap!,
+          onChanged: _reloadAll,
+          onClose: () {
+            setState(() => _selectedJap = null);
+          },
+        );
+      }
+
+      if (_selectedGpp != null) {
+        return JapGppDetailPane.gpp(
+          token: widget.token,
+          entry: _selectedGpp!,
+          onChanged: _reloadAll,
+          onClose: () {
+            setState(() => _selectedGpp = null);
+          },
+        );
+      }
+    }
+
+    // Show list view in container
     return Container(
       color: const Color(0xFFF6F6F3),
       padding: const EdgeInsets.all(20),
@@ -873,60 +796,89 @@ class _JapGppScreenState extends State<JapGppScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildBreadcrumb(),
             _buildHeader(),
-            _buildTabBar(),
-            const SizedBox(height: 8),
-            Expanded(child: _buildBody()),
+            _buildToolbar(),
+            const SizedBox(height: 12),
+            Expanded(child: _buildContent()),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildBreadcrumb() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 0), 
-      child: Row(
-        children: [
-          Text('Dashboard', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Icon(Icons.chevron_right, size: 14, color: Colors.grey[400]),
-          ),
-          Text('JAP & GPP', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-        ],
-      ),
-    );
-  }
-
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
       child: Text('JAP & GPP', style: Theme.of(context).textTheme.headlineMedium),
     );
   }
 
-  Widget _buildTabBar() {
+  Widget _buildToolbar() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
       child: Row(
         children: [
+          ElevatedButton.icon(
+            onPressed: _loading ? null : _showCreateGppDialog,
+            icon: const Icon(Icons.add),
+            label: const Text('Nieuw'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF8BC34A),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            ),
+          ),
+          const SizedBox(width: 16),
+          IconButton(
+            icon: const Icon(Icons.filter_list),
+            onPressed: () {},
+          ),
+          const SizedBox(width: 16),
           Expanded(
-            child: Row(
-              children: [
-                _TabButton(
-                  label: 'JAP',
-                  selected: _tabIndex == 0,
-                  onTap: () => setState(() => _tabIndex = 0),
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: 'Zoeken',
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: const Color(0xFFF8F8F8),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(28),
+                  borderSide: BorderSide.none,
                 ),
-                const SizedBox(width: 4),
-                _TabButton(
-                  label: 'GPP',
-                  selected: _tabIndex == 1,
-                  onTap: () => setState(() => _tabIndex = 1),
-                ),
-              ],
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+              controller: _searchController,
+            ),
+          ),
+          const SizedBox(width: 12),
+          ElevatedButton.icon(
+            onPressed: _savingImport ? null : _importGppExcel,
+            icon: _savingImport
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : const Icon(Icons.upload_file),
+            label: const Text('Import'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF8BC34A),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          ElevatedButton.icon(
+            onPressed: _exportByYear,
+            icon: const Icon(Icons.download_outlined),
+            label: const Text('Export'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF8BC34A),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             ),
           ),
         ],
@@ -934,34 +886,11 @@ class _JapGppScreenState extends State<JapGppScreen> {
     );
   }
 
-  Widget _buildBody() {
-    if (_selectedEntry != null) {
-      return JapDetailScreen(
-        entry: _selectedEntry!,
-        token: widget.token,
-        onClose: () {
-          setState(() => _selectedEntry = null);
-          _loadEntries();
-          _loadGppEntries();
-        },
-      );
-    }
-    if (_selectedGppEntry != null) {
-      return GppDetailScreen(
-        entry: _selectedGppEntry!,
-        token: widget.token,
-        onClose: () {
-          setState(() => _selectedGppEntry = null);
-          _loadGppEntries();
-          _loadEntries();
-        },
-      );
-    }
-    if (_tabIndex == 1) return _buildGppBody();
-
+  Widget _buildContent() {
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
+
     if (_error != null) {
       return Center(
         child: Column(
@@ -970,7 +899,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
             Text(_error!, style: const TextStyle(color: Colors.red)),
             const SizedBox(height: 12),
             ElevatedButton(
-              onPressed: _loadEntries,
+              onPressed: _reloadAll,
               child: const Text('Opnieuw proberen'),
             ),
           ],
@@ -978,1092 +907,169 @@ class _JapGppScreenState extends State<JapGppScreen> {
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        children: [
-          const SizedBox(height: 12),
-          _buildToolbar(),
-          const SizedBox(height: 12),
-          Expanded(child: _buildTable()),
-        ],
-      ),
-    );
+    return _buildListPane();
   }
 
-  Widget _buildGppBody() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        children: [
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              const Spacer(),
-              SizedBox(
-                width: 260,
-                child: TextField(
-                  controller: _gppSearchController,
-                  decoration: InputDecoration(
-                    hintText: 'Zoeken',
-                    hintStyle: const TextStyle(fontSize: 14),
-                    prefixIcon: const Icon(Icons.search, size: 20),
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(999),
-                      borderSide: const BorderSide(color: Color(0xFFD7DBD2)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(999),
-                      borderSide: const BorderSide(color: Color(0xFFD7DBD2)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(999),
-                      borderSide: const BorderSide(color: Color(0xFF8CC63F), width: 1.5),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                onPressed: _showGppFilterSheet,
-                icon: const Icon(Icons.filter_alt_outlined),
-                color: const Color(0xFF6B7A62),
-              ),
-              const SizedBox(width: 4),
-              ElevatedButton.icon(
-                onPressed: _importingGppExcel ? null : _importGppExcel,
-                icon: _importingGppExcel
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Icon(Icons.upload_file, size: 18),
-                label: const Text('Import'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2F6B55),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-                ),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton.icon(
-                onPressed: _showCreateGppDialog,
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Nieuw'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF8CC63F),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Expanded(child: _buildGppTable()),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGppTable() {
-    final rows = <TableRow>[_buildGppHeaderRow()];
-    int? currentYear;
-    for (final entry in _filteredGpp) {
-      if (currentYear != entry.startYear) {
-        currentYear = entry.startYear;
-        rows.add(_buildGppYearGroupRow(currentYear));
-      }
-      rows.add(_buildGppDataRow(entry));
-    }
+  Widget _buildListPane() {
+    final combinedItems = <_CombinedListItem>[
+      ..._filteredJapEntries().map((entry) => _CombinedListItem.jap(entry)),
+      ..._filteredGppEntries().map((entry) => _CombinedListItem.gpp(entry)),
+    ]
+      ..sort((a, b) {
+        final yearCompare = b.sortYear.compareTo(a.sortYear);
+        if (yearCompare != 0) return yearCompare;
+        return a.goalMeasure.compareTo(b.goalMeasure);
+      });
 
     return Container(
+      margin: const EdgeInsets.fromLTRB(24, 20, 24, 24),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE4E9DD)),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         child: SingleChildScrollView(
-          child: Table(
-            columnWidths: const {
-              0: FixedColumnWidth(32),
-              1: FixedColumnWidth(100),
-              2: FlexColumnWidth(2),
-              3: FlexColumnWidth(1.5),
-            },
-            children: rows,
-          ),
-        ),
-      ),
-    );
-  }
-
-  TableRow _buildGppHeaderRow() {
-    return TableRow(
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFE4E9DD))),
-      ),
-      children: [
-        const SizedBox(height: 44),
-        _buildHeaderCell('Jaar'),
-        _buildHeaderCell('Doelstelling – maatregel'),
-        _buildHeaderCell('Domein', isLast: true),
-      ],
-    );
-  }
-
-  TableRow _buildGppYearGroupRow(int year) {
-    return TableRow(
-      decoration: const BoxDecoration(
-        color: Color(0xFFF8FAF4),
-        border: Border(bottom: BorderSide(color: Color(0xFFE8EEDF))),
-      ),
-      children: [
-        const SizedBox(height: 36),
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-          child: Text(
-            'Jaar $year',
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF4D5548),
-            ),
-          ),
-        ),
-        const SizedBox.shrink(),
-        const SizedBox.shrink(),
-      ],
-    );
-  }
-
-  TableRow _buildGppDataRow(GppEntry entry) {
-    void openDetail() {
-      setState(() => _selectedGppEntry = entry);
-    }
-
-    Widget tappable(Widget child) => GestureDetector(onTap: openDetail, child: child);
-
-    return TableRow(
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFF0F2EC))),
-      ),
-      children: [
-        tappable(Padding(
-          padding: const EdgeInsets.only(left: 12, top: 14, bottom: 14),
-          child: Icon(Icons.table_rows_outlined, size: 18, color: Colors.grey[400]),
-        )),
-        tappable(_buildGppTextCell(entry.yearLabel, bold: true)),
-        tappable(_buildGppTextCell(entry.goalMeasure, maxLines: 3)),
-        tappable(_buildGppTextCell(entry.domain)),
-      ],
-    );
-  }
-
-  Widget _buildGppTextCell(String value, {bool bold = false, int maxLines = 2}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-      child: Text(
-        value,
-        maxLines: maxLines,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
-          color: bold ? const Color(0xFF243022) : const Color(0xFF2F382E),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildToolbar() {
-    return Row(
-      children: [
-        const Spacer(),
-        SizedBox(
-          width: 260,
-          child: TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              hintText: 'Zoeken',
-              hintStyle: const TextStyle(fontSize: 14),
-              prefixIcon: const Icon(Icons.search, size: 20),
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(999),
-                borderSide: const BorderSide(color: Color(0xFFD7DBD2)),
+          scrollDirection: Axis.vertical,
+          child: SizedBox(
+            width: double.infinity,
+            child: DataTable(
+              showCheckboxColumn: false,
+              headingRowHeight: 56,
+              dataRowMinHeight: 58,
+              dataRowMaxHeight: 72,
+              columnSpacing: 32,
+              horizontalMargin: 24,
+              headingRowColor: WidgetStateColor.resolveWith(
+                (states) => const Color(0xFFF5F5F5),
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(999),
-                borderSide: const BorderSide(color: Color(0xFFD7DBD2)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(999),
-                borderSide: const BorderSide(color: Color(0xFF8CC63F), width: 1.5),
-              ),
-              filled: true,
-              fillColor: Colors.white,
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        IconButton(
-          onPressed: _showFilterSheet,
-          icon: const Icon(Icons.filter_alt_outlined),
-          tooltip: 'Filteren',
-          color: const Color(0xFF6B7A62),
-        ),
-        const SizedBox(width: 4),
-        ElevatedButton.icon(
-          onPressed: _allEntries.isEmpty ? null : _exportJapByYear,
-          icon: const Icon(Icons.download_outlined, size: 18),
-          label: const Text('Exporteren'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF2196F3),
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-          ),
-        ),
-        const SizedBox(width: 4),
-        ElevatedButton.icon(
-          onPressed: _showCreateJapDialog,
-          icon: const Icon(Icons.add, size: 18),
-          label: const Text('Nieuw'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF8CC63F),
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTable() {
-    final rows = <TableRow>[_buildHeaderRow()];
-    int? currentYear;
-    for (final entry in _filtered) {
-      if (currentYear != entry.year) {
-        currentYear = entry.year;
-        rows.add(_buildYearGroupRow(currentYear));
-      }
-      rows.add(_buildDataRow(entry));
-    }
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE4E9DD)),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: SingleChildScrollView(
-          child: Table(
-            columnWidths: const {
-              0: FixedColumnWidth(32),
-              1: FixedColumnWidth(90),
-              2: FlexColumnWidth(3),
-              3: FlexColumnWidth(2),
-              4: FlexColumnWidth(1.6),
-              5: FlexColumnWidth(1.6),
-            },
-            children: rows,
-          ),
-        ),
-      ),
-    );
-  }
-
-  TableRow _buildYearGroupRow(int year) {
-    return TableRow(
-      decoration: const BoxDecoration(
-        color: Color(0xFFF8FAF4),
-        border: Border(bottom: BorderSide(color: Color(0xFFE8EEDF))),
-      ),
-      children: [
-        const SizedBox(height: 36),
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-          child: Text(
-            'Jaar $year',
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF4D5548),
-            ),
-          ),
-        ),
-        const SizedBox.shrink(),
-        const SizedBox.shrink(),
-        const SizedBox.shrink(),
-        const SizedBox.shrink(),
-      ],
-    );
-  }
-
-  TableRow _buildHeaderRow() {
-    return TableRow(
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFE4E9DD))),
-      ),
-      children: [
-        const SizedBox(height: 44),
-        _buildHeaderCell('Jaar'),
-        _buildHeaderCell('Doelstelling – maatregel'),
-        _buildHeaderCell('Domein'),
-        _buildHeaderCell('Prioriteit'),
-        _buildHeaderCell('Realisatie', isLast: true),
-      ],
-    );
-  }
-
-  Widget _buildHeaderCell(String label, {bool isLast = false}) {
-    return Padding(
-      padding: EdgeInsets.only(left: 8, right: isLast ? 16 : 8, top: 12, bottom: 12),
-      child: Text(
-        label,
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6B7A62)),
-      ),
-    );
-  }
-
-  TableRow _buildDataRow(JapEntry entry) {
-    void openDetail() {
-      setState(() => _selectedEntry = entry);
-    }
-
-    Widget tappable(Widget child) => GestureDetector(onTap: openDetail, child: child);
-
-    return TableRow(
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFF0F2EC))),
-      ),
-      children: [
-        tappable(Padding(
-          padding: const EdgeInsets.only(left: 12, top: 14, bottom: 14),
-          child: Icon(Icons.insert_drive_file_outlined, size: 18, color: Colors.grey[400]),
-        )),
-        tappable(Padding(
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-          child: Text(entry.yearLabel,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF243022))),
-        )),
-        tappable(Padding(
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-          child: Text(entry.goalMeasure,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 13, color: Color(0xFF2F382E))),
-        )),
-        tappable(Padding(
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-          child: Text(entry.domain,
-              style: const TextStyle(fontSize: 13, color: Color(0xFF4D5548))),
-        )),
-        tappable(Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: _PriorityBadge(priority: entry.priority),
-          ),
-        )),
-        tappable(Padding(
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-          child: _RealisatieLabel(realisatie: entry.realisation),
-        )),
-      ],
-    );
-  }
-} 
-
-// ---------------------------------------------------------------------------
-// Sub-widgets
-// --------------------------------------------------------------------------- ---------------------------------------------------------------------------
-
-class _TabButton extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback? onTap;
-
-  const _TabButton({required this.label, required this.selected, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: selected ? const Color(0xFF8CC63F) : Colors.transparent,
-              width: 2,
-            ),
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-            color: selected
-                ? const Color(0xFF243022)
-                : (onTap == null ? const Color(0xFFBBC3B4) : const Color(0xFF6B7A62)),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PriorityBadge extends StatelessWidget {
-  final JapPriority priority;
-
-  const _PriorityBadge({required this.priority});
-
-  @override
-  Widget build(BuildContext context) {
-    final (label, bg, fg) = switch (priority) {
-      JapPriority.high => ('Hoge prioriteit', const Color(0xFFFFEDED), const Color(0xFFD32F2F)),
-      JapPriority.medium => ('Middelhoge prioriteit', const Color(0xFFFFF8E1), const Color(0xFFF57F17)),
-      JapPriority.low => ('Lage prioriteit', const Color(0xFFF1F1F1), const Color(0xFF757575)),
-    };
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
-      child: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: fg)),
-    );
-  }
-}
-
-class _RealisatieLabel extends StatelessWidget {
-  final JapRealisation realisatie;
-
-  const _RealisatieLabel({required this.realisatie});
-
-  @override
-  Widget build(BuildContext context) {
-    final (label, color) = switch (realisatie) {
-      JapRealisation.inProgress => ('In Uitvoering', const Color(0xFF1565C0)),
-      JapRealisation.completed => ('Uitgevoerd', const Color(0xFF2E7D32)),
-      JapRealisation.notYetCompleted => ('Nog niet uitgevoerd', const Color(0xFFD32F2F)),
-      JapRealisation.fillIn => ('Vul aan', const Color(0xFF6B7A62)),
-    };
-
-    return Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color));
-  }
-}
-
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _FilterChip({required this.label, required this.selected, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFFEAF4D9) : Colors.white,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: selected ? const Color(0xFF8CC63F) : const Color(0xFFD7DBD2)),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: selected ? const Color(0xFF4A7A1E) : const Color(0xFF4D5548),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Forms
-// ---------------------------------------------------------------------------
-
-class _CreateJapForm extends StatefulWidget {
-  final String token;
-  final VoidCallback onSaved;
-
-  const _CreateJapForm({required this.token, required this.onSaved});
-
-  @override
-  State<_CreateJapForm> createState() => _CreateJapFormState();
-}
-
-class _CreateJapFormState extends State<_CreateJapForm> {
-  final _doelstellingController = TextEditingController();
-  final _opmerkingController = TextEditingController();
-  final _budgetController = TextEditingController();
-
-  String _domein = 'Arbeidsveiligheid';
-  String _risico = 'Algemeen';
-  String _uitvoerder = '';
-  String _prioriteit = 'Lage prioriteit';
-  String _realisatie = 'Uitgevoerd';
-  DateTime? _startDate;
-  DateTime? _endDate;
-  int? _selectedYear;
-  List<String> _domains = DomainService.defaultDomains;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadDomains();
-  }
-
-  Future<void> _loadDomains() async {
-    final domains = await DomainService.loadDomains();
-    if (!mounted) return;
-    setState(() => _domains = domains);
-  }
-
-  @override
-  void dispose() {
-    _doelstellingController.dispose();
-    _opmerkingController.dispose();
-    _budgetController.dispose();
-    super.dispose();
-  }
-
-  String _formatDate(DateTime date) {
-    final day = date.day.toString().padLeft(2, '0');
-    final month = date.month.toString().padLeft(2, '0');
-    return '$day.$month.${date.year}';
-  }
-
-  List<int> _generateYears() {
-    if (_startDate == null || _endDate == null) return [];
-    final years = <int>[];
-    for (int year = _startDate!.year; year <= _endDate!.year; year++) {
-      years.add(year);
-    }
-    return years;
-  }
-
-  String _prioriteitToApiString(String label) {
-    switch (label) {
-      case 'Hoge prioriteit': return 'hoog';
-      case 'Middelhoge prioriteit': return 'middel';
-      default: return 'laag';
-    }
-  }
-
-  String _realisatieToApiString(String label) {
-    switch (label) {
-      case 'In uitvoering': return 'in_uitvoering';
-      case 'Nog niet uitgevoerd': return 'neg_niet_uitgevoerd';
-      default: return 'uitgevoerd';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final years = _generateYears();
-    final showYearMaps = years.isNotEmpty;
-
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text('Nieuw JAP Aanmaken', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _doelstellingController,
-              decoration: const InputDecoration(labelText: 'Doelstelling - maatregel *'),
-            ),
-            const SizedBox(height: 12),
-            DomainDropdownField(
-              label: 'Domein *',
-              value: _domein,
-              domains: _domains,
-              onChanged: (value) => setState(() => _domein = value),
-              onDomainAdded: (value) => setState(() {
-                _domein = value;
-                if (!_domains.any((domain) => domain.toLowerCase() == value.toLowerCase())) {
-                  _domains = [..._domains, value];
-                }
-              }),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _risico,
-                    items: ['Algemeen']
-                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                        .toList(),
-                    onChanged: (v) => setState(() => _risico = v!),
-                    decoration: const InputDecoration(labelText: 'Risicoveld *'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    decoration: const InputDecoration(labelText: 'Uitvoerder *'),
-                    onChanged: (v) => _uitvoerder = v,
-                  ),
-                ),
+              columns: const [
+                DataColumn(label: Text('Jaar')),
+                DataColumn(label: Text('Doelstelling - maatregel')),
+                DataColumn(label: Text('Domein')),
+                DataColumn(label: Text('Prioriteit')),
+                DataColumn(label: Text('Realisatie')),
               ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _prioriteit,
-                    items: ['Hoge prioriteit', 'Middelhoge prioriteit', 'Lage prioriteit']
-                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                        .toList(),
-                    onChanged: (v) => setState(() => _prioriteit = v!),
-                    decoration: const InputDecoration(labelText: 'Prioriteit *'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _realisatie,
-                    items: ['Uitgevoerd', 'In uitvoering', 'Nog niet uitgevoerd']
-                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                        .toList(),
-                    onChanged: (v) => setState(() => _realisatie = v!),
-                    decoration: const InputDecoration(labelText: 'Realisatie *'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _budgetController,
-              decoration: const InputDecoration(labelText: 'Middelen / Budget / Werkuren'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _opmerkingController,
-              maxLines: 3,
-              decoration: const InputDecoration(labelText: 'Opmerking'),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _DateField(
-                    label: 'Jaar (startdatum) *',
-                    date: _startDate,
-                    onPick: (date) => setState(() => _startDate = date),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _DateField(
-                    label: 'Eindjaar *',
-                    date: _endDate,
-                    onPick: (date) => setState(() => _endDate = date),
-                  ),
-                ),
-              ],
-            ),
-            if (showYearMaps) ...[
-              const SizedBox(height: 24),
-              const Text(
-                'Selecteer jaren voor deze JAP',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF243022)),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: years.map((year) {
-                  final isSelected = _selectedYear == year;
-                  return GestureDetector(
-                    onTap: () => setState(() => _selectedYear = isSelected ? null : year),
-                    child: Container(
-                      width: 100,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: isSelected ? const Color(0xFF8CC63F) : Colors.white,
-                        border: Border.all(
-                          color: isSelected ? const Color(0xFF8CC63F) : const Color(0xFFD7DBD2),
-                          width: isSelected ? 2 : 1,
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            year.toString(),
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                              color: isSelected ? Colors.white : const Color(0xFF243022),
+              rows: combinedItems.isEmpty
+                  ? [
+                      const DataRow(cells: [
+                        DataCell(Text('Geen resultaten')),
+                        DataCell(Text('')),
+                        DataCell(Text('')),
+                        DataCell(Text('')),
+                        DataCell(Text('')),
+                      ]),
+                    ]
+                  : combinedItems.map((item) {
+                      return DataRow(
+                        onSelectChanged: (_) {
+                          if (item.isJap) {
+                            _selectJap(item.jap!);
+                          } else {
+                            _selectGpp(item.gpp!);
+                          }
+                        },
+                        cells: [
+                          DataCell(Text(item.yearLabel)),
+                          DataCell(
+                            Text(
+                              item.goalMeasure,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              softWrap: true,
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            isSelected ? 'Geselecteerd' : 'Klik om te kiezen',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: isSelected ? Colors.white : const Color(0xFF6B7A62),
-                            ),
-                          ),
+                          DataCell(Text(item.domain, overflow: TextOverflow.ellipsis)),
+                          DataCell(Text(item.priorityLabel)),
+                          DataCell(Text(item.realisationLabel)),
                         ],
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Annuleren'),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: () async {
-                    final doelstelling = _doelstellingController.text.trim();
-                    final year = _selectedYear ?? _startDate?.year;
-                    if (_startDate == null || doelstelling.isEmpty || year == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Vul alle verplichte velden in en selecteer een jaar.')),
                       );
-                      return;
-                    }
-                    try {
-                      await JapApiService.createJapEntry(
-                        token: widget.token,
-                        payload: {
-                          'doelstellingMaatregel': doelstelling,
-                          'domein': _domein,
-                          'risicoveld': _risico,
-                          'jaar': year,
-                          'prioriteit': _prioriteitToApiString(_prioriteit),
-                          'realisatie': _realisatieToApiString(_realisatie),
-                          'uitvoerder': _uitvoerder,
-                          'middelenBudgetWerkuren': _budgetController.text.trim(),
-                          'startdatum': _formatDate(DateTime(year, 1, 1)),
-                          'einddatum': _formatDate(DateTime(year, 12, 31)),
-                          'opmerking': _opmerkingController.text.trim(),
-                        },
-                      );
-                      if (context.mounted) {
-                        Navigator.pop(context);
-                        widget.onSaved();
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Fout: ${e.toString()}')),
-                        );
-                      }
-                    }
-                  },
-                  child: const Text('Opslaan'),
-                ),
-              ],
+                    }).toList(),
             ),
-          ],
+          ),
         ),
       ),
     );
   }
+
 }
 
-class _CreateGppForm extends StatefulWidget {
-  final String token;
-  final VoidCallback onSaved;
+class _CombinedListItem {
+  final bool isJap;
+  final JapEntry? jap;
+  final GppEntry? gpp;
 
-  const _CreateGppForm({required this.token, required this.onSaved});
+  _CombinedListItem._({required this.isJap, this.jap, this.gpp});
 
-  @override
-  State<_CreateGppForm> createState() => _CreateGppFormState();
-}
+  factory _CombinedListItem.jap(JapEntry entry) => _CombinedListItem._(isJap: true, jap: entry);
+  factory _CombinedListItem.gpp(GppEntry entry) => _CombinedListItem._(isJap: false, gpp: entry);
 
-class _CreateGppFormState extends State<_CreateGppForm> {
-  final _doelstellingController = TextEditingController();
-  final _opmerkingController = TextEditingController();
-  final _budgetController = TextEditingController();
+  int get sortYear => isJap ? jap!.year : gpp!.endYear;
 
-  String _domein = 'Arbeidsveiligheid';
-  String _risico = 'Algemeen';
-  String _uitvoerder = '';
-  String _prioriteit = 'Lage prioriteit';
-  String _realisatie = 'In uitvoering';
+  String get yearLabel => isJap ? jap!.year.toString() : gpp!.yearLabel;
 
-  DateTime? _startDate;
-  DateTime? _endDate;
-  List<String> _domains = DomainService.defaultDomains;
+  String get domain => isJap ? jap!.domain : gpp!.domain;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadDomains();
-  }
+  String get goalMeasure => isJap ? jap!.goalMeasure : gpp!.goalMeasure;
 
-  Future<void> _loadDomains() async {
-    final domains = await DomainService.loadDomains();
-    if (!mounted) return;
-    setState(() => _domains = domains);
-  }
+  String get priorityLabel => isJap ? _priorityToLabel(jap!.priority) : _priorityLabelFromString(gpp!.priority);
 
-  @override
-  void dispose() {
-    _doelstellingController.dispose();
-    _opmerkingController.dispose();
-    _budgetController.dispose();
-    super.dispose();
-  }
+  String get realisationLabel => isJap ? _realisationToLabel(jap!.realisation) : _realisationLabelFromString(gpp!.realisation);
 
-  String _prioriteitToApiString(String label) {
-    switch (label) {
-      case 'Hoge prioriteit': return 'hoog';
-      case 'Middelhoge prioriteit': return 'middel';
-      default: return 'laag';
+  String _priorityToLabel(JapPriority priority) {
+    switch (priority) {
+      case JapPriority.high:
+        return 'Hoog';
+      case JapPriority.medium:
+        return 'Middel';
+      case JapPriority.low:
+        return 'Laag';
     }
   }
 
-  String _realisatieToApiString(String label) {
-    switch (label) {
-      case 'Uitgevoerd': return 'uitgevoerd';
-      case 'Nog niet uitgevoerd': return 'neg_niet_uitgevoerd';
-      default: return 'in_uitvoering';
+  String _realisationToLabel(JapRealisation realisation) {
+    switch (realisation) {
+      case JapRealisation.inProgress:
+        return 'In uitvoering';
+      case JapRealisation.completed:
+        return 'Uitgevoerd';
+      case JapRealisation.notYetCompleted:
+        return 'Nog niet';
+      case JapRealisation.fillIn:
+        return 'Vul aan';
     }
   }
 
-  String _formatDate(DateTime date) {
-    final day = date.day.toString().padLeft(2, '0');
-    final month = date.month.toString().padLeft(2, '0');
-    return '$day.$month.${date.year}';
+  String _priorityLabelFromString(String value) {
+    switch (value.toLowerCase()) {
+      case 'hoog':
+      case 'high':
+        return 'Hoog';
+      case 'middel':
+      case 'middelmatig':
+      case 'medium':
+        return 'Middel';
+      default:
+        return 'Laag';
+    }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text('Nieuwe GPP-lijn', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _doelstellingController,
-              decoration: const InputDecoration(labelText: 'Doelstelling - maatregel *'),
-            ),
-            const SizedBox(height: 12),
-            DomainDropdownField(
-              label: 'Domein *',
-              value: _domein,
-              domains: _domains,
-              onChanged: (value) => setState(() => _domein = value),
-              onDomainAdded: (value) => setState(() {
-                _domein = value;
-                if (!_domains.any((domain) => domain.toLowerCase() == value.toLowerCase())) {
-                  _domains = [..._domains, value];
-                }
-              }),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _risico,
-                    items: ['Algemeen']
-                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                        .toList(),
-                    onChanged: (v) => setState(() => _risico = v!),
-                    decoration: const InputDecoration(labelText: 'Risicoveld *'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    decoration: const InputDecoration(labelText: 'Uitvoerder *'),
-                    onChanged: (v) => _uitvoerder = v,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _prioriteit,
-                    items: ['Hoge prioriteit', 'Middelhoge prioriteit', 'Lage prioriteit']
-                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                        .toList(),
-                    onChanged: (v) => setState(() => _prioriteit = v!),
-                    decoration: const InputDecoration(labelText: 'Prioriteit'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _realisatie,
-                    items: ['Uitgevoerd', 'In uitvoering', 'Nog niet uitgevoerd']
-                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                        .toList(),
-                    onChanged: (v) => setState(() => _realisatie = v!),
-                    decoration: const InputDecoration(labelText: 'Realisatie'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _budgetController,
-              decoration: const InputDecoration(labelText: 'Middelen / Budget / Werkuren'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _opmerkingController,
-              maxLines: 3,
-              decoration: const InputDecoration(labelText: 'Opmerking'),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _DateField(
-                    label: 'Startjaar *',
-                    date: _startDate,
-                    onPick: (date) => setState(() => _startDate = date),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _DateField(
-                    label: 'Eindjaar *',
-                    date: _endDate,
-                    onPick: (date) => setState(() => _endDate = date),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Annuleren'),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: () async {
-                    final doelstelling = _doelstellingController.text.trim();
-                    if (_startDate == null || _endDate == null || doelstelling.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Vul alle verplichte velden in.')),
-                      );
-                      return;
-                    }
-                    try {
-                      await JapApiService.createGppEntry(
-                        token: widget.token,
-                        payload: {
-                          'doelstellingMaatregel': doelstelling,
-                          'domein': _domein,
-                          'risicoveld': _risico,
-                          'startJaar': _startDate!.year,
-                          'eindJaar': _endDate!.year,
-                          'prioriteit': _prioriteitToApiString(_prioriteit),
-                          'realisatie': _realisatieToApiString(_realisatie),
-                          'uitvoerder': _uitvoerder,
-                          'middelenBudgetWerkuren': _budgetController.text.trim(),
-                          'startdatum': _formatDate(_startDate!),
-                          'einddatum': _formatDate(_endDate!),
-                          'opmerking': _opmerkingController.text.trim(),
-                        },
-                      );
-                      if (context.mounted) {
-                        Navigator.pop(context);
-                        widget.onSaved();
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Fout: ${e.toString()}')),
-                        );
-                      }
-                    }
-                  },
-                  child: const Text('Opslaan'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DateField extends StatelessWidget {
-  final String label;
-  final DateTime? date;
-  final Function(DateTime) onPick;
-
-  const _DateField({required this.label, required this.date, required this.onPick});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () async {
-        final picked = await showDatePicker(
-          context: context,
-          initialDate: date ?? DateTime.now(),
-          firstDate: DateTime(2020),
-          lastDate: DateTime(2100),
-        );
-        if (picked != null) onPick(picked);
-      },
-      child: InputDecorator(
-        decoration: InputDecoration(labelText: label),
-        child: Text(
-          date != null ? "${date!.day}/${date!.month}/${date!.year}" : 'Selecteer datum',
-        ),
-      ),
-    );
+  String _realisationLabelFromString(String value) {
+    final normalised = value.toLowerCase().replaceAll(' ', '_');
+    switch (normalised) {
+      case 'in_uitvoering':
+      case 'inuitvoering':
+      case 'in_progress':
+        return 'In uitvoering';
+      case 'uitgevoerd':
+      case 'completed':
+        return 'Uitgevoerd';
+      case 'nog_niet_uitgevoerd':
+      case 'neg_niet_uitgevoerd':
+        return 'Nog niet';
+      default:
+        return 'Vul aan';
+    }
   }
 }

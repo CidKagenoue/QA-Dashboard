@@ -6,6 +6,77 @@ import '../models/jap_gpp_entry.dart';
 import 'api_service.dart';
 
 class JapApiService {
+  // ── Domains ──────────────────────────────────────────────────────────────
+
+  static Future<List<String>> fetchDomains({
+    required String token,
+  }) async {
+    final response = await http.get(
+      Uri.parse('${ApiService.baseUrl}/domain'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final payload = jsonDecode(response.body);
+      final domains = payload['domains'];
+      if (domains is! List) throw Exception('Ongeldige domein lijst');
+      return domains
+          .whereType<Map>()
+          .map((e) => (e['name'] as String))
+          .toList();
+    }
+    final error = jsonDecode(response.body);
+    throw Exception(error['message'] ?? 'Domeinen ophalen mislukt');
+  }
+
+  static Future<String> createDomain({
+    required String token,
+    required String name,
+  }) async {
+    final response = await http.post(
+      Uri.parse('${ApiService.baseUrl}/domain'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'name': name}),
+    );
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final payload = jsonDecode(response.body);
+      final domain = payload['domain'];
+      if (domain is! Map) throw Exception('Ongeldig domein ontvangen');
+      return domain['name'] as String;
+    }
+    final error = jsonDecode(response.body);
+    throw Exception(error['message'] ?? 'Domein aanmaken mislukt');
+  }
+
+  static Future<void> deleteDomain({
+    required String token,
+    required String domainName,
+  }) async {
+    // First fetch domains to get the ID
+    final domains = await fetchDomains(token: token);
+    final domainIndex = domains.indexOf(domainName);
+    if (domainIndex == -1) throw Exception('Domein niet gevonden');
+
+    final response = await http.delete(
+      Uri.parse('${ApiService.baseUrl}/domain/$domainIndex'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode != 204 && response.statusCode != 200) {
+      throw Exception('Domein verwijderen mislukt: ${response.statusCode}');
+    }
+  }
+
   // ── GPP ──────────────────────────────────────────────────────────────────
 
   static Future<List<GppEntry>> fetchGppEntries({

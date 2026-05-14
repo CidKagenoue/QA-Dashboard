@@ -558,15 +558,15 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
     );
   }
 
-Widget _buildSelectedTable() {
+  Widget _buildSelectedTable() {
     return _TicketTable(
-      minWidth: 760,
+      minWidth: 0,
       columns: const [
-        _TableColumnData(label: 'ID', flex: 6),
-        _TableColumnData(label: 'Status', flex: 10),
-        _TableColumnData(label: 'Type OVA', flex: 10),
-        _TableColumnData(label: 'Datum vaststelling', flex: 14),
-        _TableColumnData(label: 'Omschrijving', flex: 60),
+        _TableColumnData(label: 'ID', flex: 8),
+        _TableColumnData(label: 'Status', flex: 12),
+        _TableColumnData(label: 'Type OVA', flex: 12),
+        _TableColumnData(label: 'Datum vaststelling', flex: 16),
+        _TableColumnData(label: 'Omschrijving', flex: 52),
       ],
       rows: List<Widget>.generate(_filteredTickets.length, (index) {
         final ticket = _filteredTickets[index];
@@ -575,28 +575,28 @@ Widget _buildSelectedTable() {
           onTap: () => _openTicketDetail(ticket),
           cells: [
             _TableCellData(
-              flex: 6,
+              flex: 8,
               child: Text(
                 ticket.id.toString().padLeft(4, '0'),
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
             _TableCellData(
-              flex: 10,
+              flex: 12,
               child: _TicketStatusChip(label: _sectionStatusLabel(ticket)),
             ),
             _TableCellData(
-              flex: 10,
+              flex: 12,
               child: _OvaTypeChip(label: _ticketTypeLabel(ticket)),
             ),
             _TableCellData(
-              flex: 14,
+              flex: 16,
               child: _CellText(
                 formatOvaDate(ticket.findingDate ?? ticket.updatedAt),
               ),
             ),
             _TableCellData(
-              flex: 60,
+              flex: 52,
               child: _CellText(_ticketDescription(ticket), emphasized: true),
             ),
           ],
@@ -604,8 +604,7 @@ Widget _buildSelectedTable() {
       }),
     );
   }
-} 
-
+}
 // ---------------------------------------------------------------------------
 // Sectie tabs
 // ---------------------------------------------------------------------------

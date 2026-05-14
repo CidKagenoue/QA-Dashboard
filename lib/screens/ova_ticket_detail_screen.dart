@@ -114,7 +114,7 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
 
   void _startEditing() {
     final ticket = _ticket;
-    if (ticket == null || ticket.isClosed) return;
+    if (ticket == null) return;
 
     setState(() {
       _editing = true;
@@ -374,15 +374,14 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
                       onPressed: _isSaving ? null : _cancelEditing,
                       child: const Text('Annuleren'),
                     ),
-                  if (!ticket.isClosed)
-                    TextButton.icon(
-                      onPressed: (_isDeleting || _isSaving) ? null : _confirmDelete,
-                      icon: const Icon(Icons.delete_outline, size: 18),
-                      label: const Text('Verwijderen'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xFFD32F2F),
-                      ),
+                  TextButton.icon(
+                    onPressed: (_isDeleting || _isSaving) ? null : _confirmDelete,
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    label: const Text('Verwijderen'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFFD32F2F),
                     ),
+                  ),
                   if (!ticket.isClosed)
                     ElevatedButton.icon(
                       onPressed: _isDeleting ? null : (_editing ? _save : _startEditing),

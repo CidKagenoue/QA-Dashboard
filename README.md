@@ -86,6 +86,8 @@ npx prisma generate
 npm run start:dev
 ```
 
+This runs Prisma migrations first, then starts the NestJS dev server.
+
 Backend will run on: **`http://localhost:3001`**
 
 ## 2. Frontend Setup (Flutter)
@@ -188,7 +190,7 @@ npm run start:dev              # Start dev server with hot reload
 npx prisma migrate dev         # Run migrations with auto-generation
 npx prisma migrate deploy      # Run migrations (production)
 npx prisma generate            # Generate Prisma client
-           # Open Prisma Studio GUI
+                                # Open Prisma Studio GUI
 
 # Linting & Formatting
 npm run lint                   # Run ESLint

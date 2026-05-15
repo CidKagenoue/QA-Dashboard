@@ -151,17 +151,24 @@ class AuthService extends ChangeNotifier {
 
   Future<void> _refreshAccessToken() async {
     if (_refreshToken == null || _refreshToken!.isEmpty) {
-      throw Exception('Geen refresh token beschikbaar');
+      await _forceLogout();
+      throw Exception('Sessie verlopen');
     }
 
-    final response = await ApiService.refreshToken(
-      refreshToken: _refreshToken!,
-    );
-    _token = (response['accessToken'] ?? response['token']) as String?;
-    _refreshToken = response['refreshToken'] as String?;
+    try {
+      final response = await ApiService.refreshToken(
+        refreshToken: _refreshToken!,
+      );
+      _token = (response['accessToken'] ?? response['token']) as String?;
+      _refreshToken = response['refreshToken'] as String?;
+    } catch (_) {
+      await _forceLogout();
+      throw Exception('Sessie verlopen');
+    }
 
     if (_user == null || _token == null) {
-      throw Exception('Ongeldig refresh antwoord');
+      await _forceLogout();
+      throw Exception('Sessie verlopen');
     }
 
     await _storeAuth(_user!, _token!, refreshToken: _refreshToken);
@@ -261,6 +268,15 @@ class AuthService extends ChangeNotifier {
       }
     }
 
+    notifyListeners();
+  }
+
+  Future<void> _forceLogout() async {
+    _user = null;
+    _token = null;
+    _refreshToken = null;
+
+    await _clearStoredAuth();
     notifyListeners();
   }
 

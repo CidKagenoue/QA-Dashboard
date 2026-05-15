@@ -1,9 +1,20 @@
+require('dotenv/config');
+
 const fs = require('fs');
 const path = require('path');
 const XLSX = require('xlsx');
+const { Pool } = require('pg');
+const { PrismaPg } = require('@prisma/adapter-pg');
 const { PrismaClient } = require('@prisma/client');
 
-const prisma = new PrismaClient();
+const databaseUrl = process.env.DATABASE_URL;
+
+if (!databaseUrl) {
+  throw new Error('DATABASE_URL is required');
+}
+
+const pool = new Pool({ connectionString: databaseUrl });
+const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
 
 function parseDate(text) {
   if (!text) return null;
@@ -150,6 +161,7 @@ async function run() {
     console.error('Error:', err);
   } finally {
     await prisma.$disconnect();
+    await pool.end();
   }
 }
 

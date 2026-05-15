@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:qa_dashboard/models/jap_gpp_entry.dart';
 import 'package:qa_dashboard/screens/account_management_screen.dart';
 import '../models/app_notification.dart';
 import '../services/auth_service.dart';
-import '../services/jap_gpp_api_service.dart';
+import '../screens/home_screen.dart';
 import '../screens/ova_ticket_wizard_screen.dart';
 import '../screens/maintenance_inspections_screen.dart';
-import '../screens/jap_detail_screen.dart';
-import '../screens/gpp_detail_screen.dart';
 
 class NotificationNavigationService {
   /// Navigeert naar het juiste scherm op basis van de melding.
@@ -74,37 +71,15 @@ class NotificationNavigationService {
           return false;
         }
 
-        final token = await authService.getValidAccessToken();
+        final navigator = Navigator.of(context);
+        await authService.getValidAccessToken();
 
-        if (notification.type.startsWith('GPP_')) {
-          final entry = await _resolveGppEntry(token: token, id: entryId);
-          if (entry == null) {
-            return false;
-          }
-
-          await Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (routeContext) => GppDetailScreen(
-                entry: entry,
-                token: token,
-                onClose: () => Navigator.of(routeContext).pop(),
-              ),
-            ),
-          );
-          return true;
-        }
-
-        final entry = await _resolveJapEntry(token: token, id: entryId);
-        if (entry == null) {
-          return false;
-        }
-
-        await Navigator.of(context).push(
+        await navigator.push(
           MaterialPageRoute(
-            builder: (routeContext) => JapDetailScreen(
-              entry: entry,
-              token: token,
-              onClose: () => Navigator.of(routeContext).pop(),
+            builder: (_) => HomeScreen(
+              initialSectionKey: 'japGpp',
+              initialJapGppModule: notification.type.startsWith('GPP_') ? 'GPP' : 'JAP',
+              initialJapGppEntryId: entryId,
             ),
           ),
         );
@@ -142,32 +117,6 @@ class NotificationNavigationService {
     }
     if (rawId is String) {
       return int.tryParse(rawId);
-    }
-    return null;
-  }
-
-  static Future<JapEntry?> _resolveJapEntry({
-    required String token,
-    required int id,
-  }) async {
-    final entries = await JapApiService.fetchJapEntries(token: token);
-    for (final entry in entries) {
-      if (entry.id == id) {
-        return entry;
-      }
-    }
-    return null;
-  }
-
-  static Future<GppEntry?> _resolveGppEntry({
-    required String token,
-    required int id,
-  }) async {
-    final entries = await JapApiService.fetchGppEntries(token: token);
-    for (final entry in entries) {
-      if (entry.id == id) {
-        return entry;
-      }
     }
     return null;
   }

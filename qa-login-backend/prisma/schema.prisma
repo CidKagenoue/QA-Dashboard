@@ -6,7 +6,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -268,3 +267,64 @@ model Notification {
   @@map("notifications")
 }
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Domains for JAP/GPP entries
+model Domain {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  entries   JapGppEntry[]
+
+  @@map("domains")
+}
+
+model Executor {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("executors")
+}
+
+// JAP / GPP combined entries for seeding and reporting
+model JapGppEntry {
+  id                   Int      @id @default(autoincrement())
+  source               String   @default("JAP") // 'JAP' or 'GPP'
+  year                 Int?     // for JAP single-year entries
+  startYear            Int?     // for GPP ranges
+  endYear              Int?     // for GPP ranges
+  goalMeasure          String
+  domainId             Int?
+  domain               Domain?  @relation(fields: [domainId], references: [id], onDelete: SetNull)
+  riskField            String?
+  resourcesBudget      String?
+  priority             String?
+  realisation          String?
+  executor             String?
+  startDate            DateTime?
+  endDate              DateTime?
+  remark               String?
+  generatedFromGppId   Int?     @map("generated_from_gpp_id") // tracks auto-generated JAP entries from GPP
+  comments             JapComment[]
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([generatedFromGppId], map: "jap_gpp_entries_generated_from_gpp_id_idx")
+  @@map("jap_gpp_entries")
+}
+
+// Comments on JAP/GPP entries
+model JapComment {
+  id        Int         @id @default(autoincrement())
+  entryId   Int         @map("entry_id")
+  entry     JapGppEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  author    String?
+  text      String
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  @@index([entryId], map: "jap_comments_entry_id_idx")
+  @@map("jap_comments")
+}

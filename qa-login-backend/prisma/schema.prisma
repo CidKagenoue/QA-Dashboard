@@ -280,6 +280,15 @@ model Domain {
   @@map("domains")
 }
 
+model Executor {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("executors")
+}
+
 // JAP / GPP combined entries for seeding and reporting
 model JapGppEntry {
   id                   Int      @id @default(autoincrement())

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/jap_gpp_entry.dart';
 import '../services/jap_gpp_api_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/manage_dropdown_field.dart';
 
 class JapGppDetailPane extends StatefulWidget {
@@ -121,24 +120,7 @@ class _JapGppDetailPaneState extends State<JapGppDetailPane> {
 
   Future<void> _loadExecutors() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final saved = prefs.getStringList('executors') ?? [];
-
-      // also collect from entries to offer existing executors
-      final jap = await JapApiService.fetchJapEntries(token: widget.token);
-      final gpp = await JapApiService.fetchGppEntries(token: widget.token);
-      final set = <String>{};
-      for (final e in jap) {
-        if (e.executor.trim().isNotEmpty) set.add(e.executor.trim());
-      }
-      for (final e in gpp) {
-        if (e.executor.trim().isNotEmpty) set.add(e.executor.trim());
-      }
-      for (final s in saved) {
-        if (s.trim().isNotEmpty) set.add(s.trim());
-      }
-
-      final list = set.toList()..sort();
+      final list = await JapApiService.fetchExecutors(token: widget.token);
       if (!mounted) return;
       setState(() {
         _availableExecutors = list;
@@ -454,258 +436,20 @@ class _JapGppDetailPaneState extends State<JapGppDetailPane> {
       onChanged: (v) => setState(() => _executorController.text = v),
       onItemsChanged: (items) => setState(() => _availableExecutors = items),
       onAddItem: (value) async {
-        final prefs = await SharedPreferences.getInstance();
-        final saved = prefs.getStringList('executors') ?? [];
-        if (!saved.contains(value)) {
-          saved.add(value);
-          await prefs.setStringList('executors', saved);
-        }
-        return value;
+        return JapApiService.createExecutor(token: widget.token, name: value);
       },
       onDeleteItem: (value) async {
-        final prefs = await SharedPreferences.getInstance();
-        final saved = prefs.getStringList('executors') ?? [];
-        final removed = saved.remove(value);
-        await prefs.setStringList('executors', saved);
-        return removed;
-      },
-    );
-  }
-
-  void _showAddDomainDialog() {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Nieuw domein toevoegen'),
-          content: TextField(
-            controller: controller,
-            decoration: const InputDecoration(
-              hintText: 'Voer domeinnaam in',
-              border: OutlineInputBorder(),
-            ),
-            autofocus: true,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Annuleren'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final domain = controller.text.trim();
-                if (domain.isNotEmpty && !_availableDomains.contains(domain)) {
-                  try {
-                    await JapApiService.createDomain(
-                      token: widget.token,
-                      name: domain,
-                    );
-                    if (!mounted) return;
-                    setState(() {
-                      _availableDomains.add(domain);
-                      _availableDomains.sort();
-                      _selectedDomain = domain;
-                    });
-                    if (mounted) {
-                      Navigator.pop(dialogContext);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Domein "$domain" toegevoegd.')),
-                      );
-                    }
-                  } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Domein toevoegen mislukt: $e')),
-                      );
-                    }
-                  }
-                }
-              },
-              child: const Text('Toevoegen'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showAddExecutorDialog() {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Nieuwe uitvoerder toevoegen'),
-          content: TextField(
-            controller: controller,
-            decoration: const InputDecoration(
-              hintText: 'Voer naam uitvoerder in',
-              border: OutlineInputBorder(),
-            ),
-            autofocus: true,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Annuleren'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final executor = controller.text.trim();
-                if (executor.isNotEmpty && !_availableExecutors.contains(executor)) {
-                  try {
-                    final prefs = await SharedPreferences.getInstance();
-                    final saved = prefs.getStringList('executors') ?? [];
-                    saved.add(executor);
-                    await prefs.setStringList('executors', saved);
-                    if (!mounted) return;
-                    setState(() {
-                      _availableExecutors.add(executor);
-                      _availableExecutors.sort();
-                      _executorController.text = executor;
-                    });
-                    if (mounted) {
-                      Navigator.pop(dialogContext);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Uitvoerder "$executor" toegevoegd.')),
-                      );
-                    }
-                  } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Uitvoerder toevoegen mislukt: $e')),
-                      );
-                    }
-                  }
-                }
-              },
-              child: const Text('Toevoegen'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showRemoveExecutorDialog() {
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Uitvoerder verwijderen'),
-          content: const Text('Welke uitvoerder wil je verwijderen?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Annuleren'),
-            ),
-            SizedBox(
-              height: 200,
-              width: double.maxFinite,
-              child: ListView.builder(
-                itemCount: _availableExecutors.length,
-                itemBuilder: (context, index) {
-                  final ex = _availableExecutors[index];
-                  return ListTile(
-                    title: Text(ex),
-                    trailing: ex == _executorController.text.trim()
-                        ? const Tooltip(
-                            message: 'Deze uitvoerder is geselecteerd',
-                            child: Icon(Icons.info, size: 18, color: Colors.orange),
-                          )
-                        : IconButton(
-                            icon: const Icon(Icons.delete, size: 18),
-                            onPressed: () async {
-                              try {
-                                final prefs = await SharedPreferences.getInstance();
-                                final saved = prefs.getStringList('executors') ?? [];
-                                saved.remove(ex);
-                                await prefs.setStringList('executors', saved);
-                                if (!mounted) return;
-                                setState(() => _availableExecutors.remove(ex));
-                                if (mounted) {
-                                  Navigator.pop(dialogContext);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Uitvoerder "$ex" verwijderd.')),
-                                  );
-                                }
-                              } catch (e) {
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Uitvoerder verwijderen mislukt: $e')),
-                                  );
-                                }
-                              }
-                            },
-                          ),
-                  );
-                },
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showRemoveDomainDialog() {
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Domein verwijderen'),
-          content: const Text('Welk domein wil je verwijderen?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Annuleren'),
-            ),
-            SizedBox(
-              height: 200,
-              width: double.maxFinite,
-              child: ListView.builder(
-                itemCount: _availableDomains.length,
-                itemBuilder: (context, index) {
-                  final domain = _availableDomains[index];
-                  return ListTile(
-                    title: Text(domain),
-                    trailing: domain == _selectedDomain
-                        ? const Tooltip(
-                            message: 'Dit domein is geselecteerd',
-                            child: Icon(Icons.info, size: 18, color: Colors.orange),
-                          )
-                        : IconButton(
-                            icon: const Icon(Icons.delete, size: 18),
-                            onPressed: () async {
-                              try {
-                                await JapApiService.deleteDomain(
-                                  token: widget.token,
-                                  domainName: domain,
-                                );
-                                if (!mounted) return;
-                                setState(() => _availableDomains.remove(domain));
-                                if (mounted) {
-                                  Navigator.pop(dialogContext);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Domein "$domain" verwijderd.')),
-                                  );
-                                }
-                              } catch (e) {
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Domein verwijderen mislukt: $e')),
-                                  );
-                                }
-                              }
-                            },
-                          ),
-                  );
-                },
-              ),
-            ),
-          ],
-        );
+        try {
+          await JapApiService.deleteExecutor(token: widget.token, executorName: value);
+          return true;
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Uitvoerder verwijderen mislukt: $e')),
+            );
+          }
+          return false;
+        }
       },
     );
   }

@@ -261,6 +261,17 @@ function formatGppEntry(entry: any) {
   };
 }
 
+async function ensureExecutor(prismaService: any, executorName: string | null | undefined) {
+  const normalized = String(executorName ?? '').trim();
+  if (!normalized) return;
+
+  await prismaService.executor.upsert({
+    where: { name: normalized },
+    create: { name: normalized },
+    update: {},
+  });
+}
+
 export default function createGppRouter(
   notificationsService: any,
   prismaService: any,
@@ -355,6 +366,8 @@ export default function createGppRouter(
             remark: readCell(row, indexes.opmerking),
           },
         });
+
+        await ensureExecutor(prismaService, gppEntry.executor);
 
         importedGppCount++;
 
@@ -561,6 +574,8 @@ export default function createGppRouter(
         },
       });
 
+      await ensureExecutor(prismaService, uitvoerder);
+
       // Do not generate per-year JAP entries when creating a GPP — only the GPP row is created
 
       // Notify
@@ -669,6 +684,8 @@ export default function createGppRouter(
           comments: true,
         },
       });
+
+      await ensureExecutor(prismaService, uitvoerder);
 
       // Do not generate/sync per-year JAP entries when updating a GPP — keep only the GPP row
 

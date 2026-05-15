@@ -1,6 +1,5 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/manage_dropdown_field.dart';
 import '../services/jap_export_service.dart';
 import '../models/jap_gpp_entry.dart';
@@ -712,18 +711,12 @@ class _JapGppScreenState extends State<JapGppScreen> {
     String realisation = 'in_uitvoering';
     String selectedDomain = 'Arbeidsveiligheid';
 
-    // load saved executors from SharedPreferences + existing entries
-    final prefs = await SharedPreferences.getInstance();
-    final savedExecutors = prefs.getStringList('executors') ?? [];
-    // clean up any empty entries persisted previously
-    final cleanedSaved = savedExecutors.where((s) => s.trim().isNotEmpty).toList();
-    if (cleanedSaved.length != savedExecutors.length) {
-      await prefs.setStringList('executors', cleanedSaved);
+    final executors = <String>[];
+    try {
+      executors.addAll(await JapApiService.fetchExecutors(token: widget.token));
+    } catch (_) {
+      executors.addAll(_distinctExecutors());
     }
-    final execSet = <String>{};
-    execSet.addAll(_distinctExecutors());
-    for (final s in cleanedSaved) execSet.add(s.trim());
-    final executors = execSet.toList()..sort();
 
     // load domains from API (fallback to defaults on error)
     List<String> domains;
@@ -954,20 +947,20 @@ class _JapGppScreenState extends State<JapGppScreen> {
                                                 ..addAll(items);
                                             }),
                                             onAddItem: (value) async {
-                                              final prefs2 = await SharedPreferences.getInstance();
-                                              final saved2 = prefs2.getStringList('executors') ?? [];
-                                              if (!saved2.contains(value)) {
-                                                saved2.add(value);
-                                                await prefs2.setStringList('executors', saved2);
-                                              }
-                                              return value;
+                                              return JapApiService.createExecutor(token: widget.token, name: value);
                                             },
                                             onDeleteItem: (value) async {
-                                              final prefs2 = await SharedPreferences.getInstance();
-                                              final saved2 = prefs2.getStringList('executors') ?? [];
-                                              final removed = saved2.remove(value);
-                                              await prefs2.setStringList('executors', saved2);
-                                              return removed;
+                                              try {
+                                                await JapApiService.deleteExecutor(token: widget.token, executorName: value);
+                                                return true;
+                                              } catch (e) {
+                                                if (dialogContext.mounted) {
+                                                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                                                    SnackBar(content: Text('Uitvoerder verwijderen mislukt: $e')),
+                                                  );
+                                                }
+                                                return false;
+                                              }
                                             },
                                           ),
                                           const SizedBox(height: 16),
@@ -1125,20 +1118,20 @@ class _JapGppScreenState extends State<JapGppScreen> {
                                         ..addAll(items);
                                     }),
                                     onAddItem: (value) async {
-                                      final prefs2 = await SharedPreferences.getInstance();
-                                      final saved2 = prefs2.getStringList('executors') ?? [];
-                                      if (!saved2.contains(value)) {
-                                        saved2.add(value);
-                                        await prefs2.setStringList('executors', saved2);
-                                      }
-                                      return value;
+                                      return JapApiService.createExecutor(token: widget.token, name: value);
                                     },
                                     onDeleteItem: (value) async {
-                                      final prefs3 = await SharedPreferences.getInstance();
-                                      final saved3 = prefs3.getStringList('executors') ?? [];
-                                      final removed = saved3.remove(value);
-                                      await prefs3.setStringList('executors', saved3);
-                                      return removed;
+                                      try {
+                                        await JapApiService.deleteExecutor(token: widget.token, executorName: value);
+                                        return true;
+                                      } catch (e) {
+                                        if (dialogContext.mounted) {
+                                          ScaffoldMessenger.of(dialogContext).showSnackBar(
+                                            SnackBar(content: Text('Uitvoerder verwijderen mislukt: $e')),
+                                          );
+                                        }
+                                        return false;
+                                      }
                                     },
                                   ),
                                   const SizedBox(height: 16),

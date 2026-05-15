@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/jap_gpp_entry.dart';
 import '../services/jap_gpp_api_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../widgets/manage_dropdown_field.dart';
 
 class JapGppDetailPane extends StatefulWidget {
   final String token;
@@ -62,6 +64,8 @@ class _JapGppDetailPaneState extends State<JapGppDetailPane> {
   late String _realisation;
   late String _selectedDomain;
   late List<String> _availableDomains;
+  late List<String> _availableExecutors;
+  bool _loadingExecutors = true;
   bool _editing = false;
   bool _saving = false;
   bool _loadingDomains = true;
@@ -89,12 +93,75 @@ class _JapGppDetailPaneState extends State<JapGppDetailPane> {
     _budgetController = TextEditingController(text: initialBudget);
     _remarkController = TextEditingController(text: initialRemark);
     _priority = _isJap ? _jap.priority.name : _gpp.priority;
-    _realisation = _isJap ? _jap.realisation.name : _gpp.realisation;
+    if (_isJap) {
+      switch (_jap.realisation) {
+        case JapRealisation.inProgress:
+          _realisation = 'in_uitvoering';
+          break;
+        case JapRealisation.completed:
+          _realisation = 'uitgevoerd';
+          break;
+        case JapRealisation.notYetCompleted:
+          _realisation = 'neg_niet_uitgevoerd';
+          break;
+        case JapRealisation.fillIn:
+          _realisation = 'vul_aan';
+          break;
+      }
+    } else {
+      _realisation = _gpp.realisation;
+    }
     _selectedDomain = initialDomain;
     _editStartDate = _isJap ? _jap.startDate : _gpp.startDate;
     _editEndDate = _isJap ? _jap.endDate : _gpp.endDate;
     
     _loadDomains();
+    _loadExecutors();
+  }
+
+  Future<void> _loadExecutors() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getStringList('executors') ?? [];
+
+      // also collect from entries to offer existing executors
+      final jap = await JapApiService.fetchJapEntries(token: widget.token);
+      final gpp = await JapApiService.fetchGppEntries(token: widget.token);
+      final set = <String>{};
+      for (final e in jap) {
+        if (e.executor.trim().isNotEmpty) set.add(e.executor.trim());
+      }
+      for (final e in gpp) {
+        if (e.executor.trim().isNotEmpty) set.add(e.executor.trim());
+      }
+      for (final s in saved) {
+        if (s.trim().isNotEmpty) set.add(s.trim());
+      }
+
+      final list = set.toList()..sort();
+      if (!mounted) return;
+      setState(() {
+        _availableExecutors = list;
+        _loadingExecutors = false;
+        final current = _executorController.text.trim();
+        if (current.isNotEmpty && !_availableExecutors.contains(current)) {
+          _availableExecutors.add(current);
+          _availableExecutors.sort();
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      final current = _executorController.text.trim();
+      setState(() {
+        if (current.isNotEmpty) {
+          _availableExecutors = [current];
+          _availableExecutors.sort();
+        } else {
+          _availableExecutors = <String>[];
+        }
+        _loadingExecutors = false;
+      });
+    }
   }
 
   Future<void> _loadDomains() async {
@@ -288,9 +355,9 @@ class _JapGppDetailPaneState extends State<JapGppDetailPane> {
     );
   }
 
-  Widget _buildDropdown({required String value, required List<DropdownMenuItem<String>> items, required ValueChanged<String?> onChanged}) {
+  Widget _buildDropdown({required String value, required List<DropdownMenuItem<String>> items, required ValueChanged<String?> onChanged, String? displayValue}) {
     if (!_editing) {
-      return _buildReadOnlyBox(value);
+      return _buildReadOnlyBox(displayValue ?? value);
     }
 
     return DropdownButtonFormField<String>(
@@ -333,72 +400,75 @@ class _JapGppDetailPaneState extends State<JapGppDetailPane> {
     }
     final safeInitialDomain = uniqueDomains.contains(_selectedDomain) ? _selectedDomain : null;
 
-    return Row(
-      children: [
-        Expanded(
-          child: DropdownButtonFormField<String>(
-            initialValue: safeInitialDomain,
-            isExpanded: true,
-            decoration: InputDecoration(
-              isDense: true,
-              filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: Color(0xFFDDE3D2)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: Color(0xFF8BC34A)),
-              ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            ),
-            items: uniqueDomains.map((domain) {
-              return DropdownMenuItem(
-                value: domain,
-                child: Text(domain),
-              );
-            }).toList(),
-            onChanged: (value) {
-              if (value != null) setState(() => _selectedDomain = value);
-            },
-          ),
-        ),
-        const SizedBox(width: 8),
-        SizedBox(
-          height: 40,
-          width: 40,
-          child: IconButton(
-            icon: const Icon(Icons.add, size: 18),
-            onPressed: _showAddDomainDialog,
-            tooltip: 'Nieuw domein toevoegen',
-            padding: EdgeInsets.zero,
-            visualDensity: VisualDensity.compact,
-            style: IconButton.styleFrom(
-              backgroundColor: const Color(0xFF8BC34A).withValues(alpha: 0.1),
-              foregroundColor: const Color(0xFF8BC34A),
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        if (_availableDomains.length > 1)
-          SizedBox(
-            height: 40,
-            width: 40,
-            child: IconButton(
-              icon: const Icon(Icons.close, size: 18),
-              onPressed: _showRemoveDomainDialog,
-              tooltip: 'Domein verwijderen',
-              padding: EdgeInsets.zero,
-              visualDensity: VisualDensity.compact,
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.red.withValues(alpha: 0.1),
-                foregroundColor: Colors.red,
-              ),
-            ),
-          ),
-      ],
+    return ManageDropdownField(
+      items: uniqueDomains,
+      value: _selectedDomain,
+      hint: '',
+      title: 'Domeinen beheren',
+      addLabel: 'Nieuw domein',
+      addHint: 'Voer domeinnaam in',
+      onChanged: (v) => setState(() => _selectedDomain = v.isEmpty ? (uniqueDomains.isNotEmpty ? uniqueDomains.first : '') : v),
+      onItemsChanged: (items) => setState(() => _availableDomains = items),
+      onAddItem: (value) async {
+        try {
+          return await JapApiService.createDomain(token: widget.token, name: value);
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Domein toevoegen mislukt: $e')));
+          }
+          return null;
+        }
+      },
+      onDeleteItem: (value) async {
+        try {
+          await JapApiService.deleteDomain(token: widget.token, domainName: value);
+          return true;
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Domein verwijderen mislukt: $e')));
+          }
+          return false;
+        }
+      },
+    );
+  }
+
+  Widget _buildExecutorDropdown() {
+    if (!_editing) return _buildReadOnlyBox(_executorController.text.trim());
+
+    if (_loadingExecutors) return const Center(child: CircularProgressIndicator());
+
+    final uniqueExecutors = <String>[];
+    for (final d in _availableExecutors) {
+      if (d.trim().isEmpty) continue;
+      if (!uniqueExecutors.contains(d)) uniqueExecutors.add(d);
+    }
+
+    return ManageDropdownField(
+      items: uniqueExecutors,
+      value: _executorController.text.trim(),
+      hint: '',
+      title: 'Uitvoerders beheren',
+      addLabel: 'Nieuwe uitvoerder',
+      addHint: 'Voer naam uitvoerder in',
+      onChanged: (v) => setState(() => _executorController.text = v),
+      onItemsChanged: (items) => setState(() => _availableExecutors = items),
+      onAddItem: (value) async {
+        final prefs = await SharedPreferences.getInstance();
+        final saved = prefs.getStringList('executors') ?? [];
+        if (!saved.contains(value)) {
+          saved.add(value);
+          await prefs.setStringList('executors', saved);
+        }
+        return value;
+      },
+      onDeleteItem: (value) async {
+        final prefs = await SharedPreferences.getInstance();
+        final saved = prefs.getStringList('executors') ?? [];
+        final removed = saved.remove(value);
+        await prefs.setStringList('executors', saved);
+        return removed;
+      },
     );
   }
 
@@ -453,6 +523,125 @@ class _JapGppDetailPaneState extends State<JapGppDetailPane> {
                 }
               },
               child: const Text('Toevoegen'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showAddExecutorDialog() {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Nieuwe uitvoerder toevoegen'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(
+              hintText: 'Voer naam uitvoerder in',
+              border: OutlineInputBorder(),
+            ),
+            autofocus: true,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Annuleren'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final executor = controller.text.trim();
+                if (executor.isNotEmpty && !_availableExecutors.contains(executor)) {
+                  try {
+                    final prefs = await SharedPreferences.getInstance();
+                    final saved = prefs.getStringList('executors') ?? [];
+                    saved.add(executor);
+                    await prefs.setStringList('executors', saved);
+                    if (!mounted) return;
+                    setState(() {
+                      _availableExecutors.add(executor);
+                      _availableExecutors.sort();
+                      _executorController.text = executor;
+                    });
+                    if (mounted) {
+                      Navigator.pop(dialogContext);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Uitvoerder "$executor" toegevoegd.')),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Uitvoerder toevoegen mislukt: $e')),
+                      );
+                    }
+                  }
+                }
+              },
+              child: const Text('Toevoegen'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showRemoveExecutorDialog() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Uitvoerder verwijderen'),
+          content: const Text('Welke uitvoerder wil je verwijderen?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Annuleren'),
+            ),
+            SizedBox(
+              height: 200,
+              width: double.maxFinite,
+              child: ListView.builder(
+                itemCount: _availableExecutors.length,
+                itemBuilder: (context, index) {
+                  final ex = _availableExecutors[index];
+                  return ListTile(
+                    title: Text(ex),
+                    trailing: ex == _executorController.text.trim()
+                        ? const Tooltip(
+                            message: 'Deze uitvoerder is geselecteerd',
+                            child: Icon(Icons.info, size: 18, color: Colors.orange),
+                          )
+                        : IconButton(
+                            icon: const Icon(Icons.delete, size: 18),
+                            onPressed: () async {
+                              try {
+                                final prefs = await SharedPreferences.getInstance();
+                                final saved = prefs.getStringList('executors') ?? [];
+                                saved.remove(ex);
+                                await prefs.setStringList('executors', saved);
+                                if (!mounted) return;
+                                setState(() => _availableExecutors.remove(ex));
+                                if (mounted) {
+                                  Navigator.pop(dialogContext);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Uitvoerder "$ex" verwijderd.')),
+                                  );
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Uitvoerder verwijderen mislukt: $e')),
+                                  );
+                                }
+                              }
+                            },
+                          ),
+                  );
+                },
+              ),
             ),
           ],
         );
@@ -775,7 +964,7 @@ class _JapGppDetailPaneState extends State<JapGppDetailPane> {
                               children: [
                                 field('Domein', _buildDomainDropdown()),
                                 field('Risicoveld', _buildTextField(_riskController)),
-                                field('Uitvoerder', _buildTextField(_executorController)),
+                                field('Uitvoerder', _buildExecutorDropdown()),
                                 field('Middelen / Budget / Werkuren', _buildTextField(_budgetController)),
                               ],
                             ),
@@ -788,6 +977,7 @@ class _JapGppDetailPaneState extends State<JapGppDetailPane> {
                                   'Prioriteit',
                                   _buildDropdown(
                                     value: _priority,
+                                    displayValue: _priority == 'hoog' ? 'Hoge prioriteit' : _priority == 'middel' ? 'Middelhoge prioriteit' : 'Lage prioriteit',
                                     items: const [
                                       DropdownMenuItem(value: 'hoog', child: Text('Hoge prioriteit')),
                                       DropdownMenuItem(value: 'middel', child: Text('Middelhoge prioriteit')),
@@ -802,6 +992,7 @@ class _JapGppDetailPaneState extends State<JapGppDetailPane> {
                                   'Realisatie',
                                   _buildDropdown(
                                     value: _realisation,
+                                    displayValue: _getRealisationLabel(_realisation),
                                     items: const [
                                       DropdownMenuItem(value: 'in_uitvoering', child: Text('In uitvoering')),
                                       DropdownMenuItem(value: 'uitgevoerd', child: Text('Uitgevoerd')),

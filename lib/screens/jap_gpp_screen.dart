@@ -1,8 +1,9 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-
-import '../models/jap_gpp_entry.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../widgets/manage_dropdown_field.dart';
 import '../services/jap_export_service.dart';
+import '../models/jap_gpp_entry.dart';
 import '../services/jap_gpp_api_service.dart';
 import 'jap_gpp_detail_pane.dart';
 
@@ -32,6 +33,13 @@ class _JapGppScreenState extends State<JapGppScreen> {
   bool _loading = true;
   bool _savingImport = false;
   String? _error;
+  
+  // Filters
+  final Set<int> _filterYears = <int>{};
+  String? _filterDomain;
+  final Set<String> _filterPriorities = <String>{};
+  String? _filterRealisation;
+  String _filterExecutor = '';
 
   JapEntry? _selectedJap;
   GppEntry? _selectedGpp;
@@ -152,9 +160,27 @@ class _JapGppScreenState extends State<JapGppScreen> {
   }
 
   List<JapEntry> _filteredJapEntries() {
+    // First apply explicit filters
+    var entries = _japEntries.where((entry) {
+      if (_filterYears.isNotEmpty && !_filterYears.contains(entry.year)) return false;
+      if (_filterDomain != null && _filterDomain!.isNotEmpty && entry.domain != _filterDomain) return false;
+      if (_filterPriorities.isNotEmpty) {
+        final p = _japPriorityRaw(entry.priority);
+        if (!_filterPriorities.contains(p)) return false;
+      }
+      if (_filterRealisation != null && _filterRealisation!.isNotEmpty) {
+        final r = _japRealisationRaw(entry.realisation);
+        if (r != _filterRealisation) return false;
+      }
+      if (_filterExecutor.trim().isNotEmpty) {
+        if (!entry.executor.toLowerCase().contains(_filterExecutor.toLowerCase())) return false;
+      }
+      return true;
+    }).toList();
+
     final query = _searchController.text.trim().toLowerCase();
-    if (query.isEmpty) return _japEntries;
-    return _japEntries.where((entry) {
+    if (query.isEmpty) return entries;
+    return entries.where((entry) {
       return entry.goalMeasure.toLowerCase().contains(query) ||
           entry.domain.toLowerCase().contains(query) ||
           entry.executor.toLowerCase().contains(query) ||
@@ -164,9 +190,35 @@ class _JapGppScreenState extends State<JapGppScreen> {
   }
 
   List<GppEntry> _filteredGppEntries() {
+    var entries = _gppEntries.where((entry) {
+      if (_filterYears.isNotEmpty) {
+        var matchesYear = false;
+        for (final y in _filterYears) {
+          if (entry.startYear <= y && y <= entry.endYear) {
+            matchesYear = true;
+            break;
+          }
+        }
+        if (!matchesYear) return false;
+      }
+      if (_filterDomain != null && _filterDomain!.isNotEmpty && entry.domain != _filterDomain) return false;
+      if (_filterPriorities.isNotEmpty) {
+        final p = entry.priority.toLowerCase();
+        if (!_filterPriorities.contains(p)) return false;
+      }
+      if (_filterRealisation != null && _filterRealisation!.isNotEmpty) {
+        final r = entry.realisation.toLowerCase();
+        if (r != _filterRealisation) return false;
+      }
+      if (_filterExecutor.trim().isNotEmpty) {
+        if (!entry.executor.toLowerCase().contains(_filterExecutor.toLowerCase())) return false;
+      }
+      return true;
+    }).toList();
+
     final query = _searchController.text.trim().toLowerCase();
-    if (query.isEmpty) return _gppEntries;
-    return _gppEntries.where((entry) {
+    if (query.isEmpty) return entries;
+    return entries.where((entry) {
       return entry.goalMeasure.toLowerCase().contains(query) ||
           entry.domain.toLowerCase().contains(query) ||
           entry.executor.toLowerCase().contains(query) ||
@@ -186,6 +238,195 @@ class _JapGppScreenState extends State<JapGppScreen> {
       }
     }
     return years.toList()..sort((a, b) => b.compareTo(a));
+  }
+
+  List<String> _distinctDomains() {
+    final set = <String>{};
+    for (final e in _japEntries) set.add(e.domain);
+    for (final e in _gppEntries) set.add(e.domain);
+    return set.toList()..sort();
+  }
+
+  List<String> _distinctExecutors() {
+    final set = <String>{};
+    for (final e in _japEntries) {
+      if (e.executor.trim().isNotEmpty) set.add(e.executor.trim());
+    }
+    for (final e in _gppEntries) {
+      if (e.executor.trim().isNotEmpty) set.add(e.executor.trim());
+    }
+    return set.toList()..sort();
+  }
+
+  String _japPriorityRaw(JapPriority p) {
+    switch (p) {
+      case JapPriority.high:
+        return 'hoog';
+      case JapPriority.medium:
+        return 'middel';
+      case JapPriority.low:
+        return 'laag';
+    }
+  }
+
+  String _japRealisationRaw(JapRealisation r) {
+    switch (r) {
+      case JapRealisation.inProgress:
+        return 'in_uitvoering';
+      case JapRealisation.completed:
+        return 'uitgevoerd';
+      case JapRealisation.notYetCompleted:
+        return 'neg_niet_uitgevoerd';
+      case JapRealisation.fillIn:
+        return 'vul_aan';
+    }
+  }
+
+  void _clearFilters() {
+    setState(() {
+      _filterYears.clear();
+      _filterDomain = null;
+      _filterPriorities.clear();
+      _filterRealisation = null;
+      _filterExecutor = '';
+    });
+  }
+
+  Future<void> _openFilterDialog() async {
+    final availableYears = _availableYears();
+    final domains = _distinctDomains();
+
+    final selectedYears = Set<int>.from(_filterYears);
+    String? selectedDomain = _filterDomain;
+    final selectedPriorities = Set<String>.from(_filterPriorities);
+    String? selectedRealisation = _filterRealisation;
+    final executors = _distinctExecutors();
+    String? selectedExecutor = _filterExecutor.trim().isEmpty ? null : _filterExecutor.trim();
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(builder: (c, setDialogState) {
+          Widget chipYear(int y) {
+            final sel = selectedYears.contains(y);
+            return ChoiceChip(
+              label: Text(y.toString()),
+              selected: sel,
+              onSelected: (_) => setDialogState(() {
+                if (sel)
+                  selectedYears.remove(y);
+                else
+                  selectedYears.add(y);
+              }),
+            );
+          }
+
+          Widget priorityChip(String val, String label) {
+            final sel = selectedPriorities.contains(val);
+            return FilterChip(
+              label: Text(label),
+              selected: sel,
+              onSelected: (_) => setDialogState(() {
+                if (sel)
+                  selectedPriorities.remove(val);
+                else
+                  selectedPriorities.add(val);
+              }),
+            );
+          }
+
+          return AlertDialog(
+            title: const Text('Filters'),
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Jaar'),
+                  const SizedBox(height: 8),
+                  Wrap(spacing: 6, runSpacing: 6, children: availableYears.map(chipYear).toList()),
+                  const SizedBox(height: 12),
+                  const Text('Domein'),
+                  const SizedBox(height: 8),
+                  DropdownButton<String?>(
+                    isExpanded: true,
+                    value: selectedDomain,
+                    hint: const Text('Alle domeinen'),
+                    items: [null, ...domains].map((d) {
+                      return DropdownMenuItem<String?>(value: d, child: Text(d ?? 'Alle domeinen'));
+                    }).toList(),
+                    onChanged: (v) => setDialogState(() => selectedDomain = v),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Prioriteit'),
+                  const SizedBox(height: 8),
+                  Wrap(spacing: 6, children: [
+                    priorityChip('hoog', 'Hoog'),
+                    priorityChip('middel', 'Middel'),
+                    priorityChip('laag', 'Laag'),
+                  ]),
+                  const SizedBox(height: 12),
+                  const Text('Realisatie'),
+                  const SizedBox(height: 8),
+                  // show human-friendly labels instead of raw keys with underscores
+                  DropdownButton<String?>(
+                    isExpanded: true,
+                    value: selectedRealisation,
+                    hint: const Text('Alle'),
+                    items: <MapEntry<String?, String>>[
+                      MapEntry(null, 'Alle'),
+                      MapEntry('in_uitvoering', 'In uitvoering'),
+                      MapEntry('uitgevoerd', 'Uitgevoerd'),
+                      MapEntry('neg_niet_uitgevoerd', 'Nog niet uitgevoerd'),
+                      MapEntry('vul_aan', 'Vul aan'),
+                    ].map((opt) => DropdownMenuItem<String?>(value: opt.key, child: Text(opt.value))).toList(),
+                    onChanged: (v) => setDialogState(() => selectedRealisation = v),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Uitvoerder'),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String?>(
+                    isExpanded: true,
+                    value: selectedExecutor,
+                    decoration: const InputDecoration(isDense: true),
+                    hint: const Text('Alle uitvoerders'),
+                    items: [null, ...executors].map((e) => DropdownMenuItem<String?>(value: e, child: Text(e ?? 'Alle uitvoerders'))).toList(),
+                    onChanged: (v) => setDialogState(() => selectedExecutor = v),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  // clear only in dialog then close
+                  _clearFilters();
+                  Navigator.pop(dialogContext);
+                },
+                child: const Text('Wis filters'),
+              ),
+              TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuleren')),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    _filterYears
+                      ..clear()
+                      ..addAll(selectedYears);
+                    _filterDomain = selectedDomain;
+                    _filterPriorities
+                      ..clear()
+                      ..addAll(selectedPriorities);
+                    _filterRealisation = selectedRealisation;
+                    _filterExecutor = selectedExecutor ?? '';
+                  });
+                  Navigator.pop(dialogContext);
+                },
+                child: const Text('Toepassen'),
+              ),
+            ],
+          );
+        });
+      },
+    );
+    
   }
 
   List<JapEntry> _entriesForExportYear(int year) {
@@ -471,6 +712,34 @@ class _JapGppScreenState extends State<JapGppScreen> {
     String realisation = 'in_uitvoering';
     String selectedDomain = 'Arbeidsveiligheid';
 
+    // load saved executors from SharedPreferences + existing entries
+    final prefs = await SharedPreferences.getInstance();
+    final savedExecutors = prefs.getStringList('executors') ?? [];
+    // clean up any empty entries persisted previously
+    final cleanedSaved = savedExecutors.where((s) => s.trim().isNotEmpty).toList();
+    if (cleanedSaved.length != savedExecutors.length) {
+      await prefs.setStringList('executors', cleanedSaved);
+    }
+    final execSet = <String>{};
+    execSet.addAll(_distinctExecutors());
+    for (final s in cleanedSaved) execSet.add(s.trim());
+    final executors = execSet.toList()..sort();
+
+    // load domains from API (fallback to defaults on error)
+    List<String> domains;
+    try {
+      domains = await JapApiService.fetchDomains(token: widget.token);
+      if (domains.isEmpty) throw Exception('empty');
+    } catch (e) {
+      domains = [
+        'Arbeidsveiligheid',
+        'Gezondheid',
+        'Milieu',
+        'Kwaliteit',
+        'Veiligheid',
+      ];
+    }
+
     final saved = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
@@ -554,19 +823,39 @@ class _JapGppScreenState extends State<JapGppScreen> {
                                           const SizedBox(height: 16),
                                           label('Domein *'),
                                           const SizedBox(height: 8),
-                                          DropdownButtonFormField<String>(
-                                            initialValue: selectedDomain,
-                                            isExpanded: true,
-                                            decoration: fieldDecoration(''),
-                                            items: const [
-                                              DropdownMenuItem(value: 'Arbeidsveiligheid', child: Text('Arbeidsveiligheid')),
-                                              DropdownMenuItem(value: 'Gezondheid', child: Text('Gezondheid')),
-                                              DropdownMenuItem(value: 'Milieu', child: Text('Milieu')),
-                                              DropdownMenuItem(value: 'Kwaliteit', child: Text('Kwaliteit')),
-                                              DropdownMenuItem(value: 'Veiligheid', child: Text('Veiligheid')),
-                                            ],
-                                            onChanged: (value) {
-                                              setDialogState(() => selectedDomain = value ?? 'Arbeidsveiligheid');
+                                          ManageDropdownField(
+                                            items: domains,
+                                            value: selectedDomain,
+                                            hint: '',
+                                            title: 'Domeinen beheren',
+                                            addLabel: 'Nieuw domein',
+                                            addHint: 'Naam domein',
+                                            onChanged: (value) => setDialogState(() => selectedDomain = value.isEmpty ? (domains.isNotEmpty ? domains.first : '') : value),
+                                            onItemsChanged: (items) => setDialogState(() {
+                                              domains
+                                                ..clear()
+                                                ..addAll(items);
+                                            }),
+                                            onAddItem: (value) async {
+                                              try {
+                                                return await JapApiService.createDomain(token: widget.token, name: value);
+                                              } catch (e) {
+                                                if (dialogContext.mounted) {
+                                                  ScaffoldMessenger.of(dialogContext).showSnackBar(SnackBar(content: Text('Domein toevoegen mislukt: $e')));
+                                                }
+                                                return null;
+                                              }
+                                            },
+                                            onDeleteItem: (value) async {
+                                              try {
+                                                await JapApiService.deleteDomain(token: widget.token, domainName: value);
+                                                return true;
+                                              } catch (e) {
+                                                if (dialogContext.mounted) {
+                                                  ScaffoldMessenger.of(dialogContext).showSnackBar(SnackBar(content: Text('Domein verwijderen mislukt: $e')));
+                                                }
+                                                return false;
+                                              }
                                             },
                                           ),
                                           const SizedBox(height: 16),
@@ -651,7 +940,36 @@ class _JapGppScreenState extends State<JapGppScreen> {
                                         children: [
                                           label('Uitvoerder'),
                                           const SizedBox(height: 8),
-                                          TextField(controller: executorController, decoration: fieldDecoration('...')),
+                                          ManageDropdownField(
+                                            items: executors,
+                                            value: executorController.text.trim(),
+                                            hint: '',
+                                            title: 'Uitvoerders beheren',
+                                            addLabel: 'Nieuwe uitvoerder',
+                                            addHint: 'Naam uitvoerder',
+                                            onChanged: (v) => setDialogState(() => executorController.text = v),
+                                            onItemsChanged: (items) => setDialogState(() {
+                                              executors
+                                                ..clear()
+                                                ..addAll(items);
+                                            }),
+                                            onAddItem: (value) async {
+                                              final prefs2 = await SharedPreferences.getInstance();
+                                              final saved2 = prefs2.getStringList('executors') ?? [];
+                                              if (!saved2.contains(value)) {
+                                                saved2.add(value);
+                                                await prefs2.setStringList('executors', saved2);
+                                              }
+                                              return value;
+                                            },
+                                            onDeleteItem: (value) async {
+                                              final prefs2 = await SharedPreferences.getInstance();
+                                              final saved2 = prefs2.getStringList('executors') ?? [];
+                                              final removed = saved2.remove(value);
+                                              await prefs2.setStringList('executors', saved2);
+                                              return removed;
+                                            },
+                                          ),
                                           const SizedBox(height: 16),
                                           label('Middelen / Budget / Werkuren'),
                                           const SizedBox(height: 8),
@@ -701,19 +1019,39 @@ class _JapGppScreenState extends State<JapGppScreen> {
                                   const SizedBox(height: 16),
                                   label('Domein *'),
                                   const SizedBox(height: 8),
-                                  DropdownButtonFormField<String>(
-                                    initialValue: selectedDomain,
-                                    isExpanded: true,
-                                    decoration: fieldDecoration(''),
-                                    items: const [
-                                      DropdownMenuItem(value: 'Arbeidsveiligheid', child: Text('Arbeidsveiligheid')),
-                                      DropdownMenuItem(value: 'Gezondheid', child: Text('Gezondheid')),
-                                      DropdownMenuItem(value: 'Milieu', child: Text('Milieu')),
-                                      DropdownMenuItem(value: 'Kwaliteit', child: Text('Kwaliteit')),
-                                      DropdownMenuItem(value: 'Veiligheid', child: Text('Veiligheid')),
-                                    ],
-                                    onChanged: (value) {
-                                      setDialogState(() => selectedDomain = value ?? 'Arbeidsveiligheid');
+                                  ManageDropdownField(
+                                    items: domains,
+                                    value: selectedDomain,
+                                    hint: '',
+                                    title: 'Domeinen beheren',
+                                    addLabel: 'Nieuw domein',
+                                    addHint: 'Naam domein',
+                                    onChanged: (value) => setDialogState(() => selectedDomain = value.isEmpty ? (domains.isNotEmpty ? domains.first : '') : value),
+                                    onItemsChanged: (items) => setDialogState(() {
+                                      domains
+                                        ..clear()
+                                        ..addAll(items);
+                                    }),
+                                    onAddItem: (value) async {
+                                      try {
+                                        return await JapApiService.createDomain(token: widget.token, name: value);
+                                      } catch (e) {
+                                        if (dialogContext.mounted) {
+                                          ScaffoldMessenger.of(dialogContext).showSnackBar(SnackBar(content: Text('Domein toevoegen mislukt: $e')));
+                                        }
+                                        return null;
+                                      }
+                                    },
+                                    onDeleteItem: (value) async {
+                                      try {
+                                        await JapApiService.deleteDomain(token: widget.token, domainName: value);
+                                        return true;
+                                      } catch (e) {
+                                        if (dialogContext.mounted) {
+                                          ScaffoldMessenger.of(dialogContext).showSnackBar(SnackBar(content: Text('Domein verwijderen mislukt: $e')));
+                                        }
+                                        return false;
+                                      }
                                     },
                                   ),
                                   const SizedBox(height: 16),
@@ -773,7 +1111,36 @@ class _JapGppScreenState extends State<JapGppScreen> {
                                   const SizedBox(height: 16),
                                   label('Uitvoerder'),
                                   const SizedBox(height: 8),
-                                  TextField(controller: executorController, decoration: fieldDecoration('...')),
+                                  ManageDropdownField(
+                                    items: executors,
+                                    value: executorController.text.trim(),
+                                    hint: '',
+                                    title: 'Uitvoerders beheren',
+                                    addLabel: 'Nieuwe uitvoerder',
+                                    addHint: 'Naam uitvoerder',
+                                    onChanged: (v) => executorController.text = v,
+                                    onItemsChanged: (items) => setDialogState(() {
+                                      executors
+                                        ..clear()
+                                        ..addAll(items);
+                                    }),
+                                    onAddItem: (value) async {
+                                      final prefs2 = await SharedPreferences.getInstance();
+                                      final saved2 = prefs2.getStringList('executors') ?? [];
+                                      if (!saved2.contains(value)) {
+                                        saved2.add(value);
+                                        await prefs2.setStringList('executors', saved2);
+                                      }
+                                      return value;
+                                    },
+                                    onDeleteItem: (value) async {
+                                      final prefs3 = await SharedPreferences.getInstance();
+                                      final saved3 = prefs3.getStringList('executors') ?? [];
+                                      final removed = saved3.remove(value);
+                                      await prefs3.setStringList('executors', saved3);
+                                      return removed;
+                                    },
+                                  ),
                                   const SizedBox(height: 16),
                                   label('Middelen / Budget / Werkuren'),
                                   const SizedBox(height: 8),
@@ -985,7 +1352,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
           const SizedBox(width: 16),
           IconButton(
             icon: const Icon(Icons.filter_list),
-            onPressed: () {},
+            onPressed: _openFilterDialog,
           ),
           const SizedBox(width: 16),
           Expanded(

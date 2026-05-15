@@ -11,7 +11,7 @@ const NORMALISED_HEADER_ALIASES: Record<string, string[]> = {
   domein: ['domein', 'e'],
   risicoveld: ['risicoveld'],
   prioriteit: ['prioriteit', 'prioriteittijdsplanning'],
-  uitvoerder: ['uitvoerder'],
+    uitvoerder: ['uitvoerder', 'verantwoordelijke'],
   middelenBudgetWerkuren: ['middelenbudgetofwerkuren', 'middelenbudgetwerkuren', 'middelen'],
   startdatum: ['startdatum'],
   realisatie: ['realisatie'],

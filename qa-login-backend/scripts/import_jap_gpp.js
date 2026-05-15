@@ -51,19 +51,26 @@ async function run() {
     const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
 
     const toCreate = [];
+    function cell(r, ...keys) {
+      for (const k of keys) {
+        if (k in r && r[k] !== undefined && r[k] !== null && String(r[k]).trim() !== '') return r[k];
+      }
+      return '';
+    }
+
     for (const r of rows) {
-      // normalize keys by trimming
-      const jaar = r['Jaar'] ?? r['jaar'] ?? r['Jaar '];
-      const doel = r['Doelstelling - maatregel'] ?? r['Doelstelling - maatregel'] ?? r['Doelstelling - maatregel '];
-      const domain = r['Domein'] ?? r['Domein '];
-      const risicoveld = r['Risicoveld'] ?? '';
-      const prior = r['Prioriteit (tijdsplanning)'] ?? r['Prioriteit'] ?? '';
-      const uitvoerder = r['Uitvoerder'] ?? '';
-      const middelen = r['Middelen : \nBudget of werkuren'] ?? r['Middelen : \nBudget of werkuren'] ?? r['Middelen : Budget of werkuren'] ?? '';
-      const startdatum = r['Startdatum'] ?? '';
-      const realisatie = r['Realisatie'] ?? '';
-      const einddatum = r['Einddatum'] ?? '';
-      const opmerkingen = r['Opmerkingen'] ?? '';
+      // normalize keys by trying multiple header variants
+      const jaar = cell(r, 'Jaar', 'jaar', 'Jaar ');
+      const doel = cell(r, 'Doelstelling - maatregel', 'Doelstelling - maatregel ', 'doelstelling', 'Doelstelling');
+      const domain = cell(r, 'Domein', 'Domein ', 'domein');
+      const risicoveld = cell(r, 'Risicoveld', 'Risico veld', 'Risico', 'risicoveld') || '';
+      const prior = cell(r, 'Prioriteit (tijdsplanning)', 'Prioriteit', 'prioriteit') || '';
+      const uitvoerder = cell(r, 'Uitvoerder', 'Verantwoordelijke', 'Verantwoordelijke ', 'uitvoerder', 'verantwoordelijke') || '';
+      const middelen = cell(r, 'Middelen : \nBudget of werkuren', 'Middelen : Budget of werkuren', 'Middelen', 'middelen') || '';
+      const startdatum = cell(r, 'Startdatum', 'startdatum') || '';
+      const realisatie = cell(r, 'Realisatie', 'realisatie') || '';
+      const einddatum = cell(r, 'Einddatum', 'einddatum') || '';
+      const opmerkingen = cell(r, 'Opmerkingen', 'Opmerkingen ', 'opmerkingen') || '';
 
       if (!doel || String(doel).trim() === '') continue;
 

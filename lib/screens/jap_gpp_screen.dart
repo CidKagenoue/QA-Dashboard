@@ -254,88 +254,163 @@ class _JapGppScreenState extends State<JapGppScreen> {
       return;
     }
 
-    final selectedYear = await showDialog<int>(
+    await showDialog<void>(
       context: context,
       builder: (dialogContext) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 640),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F2EA),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Kies jaar voor export',
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
+        int? selectedYear = years.first;
+        List<JapEntry> previewEntries = [];
+        bool exporting = false;
+
+        // previewEntries are computed locally from _entriesForExportYear when requested
+
+        return StatefulBuilder(builder: (c, setDialogState) {
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 900, maxHeight: 720),
+                child: Container(
+                  decoration: BoxDecoration(color: const Color(0xFFF1F2EA), borderRadius: BorderRadius.circular(14)),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text('Export JAP — kies jaar', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
                           ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Selecteer het jaar dat je wil exporteren naar PDF.',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[700]),
-                    ),
-                    const SizedBox(height: 20),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: years
-                          .map(
-                            (year) => ChoiceChip(
-                              label: Text(year.toString()),
-                              selected: false,
-                              onSelected: (_) => Navigator.pop(dialogContext, year),
-                              backgroundColor: Colors.white,
-                              selectedColor: const Color(0xFF8BC34A).withValues(alpha: 0.18),
-                              labelStyle: const TextStyle(fontWeight: FontWeight.w600),
-                            ),
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.pop(dialogContext),
                           )
-                          .toList(),
-                    ),
-                    const SizedBox(height: 16),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () => Navigator.pop(dialogContext),
-                        child: const Text('Annuleren'),
+                        ],
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 8),
+                      Text('Selecteer het jaar en bekijk een preview voordat je downloadt.', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[700])),
+                      const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Wrap(
+                                      spacing: 8,
+                                      children: years.map((y) {
+                                        final selected = selectedYear == y;
+                                        return ChoiceChip(
+                                          label: Text(y.toString()),
+                                          selected: selected,
+                                          onSelected: (_) => setDialogState(() {
+                                            selectedYear = y;
+                                            previewEntries = _entriesForExportYear(y);
+                                          }),
+                                          backgroundColor: Colors.white,
+                                          selectedColor: const Color(0xFF8BC34A).withOpacity(0.18),
+                                        );
+                                      }).toList(),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                ],
+                              ),
+                      const SizedBox(height: 12),
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFE6E6E6))),
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('Voorbeeld — ${selectedYear ?? ''}', style: const TextStyle(fontWeight: FontWeight.w700)),
+                                  Text(previewEntries.isEmpty ? 'Geen items geselecteerd' : '${previewEntries.length} items', style: const TextStyle(color: Colors.grey)),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Expanded(
+                                child: previewEntries.isEmpty
+                                    ? Center(child: Text('Kies een jaar om het voorbeeld te laden.', style: TextStyle(color: Colors.grey[700])))
+                                    : ListView.separated(
+                                        itemCount: previewEntries.length,
+                                            separatorBuilder: (_, __) => const Divider(height: 8),
+                                        itemBuilder: (context, idx) {
+                                          final e = previewEntries[idx];
+                                          return ListTile(
+                                            contentPadding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                                            leading: CircleAvatar(
+                                              radius: 14,
+                                              backgroundColor: const Color(0xFF8BC34A).withOpacity(0.12),
+                                              child: Text('${idx + 1}', style: const TextStyle(fontSize: 11, color: Color(0xFF4A7A1E), fontWeight: FontWeight.w700)),
+                                            ),
+                                            title: Text(e.goalMeasure, maxLines: 2, overflow: TextOverflow.ellipsis),
+                                            subtitle: Text('${e.domain} • ${e.startDate != null ? e.startDate!.toIso8601String().split('T')[0] : ''} - ${e.endDate != null ? e.endDate!.toIso8601String().split('T')[0] : ''}\n${e.executor.isEmpty ? '-' : e.executor}', maxLines: 2, overflow: TextOverflow.ellipsis),
+                                            isThreeLine: true,
+                                            trailing: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.end,
+                                              children: [
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                  decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(6)),
+                                                  child: Text(e.priority.toLabel(), style: const TextStyle(fontSize: 11)),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                  decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(6)),
+                                                  child: Text(e.realisation.toLabel(), style: const TextStyle(fontSize: 11)),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        },
+                                      ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annuleren')),
+                          const SizedBox(width: 8),
+                          ElevatedButton.icon(
+                            onPressed: exporting
+                                ? null
+                                : () async {
+                                    if (selectedYear == null) return;
+                                    final year = selectedYear!;
+                                    setDialogState(() => exporting = true);
+                                    final entries = _entriesForExportYear(year);
+                                    try {
+                                      final savedPath = await JapExportService.exportJapForYear(year, entries);
+                                      if (!mounted) return;
+                                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(savedPath != null ? 'PDF opgeslagen: $savedPath' : 'PDF-export gestart voor $year')));
+                                      Navigator.pop(dialogContext);
+                                    } catch (e) {
+                                      if (!mounted) return;
+                                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Export mislukt: $e')));
+                                    } finally {
+                                      setDialogState(() => exporting = false);
+                                    }
+                                  },
+                            icon: const Icon(Icons.picture_as_pdf_outlined),
+                            label: exporting ? const Text('Bezig met exporteren...') : const Text('PDF downloaden'),
+                            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8BC34A)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        );
+          );
+        });
       },
-    );
-
-    if (selectedYear == null) return;
-    final entries = _entriesForExportYear(selectedYear);
-    if (entries.isEmpty) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Geen items voor dit jaar.')),
-      );
-      return;
-    }
-
-    final savedPath = await JapExportService.exportJapForYear(selectedYear, entries);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          savedPath != null ? 'PDF opgeslagen: $savedPath' : 'PDF-export gestart voor $selectedYear',
-        ),
-      ),
     );
   }
 
@@ -390,8 +465,8 @@ class _JapGppScreenState extends State<JapGppScreen> {
     final executorController = TextEditingController();
     final budgetController = TextEditingController();
     final remarkController = TextEditingController();
-    final startYearController = TextEditingController(text: DateTime.now().year.toString());
-    final endYearController = TextEditingController(text: (DateTime.now().year + 3).toString());
+    DateTime startDate = DateTime(DateTime.now().year, 1, 1);
+    DateTime endDate = DateTime(DateTime.now().year + 3, 12, 31);
     String priority = 'laag';
     String realisation = 'in_uitvoering';
     String selectedDomain = 'Arbeidsveiligheid';
@@ -480,7 +555,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
                                           label('Domein *'),
                                           const SizedBox(height: 8),
                                           DropdownButtonFormField<String>(
-                                            value: selectedDomain,
+                                            initialValue: selectedDomain,
                                             isExpanded: true,
                                             decoration: fieldDecoration(''),
                                             items: const [
@@ -505,12 +580,29 @@ class _JapGppScreenState extends State<JapGppScreen> {
                                                 child: Column(
                                                   crossAxisAlignment: CrossAxisAlignment.start,
                                                   children: [
-                                                    label('Startjaar *'),
+                                                    label('Startdatum *'),
                                                     const SizedBox(height: 8),
-                                                    TextField(
-                                                      controller: startYearController,
-                                                      keyboardType: TextInputType.number,
-                                                      decoration: fieldDecoration('2026'),
+                                                    GestureDetector(
+                                                      onTap: () async {
+                                                        final picked = await showDatePicker(
+                                                          context: dialogContext,
+                                                          initialDate: startDate,
+                                                          firstDate: DateTime(1900),
+                                                          lastDate: DateTime(2100),
+                                                        );
+                                                        if (picked != null) setDialogState(() => startDate = picked);
+                                                      },
+                                                      child: Container(
+                                                        height: 44,
+                                                        decoration: BoxDecoration(
+                                                          color: Colors.white,
+                                                          borderRadius: BorderRadius.circular(10),
+                                                          border: Border.all(color: const Color(0xFFDDE3D2)),
+                                                        ),
+                                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                                        alignment: Alignment.centerLeft,
+                                                        child: Text(startDate.toIso8601String().split('T')[0]),
+                                                      ),
                                                     ),
                                                   ],
                                                 ),
@@ -520,12 +612,29 @@ class _JapGppScreenState extends State<JapGppScreen> {
                                                 child: Column(
                                                   crossAxisAlignment: CrossAxisAlignment.start,
                                                   children: [
-                                                    label('Eindjaar *'),
+                                                    label('Einddatum *'),
                                                     const SizedBox(height: 8),
-                                                    TextField(
-                                                      controller: endYearController,
-                                                      keyboardType: TextInputType.number,
-                                                      decoration: fieldDecoration('2027'),
+                                                    GestureDetector(
+                                                      onTap: () async {
+                                                        final picked = await showDatePicker(
+                                                          context: dialogContext,
+                                                          initialDate: endDate,
+                                                          firstDate: DateTime(1900),
+                                                          lastDate: DateTime(2100),
+                                                        );
+                                                        if (picked != null) setDialogState(() => endDate = picked);
+                                                      },
+                                                      child: Container(
+                                                        height: 44,
+                                                        decoration: BoxDecoration(
+                                                          color: Colors.white,
+                                                          borderRadius: BorderRadius.circular(10),
+                                                          border: Border.all(color: const Color(0xFFDDE3D2)),
+                                                        ),
+                                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                                        alignment: Alignment.centerLeft,
+                                                        child: Text(endDate.toIso8601String().split('T')[0]),
+                                                      ),
                                                     ),
                                                   ],
                                                 ),
@@ -593,7 +702,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
                                   label('Domein *'),
                                   const SizedBox(height: 8),
                                   DropdownButtonFormField<String>(
-                                    value: selectedDomain,
+                                    initialValue: selectedDomain,
                                     isExpanded: true,
                                     decoration: fieldDecoration(''),
                                     items: const [
@@ -612,13 +721,55 @@ class _JapGppScreenState extends State<JapGppScreen> {
                                   const SizedBox(height: 8),
                                   TextField(controller: riskController, decoration: fieldDecoration('Algemeen')),
                                   const SizedBox(height: 16),
-                                  label('Startjaar *'),
+                                  label('Startdatum *'),
                                   const SizedBox(height: 8),
-                                  TextField(controller: startYearController, keyboardType: TextInputType.number, decoration: fieldDecoration('2026')),
+                                  GestureDetector(
+                                    onTap: () async {
+                                      final picked = await showDatePicker(
+                                        context: dialogContext,
+                                        initialDate: startDate,
+                                        firstDate: DateTime(1900),
+                                        lastDate: DateTime(2100),
+                                      );
+                                      if (picked != null) setDialogState(() => startDate = picked);
+                                    },
+                                    child: Container(
+                                      height: 44,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: const Color(0xFFDDE3D2)),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(startDate.toIso8601String().split('T')[0]),
+                                    ),
+                                  ),
                                   const SizedBox(height: 16),
-                                  label('Eindjaar *'),
+                                  label('Einddatum *'),
                                   const SizedBox(height: 8),
-                                  TextField(controller: endYearController, keyboardType: TextInputType.number, decoration: fieldDecoration('2027')),
+                                  GestureDetector(
+                                    onTap: () async {
+                                      final picked = await showDatePicker(
+                                        context: dialogContext,
+                                        initialDate: endDate,
+                                        firstDate: DateTime(1900),
+                                        lastDate: DateTime(2100),
+                                      );
+                                      if (picked != null) setDialogState(() => endDate = picked);
+                                    },
+                                    child: Container(
+                                      height: 44,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: const Color(0xFFDDE3D2)),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(endDate.toIso8601String().split('T')[0]),
+                                    ),
+                                  ),
                                   const SizedBox(height: 16),
                                   label('Uitvoerder'),
                                   const SizedBox(height: 8),
@@ -678,11 +829,14 @@ class _JapGppScreenState extends State<JapGppScreen> {
                               ),
                               const SizedBox(width: 12),
                               ElevatedButton(
-                                onPressed: () async {
-                                  final startYear = int.tryParse(startYearController.text.trim());
-                                  final endYear = int.tryParse(endYearController.text.trim());
+                                    onPressed: () async {
                                   final goal = goalController.text.trim();
-                                  if (startYear == null || endYear == null || goal.isEmpty) return;
+                                  if (goal.isEmpty) return;
+                                  // Use full dates; also send startJaar/eindJaar as years for indexing
+                                  final startYear = startDate.year;
+                                  final endYear = endDate.year;
+                                  final startIso = startDate.toIso8601String().split('T')[0];
+                                  final endIso = endDate.toIso8601String().split('T')[0];
 
                                   try {
                                     await JapApiService.createGppEntry(
@@ -697,8 +851,8 @@ class _JapGppScreenState extends State<JapGppScreen> {
                                         'realisatie': realisation,
                                         'uitvoerder': executorController.text.trim(),
                                         'middelenBudgetWerkuren': budgetController.text.trim(),
-                                        'startdatum': '$startYear.01.01',
-                                        'einddatum': '$endYear.12.31',
+                                        'startdatum': startIso,
+                                        'einddatum': endIso,
                                         'opmerking': remarkController.text.trim(),
                                       },
                                     );
@@ -738,8 +892,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
     executorController.dispose();
     budgetController.dispose();
     remarkController.dispose();
-    startYearController.dispose();
-    endYearController.dispose();
+    // date pickers replaced year text controllers
 
     if (saved == true) {
       await _reloadAll();
@@ -926,7 +1079,6 @@ class _JapGppScreenState extends State<JapGppScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE4E9DD)),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),

@@ -62,9 +62,14 @@ class DomainDropdownField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final options = domains
+    final optionsRaw = domains
         .where((domain) => domain.trim().isNotEmpty)
         .toList(growable: false);
+    // Remove duplicates while preserving order to avoid duplicate DropdownMenuItem values
+    final options = <String>[];
+    for (final d in optionsRaw) {
+      if (!options.contains(d)) options.add(d);
+    }
     final selectedValue = options.any((domain) => domain == value)
         ? value
         : (options.isNotEmpty ? options.first : null);

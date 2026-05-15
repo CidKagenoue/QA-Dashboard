@@ -65,6 +65,8 @@ class _JapGppDetailPaneState extends State<JapGppDetailPane> {
   bool _editing = false;
   bool _saving = false;
   bool _loadingDomains = true;
+  late DateTime? _editStartDate;
+  late DateTime? _editEndDate;
 
   bool get _isJap => widget.japEntry != null;
 
@@ -89,6 +91,8 @@ class _JapGppDetailPaneState extends State<JapGppDetailPane> {
     _priority = _isJap ? _jap.priority.name : _gpp.priority;
     _realisation = _isJap ? _jap.realisation.name : _gpp.realisation;
     _selectedDomain = initialDomain;
+    _editStartDate = _isJap ? _jap.startDate : _gpp.startDate;
+    _editEndDate = _isJap ? _jap.endDate : _gpp.endDate;
     
     _loadDomains();
   }
@@ -110,14 +114,14 @@ class _JapGppDetailPaneState extends State<JapGppDetailPane> {
       if (!mounted) return;
       // Fallback to default domains if loading fails
       setState(() {
-        _availableDomains = [
+        _availableDomains = {
           'Arbeidsveiligheid',
           'Gezondheid',
           'Milieu',
           'Kwaliteit',
           'Veiligheid',
           _selectedDomain,
-        ].toSet().toList()..sort();
+        }.toList()..sort();
         _loadingDomains = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
@@ -153,14 +157,14 @@ class _JapGppDetailPaneState extends State<JapGppDetailPane> {
             'realisatie': _realisation,
             'uitvoerder': _executorController.text.trim(),
             'middelenBudgetWerkuren': _budgetController.text.trim(),
-            'startdatum': '$year.01.01',
-            'einddatum': '$year.12.31',
+            'startdatum': _editStartDate != null ? _editStartDate!.toIso8601String().split('T')[0] : '$year.01.01',
+            'einddatum': _editEndDate != null ? _editEndDate!.toIso8601String().split('T')[0] : '$year.12.31',
             'opmerking': _remarkController.text.trim(),
           },
         );
       } else {
-        final startYear = _gpp.startYear;
-        final endYear = _gpp.endYear;
+        final startYear = _editStartDate?.year ?? _gpp.startYear;
+        final endYear = _editEndDate?.year ?? _gpp.endYear;
         await JapApiService.updateGppEntry(
           token: widget.token,
           id: _gpp.id,
@@ -174,8 +178,8 @@ class _JapGppDetailPaneState extends State<JapGppDetailPane> {
             'realisatie': _realisation,
             'uitvoerder': _executorController.text.trim(),
             'middelenBudgetWerkuren': _budgetController.text.trim(),
-            'startdatum': '$startYear.01.01',
-            'einddatum': '$endYear.12.31',
+            'startdatum': _editStartDate != null ? _editStartDate!.toIso8601String().split('T')[0] : '$startYear.01.01',
+            'einddatum': _editEndDate != null ? _editEndDate!.toIso8601String().split('T')[0] : '$endYear.12.31',
             'opmerking': _remarkController.text.trim(),
           },
         );
@@ -321,11 +325,19 @@ class _JapGppDetailPaneState extends State<JapGppDetailPane> {
       return const Center(child: CircularProgressIndicator());
     }
 
+    // Ensure available domains are unique (preserve order) and determine a safe initial value
+    final uniqueDomains = <String>[];
+    for (final d in _availableDomains) {
+      if (d.trim().isEmpty) continue;
+      if (!uniqueDomains.contains(d)) uniqueDomains.add(d);
+    }
+    final safeInitialDomain = uniqueDomains.contains(_selectedDomain) ? _selectedDomain : null;
+
     return Row(
       children: [
         Expanded(
           child: DropdownButtonFormField<String>(
-            value: _selectedDomain,
+            initialValue: safeInitialDomain,
             isExpanded: true,
             decoration: InputDecoration(
               isDense: true,
@@ -342,7 +354,7 @@ class _JapGppDetailPaneState extends State<JapGppDetailPane> {
               ),
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             ),
-            items: _availableDomains.map((domain) {
+            items: uniqueDomains.map((domain) {
               return DropdownMenuItem(
                 value: domain,
                 child: Text(domain),
@@ -557,15 +569,39 @@ class _JapGppDetailPaneState extends State<JapGppDetailPane> {
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _goalController.text.trim().isEmpty ? 'Detail' : _goalController.text.trim(),
-                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                color: const Color(0xFF243022),
-                                height: 1.1,
+                        children: [
+                        _editing
+                            ? ConstrainedBox(
+                                constraints: const BoxConstraints(minHeight: 88, maxHeight: 360),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+                                  child: TextField(
+                                    controller: _goalController,
+                                    minLines: 2,
+                                    maxLines: 8,
+                                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                          fontWeight: FontWeight.w800,
+                                          color: const Color(0xFF243022),
+                                          height: 1.05,
+                                        ),
+                                    decoration: const InputDecoration(
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                                      border: InputBorder.none,
+                                      hintText: 'Detail',
+                                    ),
+                                    onChanged: (_) => setState(() {}),
+                                  ),
+                                ),
+                              )
+                            : Text(
+                                _goalController.text.trim().isEmpty ? 'Detail' : _goalController.text.trim(),
+                                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                      color: const Color(0xFF243022),
+                                      height: 1.1,
+                                    ),
                               ),
-                        ),
                         const SizedBox(height: 4),
                         Text(
                           '$periodText • ID $idText',
@@ -658,7 +694,16 @@ class _JapGppDetailPaneState extends State<JapGppDetailPane> {
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            field('Doelstelling - maatregel', _buildTextField(_goalController, maxLines: 3), width: constraints.maxWidth),
+                              // Goal is edited in the header; remove duplicate body field
+                              const SizedBox(height: 6),
+                              const SizedBox(height: 10),
+                            _Pill(
+                              label: _getRealisationLabel(_realisation),
+                              background: _getRealisationColor(_realisation).withValues(alpha: 0.12),
+                              foreground: _getRealisationColor(_realisation),
+                            ),
+                            const SizedBox(height: 12),
+                            const Divider(color: Color(0xFFE4E9DD), height: 1),
                             const SizedBox(height: 12),
                             if (_isJap)
                               field('Jaar', _buildReadOnlyBox(_jap.year.toString()), width: constraints.maxWidth)
@@ -667,8 +712,60 @@ class _JapGppDetailPaneState extends State<JapGppDetailPane> {
                                 spacing: 12,
                                 runSpacing: 12,
                                 children: [
-                                  field('Startjaar', _buildReadOnlyBox(_gpp.startYear.toString())),
-                                  field('Eindjaar', _buildReadOnlyBox(_gpp.endYear.toString())),
+                                  field(
+                                    'Startdatum',
+                                    _editing
+                                        ? GestureDetector(
+                                            onTap: () async {
+                                              final picked = await showDatePicker(
+                                                context: context,
+                                                initialDate: _editStartDate ?? DateTime(_gpp.startYear, 1, 1),
+                                                firstDate: DateTime(1900),
+                                                lastDate: DateTime(2100),
+                                              );
+                                              if (picked != null) setState(() => _editStartDate = picked);
+                                            },
+                                            child: Container(
+                                              height: 44,
+                                              decoration: BoxDecoration(
+                                                color: Colors.white,
+                                                borderRadius: BorderRadius.circular(10),
+                                                border: Border.all(color: const Color(0xFFDDE3D2)),
+                                              ),
+                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                              alignment: Alignment.centerLeft,
+                                              child: Text(_editStartDate != null ? _editStartDate!.toIso8601String().split('T')[0] : _gpp.startYear.toString()),
+                                            ),
+                                          )
+                                        : _buildReadOnlyBox(_gpp.startDate != null ? _gpp.startDate!.toIso8601String().split('T')[0] : _gpp.startYear.toString()),
+                                  ),
+                                  field(
+                                    'Einddatum',
+                                    _editing
+                                        ? GestureDetector(
+                                            onTap: () async {
+                                              final picked = await showDatePicker(
+                                                context: context,
+                                                initialDate: _editEndDate ?? DateTime(_gpp.endYear, 12, 31),
+                                                firstDate: DateTime(1900),
+                                                lastDate: DateTime(2100),
+                                              );
+                                              if (picked != null) setState(() => _editEndDate = picked);
+                                            },
+                                            child: Container(
+                                              height: 44,
+                                              decoration: BoxDecoration(
+                                                color: Colors.white,
+                                                borderRadius: BorderRadius.circular(10),
+                                                border: Border.all(color: const Color(0xFFDDE3D2)),
+                                              ),
+                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                              alignment: Alignment.centerLeft,
+                                              child: Text(_editEndDate != null ? _editEndDate!.toIso8601String().split('T')[0] : _gpp.endYear.toString()),
+                                            ),
+                                          )
+                                        : _buildReadOnlyBox(_gpp.endDate != null ? _gpp.endDate!.toIso8601String().split('T')[0] : _gpp.endYear.toString()),
+                                  ),
                                 ],
                               ),
                             const SizedBox(height: 12),
@@ -729,6 +826,67 @@ class _JapGppDetailPaneState extends State<JapGppDetailPane> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  String _getRealisationLabel(String realisation) {
+    switch (realisation.toLowerCase()) {
+      case 'in_uitvoering':
+        return 'In uitvoering';
+      case 'uitgevoerd':
+        return 'Uitgevoerd';
+      case 'neg_niet_uitgevoerd':
+        return 'Nog niet';
+      case 'vul_aan':
+        return 'Vul aan';
+      default:
+        return realisation;
+    }
+  }
+
+  Color _getRealisationColor(String realisation) {
+    switch (realisation.toLowerCase()) {
+      case 'in_uitvoering':
+        return Colors.orange;
+      case 'uitgevoerd':
+        return const Color(0xFF4A7A1E);
+      case 'neg_niet_uitgevoerd':
+        return Colors.red;
+      case 'vul_aan':
+        return Colors.blue;
+      default:
+        return Colors.grey;
+    }
+  }
+}
+
+class _Pill extends StatelessWidget {
+  const _Pill({
+    required this.label,
+    required this.background,
+    required this.foreground,
+  });
+
+  final String label;
+  final Color background;
+  final Color foreground;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: foreground,
         ),
       ),
     );

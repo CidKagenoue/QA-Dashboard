@@ -141,33 +141,47 @@ function readCell(row: unknown[], idx: number | undefined): string {
 
 function parseExcelDate(value: unknown): string {
   if (value == null || value === '') return '';
+  // If Excel stores as a serial number, parse to day/month/year then return ISO yyyy-mm-dd
   if (typeof value === 'number' && Number.isFinite(value)) {
     const date = XLSX.SSF.parse_date_code(value);
     if (!date) return '';
     const day = String(date.d).padStart(2, '0');
     const month = String(date.m).padStart(2, '0');
     const year = String(date.y).padStart(4, '0');
-    return `${day}.${month}.${year}`;
+    return `${year}-${month}-${day}`;
   }
+
   const text = String(value).trim();
+  // dd.mm.yyyy or dd/mm/yyyy or dd-mm-yyyy -> convert to ISO
   if (/^\d{1,2}[./-]\d{1,2}[./-]\d{4}$/.test(text)) {
-    return text.replace(/\//g, '.').replace(/-/g, '.');
+    const parts = text.replace(/\//g, '.').replace(/-/g, '.').split('.');
+    const d = parts[0].padStart(2, '0');
+    const m = parts[1].padStart(2, '0');
+    const y = parts[2];
+    return `${y}-${m}-${d}`;
+  }
+  // yyyy-mm-dd or yyyy.mm.dd -> normalize to yyyy-mm-dd
+  if (/^\d{4}[./-]\d{1,2}[./-]\d{1,2}$/.test(text)) {
+    const iso = text.replace(/\./g, '-').replace(/\//g, '-');
+    const [y, m, d] = iso.split('-');
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
   }
   return text;
 }
 
 function coerceDateForYear(value: unknown, year: number, fallback: string): string {
   const parsed = parseExcelDate(value);
-  const normalized = parsed.replace(/\//g, '.').replace(/-/g, '.');
-  const match = normalized.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (!parsed) return fallback;
+  // parsed is ISO yyyy-mm-dd
+  const match = parsed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!match) return fallback;
 
-  const parsedYear = Number(match[3]);
+  const parsedYear = Number(match[1]);
   if (parsedYear < 1900 || parsedYear > 2100) return fallback;
 
-  const day = match[1].padStart(2, '0');
-  const month = match[2].padStart(2, '0');
-  return `${day}.${month}.${year}`;
+  const day = match[3];
+  const month = match[2];
+  return `${day}.${month}.${String(year)}`;
 }
 
 function parseYearRangeFromText(text: string): [number, number] | null {
@@ -201,12 +215,21 @@ function parseRealisatie(value: string): string {
 }
 
 function buildDateForYear(base: string, year: number, fallback: string): string {
-  const normalized = base.replace(/\//g, '.').replace(/-/g, '.');
-  const match = normalized.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-  if (!match) return fallback;
-  const day = match[1].padStart(2, '0');
-  const month = match[2].padStart(2, '0');
-  return `${day}.${month}.${year}`;
+  const normalized = base.replace(/\./g, '-').replace(/\//g, '-');
+  // Accept either ISO yyyy-mm-dd or dd-mm-yyyy
+  const isoMatch = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    const day = isoMatch[3].padStart(2, '0');
+    const month = isoMatch[2].padStart(2, '0');
+    return `${day}.${month}.${year}`;
+  }
+  const dmyMatch = normalized.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  if (dmyMatch) {
+    const day = dmyMatch[1].padStart(2, '0');
+    const month = dmyMatch[2].padStart(2, '0');
+    return `${day}.${month}.${year}`;
+  }
+  return fallback;
 }
 
 function normaliseYearRange(startYear: number, endYear: number): [number, number] {
@@ -244,72 +267,8 @@ export default function createGppRouter(
 ) {
   const router = Router();
 
-  // Helper to sync generated JAP entries for a GPP entry
-  const syncGeneratedJapEntriesForGpp = async (gpp: any) => {
-    const [startYear, endYear] = normaliseYearRange(gpp.startYear, gpp.endYear);
-    const expectedYears = new Set<number>();
-    for (let year = startYear; year <= endYear; year += 1) {
-      expectedYears.add(year);
-    }
-
-    // Delete JAP entries that are no longer in the expected range
-    await prismaService.japGppEntry.deleteMany({
-      where: {
-        AND: [
-          { generatedFromGppId: gpp.id },
-          { year: { notIn: Array.from(expectedYears) } },
-        ],
-      },
-    });
-
-    // Create or update JAP entries for each year
-    for (const year of expectedYears) {
-      const existing = await prismaService.japGppEntry.findFirst({
-        where: {
-          generatedFromGppId: gpp.id,
-          year,
-        },
-      });
-
-      if (existing) {
-        // Update existing
-        await prismaService.japGppEntry.update({
-          where: { id: existing.id },
-          data: {
-            goalMeasure: gpp.goalMeasure,
-            domainId: gpp.domainId,
-            riskField: gpp.riskField,
-            priority: gpp.priority,
-            realisation: gpp.realisation,
-            executor: gpp.executor,
-            resourcesBudget: gpp.resourcesBudget,
-            startDate: gpp.startDate,
-            endDate: gpp.endDate,
-            remark: gpp.remark,
-          },
-        });
-      } else {
-        // Create new
-        await prismaService.japGppEntry.create({
-          data: {
-            source: 'JAP',
-            year,
-            goalMeasure: gpp.goalMeasure,
-            domainId: gpp.domainId,
-            riskField: gpp.riskField,
-            priority: gpp.priority,
-            realisation: gpp.realisation,
-            executor: gpp.executor,
-            resourcesBudget: gpp.resourcesBudget,
-            startDate: gpp.startDate,
-            endDate: gpp.endDate,
-            remark: gpp.remark,
-            generatedFromGppId: gpp.id,
-          },
-        });
-      }
-    }
-  };
+  // Previously this helper created per-year JAP rows from a GPP entry.
+  // That behavior is intentionally removed: JAP is a generated view only.
 
   router.post('/import-excel', upload.single('file'), async (req: Request, res: Response) => {
     try {
@@ -353,11 +312,15 @@ export default function createGppRouter(
         const range = parseYearRangeFromText(jaarText);
         const startFromDate = parseExcelDate(row[indexes.startdatum]);
         const endFromDate = parseExcelDate(row[indexes.einddatum]);
-        const parsedStartYear = Number(startFromDate.slice(-4));
-        const parsedEndYear = Number(endFromDate.slice(-4));
+        const parsedStartYear = startFromDate && /^\d{4}-/.test(startFromDate) ? Number(startFromDate.slice(0, 4)) : Number(startFromDate.slice(-4));
+        const parsedEndYear = endFromDate && /^\d{4}-/.test(endFromDate) ? Number(endFromDate.slice(0, 4)) : Number(endFromDate.slice(-4));
         const startYear = range?.[0] ?? (parsedStartYear || new Date().getFullYear());
         const endYear = range?.[1] ?? (parsedEndYear || startYear);
         const [normalizedStart, normalizedEnd] = normaliseYearRange(startYear, endYear);
+
+        // Build Date objects for startDate/endDate. Prefer explicit cell dates; fallback to year boundaries.
+        const startDateObj = startFromDate ? new Date(startFromDate) : new Date(normalizedStart, 0, 1);
+        const endDateObj = endFromDate ? new Date(endFromDate) : new Date(normalizedEnd, 11, 31);
 
         // Find or create domain
         let domainId = null;
@@ -387,35 +350,15 @@ export default function createGppRouter(
             realisation: parseRealisatie(readCell(row, indexes.realisatie)),
             executor: readCell(row, indexes.uitvoerder),
             resourcesBudget: readCell(row, indexes.middelenBudgetWerkuren),
-            startDate: startFromDate ? new Date(startFromDate.replace(/(\d{2})\.(\d{2})\.(\d{4})/, '$3-$2-$1')) : null,
-            endDate: endFromDate ? new Date(endFromDate.replace(/(\d{2})\.(\d{2})\.(\d{4})/, '$3-$2-$1')) : null,
+            startDate: startDateObj,
+            endDate: endDateObj,
             remark: readCell(row, indexes.opmerking),
           },
         });
 
         importedGppCount++;
 
-        // Generate JAP entries for each year in the range
-        for (let year = normalizedStart; year <= normalizedEnd; year += 1) {
-          await prismaService.japGppEntry.create({
-            data: {
-              source: 'JAP',
-              year,
-              goalMeasure: doelstelling,
-              domainId,
-              riskField: readCell(row, indexes.risicoveld) || 'Algemeen',
-              priority: parsePriority(readCell(row, indexes.prioriteit)),
-              realisation: parseRealisatie(readCell(row, indexes.realisatie)),
-              executor: readCell(row, indexes.uitvoerder),
-              resourcesBudget: readCell(row, indexes.middelenBudgetWerkuren),
-              startDate: startFromDate ? new Date(startFromDate.replace(/(\d{2})\.(\d{2})\.(\d{4})/, '$3-$2-$1')) : null,
-              endDate: endFromDate ? new Date(endFromDate.replace(/(\d{2})\.(\d{2})\.(\d{4})/, '$3-$2-$1')) : null,
-              remark: readCell(row, indexes.opmerking),
-              generatedFromGppId: gppEntry.id,
-            },
-          });
-          generatedJapCount++;
-        }
+        // Do not generate per-year JAP entries on import — keep only the GPP row
       }
 
       return res.status(201).json({
@@ -586,6 +529,16 @@ export default function createGppRouter(
         domainId = domain.id;
       }
 
+      // Determine startDate/endDate as real Date objects. Prefer explicit date input; fall back to year boundaries.
+      const parsedStartIso = parseExcelDate(startdatum);
+      const parsedEndIso = parseExcelDate(einddatum);
+      const finalStartDate = parsedStartIso && /^\d{4}-\d{2}-\d{2}$/.test(parsedStartIso)
+        ? new Date(parsedStartIso)
+        : new Date(startYear, 0, 1);
+      const finalEndDate = parsedEndIso && /^\d{4}-\d{2}-\d{2}$/.test(parsedEndIso)
+        ? new Date(parsedEndIso)
+        : new Date(endYear, 11, 31);
+
       const gppEntry = await prismaService.japGppEntry.create({
         data: {
           source: 'GPP',
@@ -598,8 +551,8 @@ export default function createGppRouter(
           realisation: realisatie || 'vul_aan',
           executor: uitvoerder,
           resourcesBudget: middelenBudgetWerkuren,
-          startDate: startdatum ? new Date(startdatum) : null,
-          endDate: einddatum ? new Date(einddatum) : null,
+          startDate: finalStartDate,
+          endDate: finalEndDate,
           remark: opmerking,
         },
         include: {
@@ -608,26 +561,7 @@ export default function createGppRouter(
         },
       });
 
-      // Generate JAP entries
-      for (let year = startYear; year <= endYear; year += 1) {
-        await prismaService.japGppEntry.create({
-          data: {
-            source: 'JAP',
-            year,
-            goalMeasure: doelstellingMaatregel,
-            domainId,
-            riskField: risicoveld || 'Algemeen',
-            priority: prioriteit || 'laag',
-            realisation: realisatie || 'vul_aan',
-            executor: uitvoerder,
-            resourcesBudget: middelenBudgetWerkuren,
-            startDate: startdatum ? new Date(startdatum) : null,
-            endDate: einddatum ? new Date(einddatum) : null,
-            remark: opmerking,
-            generatedFromGppId: gppEntry.id,
-          },
-        });
-      }
+      // Do not generate per-year JAP entries when creating a GPP — only the GPP row is created
 
       // Notify
       try {
@@ -704,6 +638,16 @@ export default function createGppRouter(
       const endYear = eindJaar !== undefined ? Number(eindJaar) : previous.endYear;
       const [normalizedStart, normalizedEnd] = normaliseYearRange(startYear, endYear);
 
+      // compute updated start/end Date values as Date objects
+      const providedStartIso = startdatum !== undefined ? parseExcelDate(startdatum) : null;
+      const providedEndIso = einddatum !== undefined ? parseExcelDate(einddatum) : null;
+      const startDateValue = startdatum !== undefined
+        ? (providedStartIso && /^\d{4}-\d{2}-\d{2}$/.test(providedStartIso) ? new Date(providedStartIso) : null)
+        : undefined; // keep existing
+      const endDateValue = einddatum !== undefined
+        ? (providedEndIso && /^\d{4}-\d{2}-\d{2}$/.test(providedEndIso) ? new Date(providedEndIso) : null)
+        : undefined;
+
       const updated = await prismaService.japGppEntry.update({
         where: { id },
         data: {
@@ -716,8 +660,8 @@ export default function createGppRouter(
           realisation: realisatie !== undefined ? realisatie : undefined,
           executor: uitvoerder !== undefined ? uitvoerder : undefined,
           resourcesBudget: middelenBudgetWerkuren !== undefined ? middelenBudgetWerkuren : undefined,
-          startDate: startdatum !== undefined ? (startdatum ? new Date(startdatum) : null) : undefined,
-          endDate: einddatum !== undefined ? (einddatum ? new Date(einddatum) : null) : undefined,
+          startDate: startDateValue !== undefined ? startDateValue : undefined,
+          endDate: endDateValue !== undefined ? endDateValue : undefined,
           remark: opmerking !== undefined ? opmerking : undefined,
         },
         include: {
@@ -726,8 +670,7 @@ export default function createGppRouter(
         },
       });
 
-      // Sync generated JAP entries
-      await syncGeneratedJapEntriesForGpp(updated);
+      // Do not generate/sync per-year JAP entries when updating a GPP — keep only the GPP row
 
       // Notify if remark was added
       if (opmerking && opmerking.trim() !== '' && (!previous.remark || previous.remark.trim() === '')) {

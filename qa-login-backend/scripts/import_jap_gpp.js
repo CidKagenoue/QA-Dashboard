@@ -81,8 +81,9 @@ async function run() {
           priority: prior || null,
           realisation: realisatie || null,
           executor: uitvoerder || null,
-          startDate: parseDate(startdatum),
-          endDate: parseDate(einddatum),
+          // ensure Date objects: prefer parsed cell dates, fallback to Jan 1 / Dec 31 of the year
+          startDate: parseDate(startdatum) || new Date(yf.year, 0, 1),
+          endDate: parseDate(einddatum) || new Date(yf.year, 11, 31),
           remark: opmerkingen || null,
         });
       } else if (yf.type === 'range') {
@@ -98,8 +99,9 @@ async function run() {
           priority: prior || null,
           realisation: realisatie || null,
           executor: uitvoerder || null,
-          startDate: parseDate(startdatum),
-          endDate: parseDate(einddatum),
+          // ensure Date objects: prefer parsed cell dates, fallback to year boundaries
+          startDate: parseDate(startdatum) || new Date(yf.start, 0, 1),
+          endDate: parseDate(einddatum) || new Date(yf.end, 11, 31),
           remark: opmerkingen || null,
         });
       } else {
@@ -116,8 +118,8 @@ async function run() {
           priority: prior || null,
           realisation: realisatie || null,
           executor: uitvoerder || null,
-          startDate: parseDate(startdatum),
-          endDate: parseDate(einddatum),
+          startDate: parseDate(startdatum) || null,
+          endDate: parseDate(einddatum) || null,
           remark: opmerkingen || null,
         });
       }

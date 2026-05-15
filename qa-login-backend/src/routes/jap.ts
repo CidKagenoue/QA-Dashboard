@@ -81,98 +81,53 @@ export default function createJapRouter(
     }
   });
 
-  // GET /jap/:id/comments
-  router.get('/:id/comments', async (req: Request, res: Response) => {
+  // GET /jap/generated/:year - genereer JAP entries on-the-fly vanuit GPP rows voor export/print
+  router.get('/generated/:year', async (req: Request, res: Response) => {
     try {
-      const id = Number(req.params.id);
-      const entry = await prismaService.japGppEntry.findUnique({
-        where: { id },
-        include: {
-          comments: {
-            orderBy: { createdAt: 'desc' },
-          },
-        },
-      });
-
-      if (!entry) {
-        return res.status(404).json({ message: 'Entry niet gevonden' });
+      const year = Number(req.params.year);
+      if (!Number.isInteger(year) || year < 1900 || year > 3000) {
+        return res.status(400).json({ message: 'Ongeldig jaar' });
       }
 
-      const comments = entry.comments.map((c: any) => ({
-        id: c.id,
-        author: c.author,
-        text: c.text,
-        createdAt: c.createdAt.toISOString(),
+      // Find GPP entries that cover this year
+      const gppEntries = await prismaService.japGppEntry.findMany({
+        where: {
+          source: 'GPP',
+          startYear: { lte: year },
+          endYear: { gte: year },
+        },
+        include: { domain: true, comments: true },
+        orderBy: [{ startYear: 'desc' }, { id: 'desc' }],
+      });
+
+      // Map GPP -> JAP-like structure for the given year
+      const generated = gppEntries.map((e: any) => ({
+        id: -e.id, // negative id to indicate generated
+        jaar: year,
+        doelstellingMaatregel: e.goalMeasure,
+        domein: e.domain?.name,
+        risicoveld: e.riskField,
+        prioriteit: e.priority,
+        realisatie: e.realisation,
+        uitvoerder: e.executor,
+        middelenBudgetWerkuren: e.resourcesBudget,
+        startdatum: e.startDate,
+        einddatum: e.endDate,
+        opmerking: e.remark,
+        comments: e.comments?.map((c: any) => ({ id: c.id, author: c.author, text: c.text, createdAt: c.createdAt.toISOString() })) ?? [],
       }));
 
-      res.json({ comments });
+      res.json({ entries: generated });
     } catch (error) {
-      console.error('Error fetching comments:', error);
-      res.status(500).json({ message: 'Fout bij ophalen commentaar' });
+      console.error('Error generating JAP entries for year:', error);
+      res.status(500).json({ message: 'Fout bij genereren JAP entries' });
     }
   });
 
-  // POST /jap/:id/comments
-  router.post('/:id/comments', async (req: Request, res: Response) => {
-    try {
-      const id = Number(req.params.id);
-      const { author, text } = req.body;
+  // GET /jap/:id/comments
+  // Comments for JAP entries are handled via GPP routes; no DB-backed JAP comments endpoint here.
 
-      if (!text?.trim()) {
-        return res.status(400).json({ message: 'Tekst is verplicht' });
-      }
-
-      // Check if entry exists
-      const entry = await prismaService.japGppEntry.findUnique({
-        where: { id },
-      });
-
-      if (!entry) {
-        return res.status(404).json({ message: 'Entry niet gevonden' });
-      }
-
-      // Create comment
-      const comment = await prismaService.japComment.create({
-        data: {
-          entryId: id,
-          author: author?.trim() || 'Onbekend',
-          text: text.trim(),
-        },
-      });
-
-      // Notify users
-      try {
-        const users = await prismaService.user.findMany({
-          where: { OR: [{ isAdmin: true }, { japGppAccess: true }] },
-          select: { id: true },
-        });
-        const recipientIds = users.map((u: any) => u.id);
-        if (recipientIds.length > 0) {
-          await notificationsService.notifyUsers({
-            recipientUserIds: recipientIds,
-            type: NotificationType.JAP_COMMENT,
-            title: 'Nieuwe opmerking op JAP',
-            body: text.trim().slice(0, 200),
-            metadata: { entryId: id, module: 'JAP' },
-          });
-        }
-      } catch (notifyError) {
-        console.warn('Failed to notify users for JAP comment', notifyError);
-      }
-
-      res.status(201).json({
-        comment: {
-          id: comment.id,
-          author: comment.author,
-          text: comment.text,
-          createdAt: comment.createdAt.toISOString(),
-        },
-      });
-    } catch (error) {
-      console.error('Error creating comment:', error);
-      res.status(500).json({ message: 'Fout bij aanmaken commentaar' });
-    }
-  });
+  // Comment creation for GPP is available via `/gpp/:id/comments`.
 
   // GET /jap/recent-comments
   router.get('/recent-comments', async (req: Request, res: Response) => {
@@ -236,188 +191,11 @@ export default function createJapRouter(
     }
   });
 
-  // POST /jap - maak nieuwe entry aan
-  router.post('/', async (req: Request, res: Response) => {
-    try {
-      const {
-        doelstellingMaatregel,
-        domein,
-        risicoveld,
-        prioriteit,
-        realisatie,
-        uitvoerder,
-        middelenBudgetWerkuren,
-        startdatum,
-        einddatum,
-        opmerking,
-      } = req.body;
+  // Creating DB-backed JAP entries is disabled; use GPP and the generated endpoints instead.
 
-      // Find or create domain if provided
-      let domainId = null;
-      if (domein) {
-        const domain = await prismaService.domain.findUnique({
-          where: { name: domein },
-        });
-        domainId = domain?.id ?? null;
-      }
+  // Updating DB-backed JAP entries is disabled.
 
-      const entry = await prismaService.japGppEntry.create({
-        data: {
-          source: 'JAP',
-          year: new Date().getFullYear(),
-          goalMeasure: doelstellingMaatregel,
-          domainId,
-          riskField: risicoveld,
-          priority: prioriteit,
-          realisation: realisatie,
-          executor: uitvoerder,
-          resourcesBudget: middelenBudgetWerkuren,
-          startDate: startdatum ? new Date(startdatum) : null,
-          endDate: einddatum ? new Date(einddatum) : null,
-          remark: opmerking,
-        },
-        include: {
-          domain: true,
-          comments: true,
-        },
-      });
-
-      // Notify relevant users: admins + users with japGppAccess
-      try {
-        const users = await prismaService.user.findMany({
-          where: {
-            OR: [{ isAdmin: true }, { japGppAccess: true }],
-          },
-          select: { id: true },
-        });
-        const recipientIds = users.map((u: any) => u.id);
-        if (recipientIds.length > 0) {
-          await notificationsService.notifyUsers({
-            recipientUserIds: recipientIds,
-            type: NotificationType.JAP_NEW,
-            title: `Nieuwe JAP entry toegevoegd`,
-            body: `${doelstellingMaatregel ?? 'Nieuwe JAP'}`,
-            metadata: { entryId: entry.id, module: 'JAP' },
-          });
-        }
-      } catch (notifyError) {
-        console.warn('Failed to notify users for JAP creation', notifyError);
-      }
-
-      res.status(201).json({ entry: formatJapEntry(entry) });
-    } catch (error) {
-      console.error('Error creating JAP entry:', error);
-      res.status(500).json({ message: 'Fout bij aanmaken JAP entry' });
-    }
-  });
-
-  // PATCH /jap/:id - update een entry
-  router.patch('/:id', async (req: Request, res: Response) => {
-    try {
-      const id = Number(req.params.id);
-
-      // Get previous version for comparison
-      const previous = await prismaService.japGppEntry.findUnique({
-        where: { id },
-      });
-
-      if (!previous) {
-        return res.status(404).json({ message: 'Entry niet gevonden' });
-      }
-
-      const {
-        doelstellingMaatregel,
-        domein,
-        risicoveld,
-        prioriteit,
-        realisatie,
-        uitvoerder,
-        middelenBudgetWerkuren,
-        startdatum,
-        einddatum,
-        opmerking,
-      } = req.body;
-
-      // Find or create domain if provided
-      let domainId = previous.domainId;
-      if (domein !== undefined) {
-        if (domein) {
-          const domain = await prismaService.domain.findUnique({
-            where: { name: domein },
-          });
-          domainId = domain?.id ?? null;
-        } else {
-          domainId = null;
-        }
-      }
-
-      const updated = await prismaService.japGppEntry.update({
-        where: { id },
-        data: {
-          goalMeasure: doelstellingMaatregel !== undefined ? doelstellingMaatregel : undefined,
-          domainId: domein !== undefined ? domainId : undefined,
-          riskField: risicoveld !== undefined ? risicoveld : undefined,
-          priority: prioriteit !== undefined ? prioriteit : undefined,
-          realisation: realisatie !== undefined ? realisatie : undefined,
-          executor: uitvoerder !== undefined ? uitvoerder : undefined,
-          resourcesBudget: middelenBudgetWerkuren !== undefined ? middelenBudgetWerkuren : undefined,
-          startDate: startdatum !== undefined ? (startdatum ? new Date(startdatum) : null) : undefined,
-          endDate: einddatum !== undefined ? (einddatum ? new Date(einddatum) : null) : undefined,
-          remark: opmerking !== undefined ? opmerking : undefined,
-        },
-        include: {
-          domain: true,
-          comments: true,
-        },
-      });
-
-      // If a remark was added, notify relevant users
-      if (opmerking && opmerking.trim() !== '' && (!previous.remark || previous.remark.trim() === '')) {
-        try {
-          const users = await prismaService.user.findMany({
-            where: {
-              OR: [{ isAdmin: true }, { japGppAccess: true }],
-            },
-            select: { id: true },
-          });
-          const recipientIds = users.map((u: any) => u.id);
-          if (recipientIds.length > 0) {
-            await notificationsService.notifyUsers({
-              recipientUserIds: recipientIds,
-              type: NotificationType.JAP_COMMENT,
-              title: `Nieuwe opmerking op JAP`,
-              body: opmerking.toString().slice(0, 200),
-              metadata: { entryId: updated.id, module: 'JAP' },
-            });
-          }
-        } catch (notifyError) {
-          console.warn('Failed to notify users for JAP comment', notifyError);
-        }
-      }
-
-      res.json({ entry: formatJapEntry(updated) });
-    } catch (error) {
-      console.error('Error updating JAP entry:', error);
-      res.status(500).json({ message: 'Fout bij bijwerken JAP entry' });
-    }
-  });
-
-  // DELETE /jap/:id - verwijder een entry
-  router.delete('/:id', async (req: Request, res: Response) => {
-    try {
-      const id = Number(req.params.id);
-      await prismaService.japGppEntry.delete({
-        where: { id },
-      });
-      res.status(204).send();
-    } catch (error: any) {
-      if (error.code === 'P2025') {
-        return res.status(404).json({ message: 'Entry niet gevonden' });
-      }
-      console.error('Error deleting JAP entry:', error);
-      res.status(500).json({ message: 'Fout bij verwijderen JAP entry' });
-    }
-  });
+  // Deleting DB-backed JAP entries is disabled via this route.
 
   return router;
 }

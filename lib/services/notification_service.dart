@@ -46,7 +46,7 @@ class NotificationService extends ChangeNotifier {
     debugPrint('[NotificationService] bindAuth called. prevUser=$previousUserId prevTokenPresent=${previousToken!=null} isAuthenticated=${authService.isAuthenticated}');
 
     if (!authService.isAuthenticated) {
-      debugPrint('[NotificationService] User not authenticated — resetting notifications');
+      debugPrint('[NotificationService] User not authenticated - resetting notifications');
       _reset();
       return;
     }

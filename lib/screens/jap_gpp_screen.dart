@@ -519,7 +519,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
                       Row(
                         children: [
                           Expanded(
-                            child: Text('Export JAP — kies jaar', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+                            child: Text('Export JAP - kies jaar', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
                           ),
                           IconButton(
                             icon: const Icon(Icons.close),
@@ -564,7 +564,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text('Voorbeeld — ${selectedYear ?? ''}', style: const TextStyle(fontWeight: FontWeight.w700)),
+                                  Text('Voorbeeld - ${selectedYear ?? ''}', style: const TextStyle(fontWeight: FontWeight.w700)),
                                   Text(previewEntries.isEmpty ? 'Geen items geselecteerd' : '${previewEntries.length} items', style: const TextStyle(color: Colors.grey)),
                                 ],
                               ),
@@ -585,7 +585,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
                                               child: Text('${idx + 1}', style: const TextStyle(fontSize: 11, color: Color(0xFF4A7A1E), fontWeight: FontWeight.w700)),
                                             ),
                                             title: Text(e.goalMeasure, maxLines: 2, overflow: TextOverflow.ellipsis),
-                                            subtitle: Text('${e.domain} • ${e.startDate != null ? e.startDate!.toIso8601String().split('T')[0] : ''} - ${e.endDate != null ? e.endDate!.toIso8601String().split('T')[0] : ''}\n${e.executor.isEmpty ? '-' : e.executor}', maxLines: 2, overflow: TextOverflow.ellipsis),
+                                            subtitle: Text('${e.domain} | ${e.startDate != null ? e.startDate!.toIso8601String().split('T')[0] : ''} - ${e.endDate != null ? e.endDate!.toIso8601String().split('T')[0] : ''}\n${e.executor.isEmpty ? '-' : e.executor}', maxLines: 2, overflow: TextOverflow.ellipsis),
                                             isThreeLine: true,
                                             trailing: Column(
                                               crossAxisAlignment: CrossAxisAlignment.end,

@@ -537,7 +537,7 @@ class _JapGppDetailPaneState extends State<JapGppDetailPane> {
                               ),
                         const SizedBox(height: 4),
                         Text(
-                          '$periodText • ID $idText',
+                          '$periodText - ID $idText',
                           style: const TextStyle(
                             fontSize: 12,
                             color: Color(0xFF6B7A62),

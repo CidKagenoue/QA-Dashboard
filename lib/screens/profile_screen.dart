@@ -269,7 +269,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           Expanded(
                             flex: 2,
                             child: _LabeledTextField(
-                              label: 'E-mail',
+                              label: 'E-Mail',
                               controller: _emailController,
                               keyboardType: TextInputType.emailAddress,
                               validator: (value) {

@@ -57,6 +57,12 @@ class ManageDropdownField extends StatelessWidget {
           height: 40,
           width: 40,
           child: IconButton(
+            style: IconButton.styleFrom(
+              foregroundColor: const Color(0xFF243022),
+              backgroundColor: const Color(0xFFF3F6EC),
+              side: const BorderSide(color: Color(0xFFDDE3D2)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
             icon: const Icon(Icons.format_list_bulleted, size: 18),
             tooltip: 'Beheer lijst',
             padding: EdgeInsets.zero,

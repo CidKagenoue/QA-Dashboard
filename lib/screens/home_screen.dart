@@ -11,13 +11,7 @@ import 'maintenance_inspections_screen.dart';
 import '../services/jap_gpp_api_service.dart';
 import '../services/maintenance_api_service.dart';
 
-enum _HomeSection {
-  dashboard,
-  whsTours,
-  ova,
-  onderhoud,
-  japGpp,
-}
+enum _HomeSection { dashboard, whsTours, ova, onderhoud, japGpp }
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
@@ -90,7 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const MainAppBar(title: 'Vlotter',),
+      appBar: const MainAppBar(title: 'Vlotter'),
       body: Row(
         children: [
           Container(
@@ -104,14 +98,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: Icons.dashboard,
                   label: 'Dashboard',
                   selected: _selected == _HomeSection.dashboard,
-                  onTap: () => setState(() => _selected = _HomeSection.dashboard),
+                  onTap: () =>
+                      setState(() => _selected = _HomeSection.dashboard),
                 ),
                 const SizedBox(height: 12),
                 _SidebarItem(
                   icon: Icons.apartment_outlined,
                   label: 'WHS-Tours',
                   selected: _selected == _HomeSection.whsTours,
-                  onTap: () => setState(() => _selected = _HomeSection.whsTours),
+                  onTap: () =>
+                      setState(() => _selected = _HomeSection.whsTours),
                 ),
                 const SizedBox(height: 12),
                 _SidebarItem(
@@ -125,7 +121,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: Icons.build,
                   label: 'Onderhoud\nKeuringen',
                   selected: _selected == _HomeSection.onderhoud,
-                  onTap: () => setState(() => _selected = _HomeSection.onderhoud),
+                  onTap: () =>
+                      setState(() => _selected = _HomeSection.onderhoud),
                 ),
                 const SizedBox(height: 12),
                 _SidebarItem(
@@ -138,9 +135,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-          Expanded(
-            child: _buildSectionContent(_selected),
-          ),
+          Expanded(child: _buildSectionContent(_selected)),
         ],
       ),
     );
@@ -163,7 +158,9 @@ class _HomeScreenState extends State<HomeScreen> {
       case _HomeSection.whsTours:
         return const Center(child: Text('WHS-Tours'));
       case _HomeSection.ova:
-        final ovaTicketId = _initialOvaTicketConsumed ? null : _initialOvaTicketId;
+        final ovaTicketId = _initialOvaTicketConsumed
+            ? null
+            : _initialOvaTicketId;
         return OvaDashboardScreen(
           initialTicketId: ovaTicketId,
           onCloseInitialTicket: () {
@@ -251,10 +248,7 @@ class _SidebarItem extends StatelessWidget {
 }
 
 class _DashboardBody extends StatefulWidget {
-  const _DashboardBody({
-    required this.authService,
-    required this.onNavigate,
-  });
+  const _DashboardBody({required this.authService, required this.onNavigate});
 
   final AuthService authService;
   final ValueChanged<_HomeSection> onNavigate;
@@ -269,7 +263,7 @@ class _DashboardBodyState extends State<_DashboardBody> {
   List<OvaTicket> _tickets = const [];
   List<OvaAssignedAction> _actions = const [];
   List<JapGppComment> _recentComments = [];
- List<MaintenanceItem> _upcomingMaintenance = [];
+  List<MaintenanceItem> _upcomingMaintenance = [];
   @override
   void initState() {
     super.initState();
@@ -294,15 +288,20 @@ class _DashboardBodyState extends State<_DashboardBody> {
         final comments = await JapApiService.fetchRecentComments(token: token);
         if (!mounted) return;
         setState(() {
-          _recentComments = comments.map((c) => JapGppComment(
-            title: c['title'] as String? ?? '',
-            author: c['author'] as String? ?? '',
-            comment: c['comment'] as String? ?? '',
-          )).toList();
+          _recentComments = comments
+              .map(
+                (c) => JapGppComment(
+                  title: c['title'] as String? ?? '',
+                  author: c['author'] as String? ?? '',
+                  comment: c['comment'] as String? ?? '',
+                ),
+              )
+              .toList();
         });
       } catch (_) {}
       try {
-        final inspections = await MaintenanceApiService.fetchUpcomingInspections(token: token);
+        final inspections =
+            await MaintenanceApiService.fetchUpcomingInspections(token: token);
         if (!mounted) return;
         setState(() {
           _upcomingMaintenance = inspections.map((i) {
@@ -338,11 +337,9 @@ class _DashboardBodyState extends State<_DashboardBody> {
     }
   }
 
-  List<OvaTicket> get _openTickets =>
-      _tickets.where((t) => t.isOpen).toList();
+  List<OvaTicket> get _openTickets => _tickets.where((t) => t.isOpen).toList();
 
-  int get _nokActionsCount =>
-      _actions.where((a) => !a.action.isOk).length;
+  int get _nokActionsCount => _actions.where((a) => !a.action.isOk).length;
 
   Map<String, int> get _ticketsByType {
     final map = <String, int>{};
@@ -424,22 +421,15 @@ class _DashboardBodyState extends State<_DashboardBody> {
                 builder: (context, constraints) {
                   final wide = constraints.maxWidth > 760;
                   final cards = <Widget>[
-                    if (_actions.isNotEmpty)
-                      _RecentActionsCard(
-                        actions: _actions.take(3).toList(),
-                        onTap: () => widget.onNavigate(_HomeSection.ova),
-                      ),
-
-                      // === REPLACED: show JAP & GPP commentaar and Upcoming maintenance ===
-                      _JapGppCommentaarCard(
-                        items: _recentComments, 
-                        onTap: () => widget.onNavigate(_HomeSection.japGpp),
-                      ),
-                      _UpcomingMaintenanceCard(
-                        items: _upcomingMaintenance,
-                        onTap: () =>
-                            widget.onNavigate(_HomeSection.onderhoud),
-                      ),
+                    // === REPLACED: show JAP & GPP commentaar and Upcoming maintenance ===
+                    _JapGppCommentaarCard(
+                      items: _recentComments,
+                      onTap: () => widget.onNavigate(_HomeSection.japGpp),
+                    ),
+                    _UpcomingMaintenanceCard(
+                      items: _upcomingMaintenance,
+                      onTap: () => widget.onNavigate(_HomeSection.onderhoud),
+                    ),
                   ];
 
                   if (cards.isEmpty) return const SizedBox.shrink();
@@ -451,8 +441,7 @@ class _DashboardBodyState extends State<_DashboardBody> {
                               .map(
                                 (c) => Expanded(
                                   child: Padding(
-                                    padding:
-                                        const EdgeInsets.only(right: 16),
+                                    padding: const EdgeInsets.only(right: 16),
                                     child: c,
                                   ),
                                 ),
@@ -463,8 +452,7 @@ class _DashboardBodyState extends State<_DashboardBody> {
                           children: cards
                               .map(
                                 (c) => Padding(
-                                  padding:
-                                      const EdgeInsets.only(bottom: 16),
+                                  padding: const EdgeInsets.only(bottom: 16),
                                   child: c,
                                 ),
                               )
@@ -519,10 +507,7 @@ class _WelcomeHeader extends StatelessWidget {
             ),
             Text(
               user.isAdmin ? 'Administrator' : 'Gebruiker',
-              style: const TextStyle(
-                fontSize: 13,
-                color: Color(0xFF6B7A62),
-              ),
+              style: const TextStyle(fontSize: 13, color: Color(0xFF6B7A62)),
             ),
           ],
         ),
@@ -542,10 +527,12 @@ class _StatCardRow extends StatelessWidget {
         if (constraints.maxWidth < 600) {
           return Column(
             children: children
-                .map((c) => Padding(
-                      padding: const EdgeInsets.only(bottom: 14),
-                      child: c,
-                    ))
+                .map(
+                  (c) => Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: c,
+                  ),
+                )
                 .toList(),
           );
         }
@@ -553,12 +540,14 @@ class _StatCardRow extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: children
-                .map((c) => Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 14),
-                        child: c,
-                      ),
-                    ))
+                .map(
+                  (c) => Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 14),
+                      child: c,
+                    ),
+                  ),
+                )
                 .toList(),
           ),
         );
@@ -650,7 +639,9 @@ class _OvaTicketsCard extends StatelessWidget {
                         final count = e.value;
                         return Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 6),
+                            horizontal: 8,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: _badgeColor(type),
                             borderRadius: BorderRadius.circular(12),
@@ -671,8 +662,10 @@ class _OvaTicketsCard extends StatelessWidget {
               ),
               IconButton(
                 onPressed: onTap,
-                icon: const Icon(Icons.chevron_right_rounded,
-                    color: Color(0xFF8CC63F)),
+                icon: const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Color(0xFF8CC63F),
+                ),
               ),
             ],
           ),
@@ -725,109 +718,34 @@ class _StatCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF6B7A62),
-                        fontWeight: FontWeight.w600)),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF6B7A62),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 const SizedBox(height: 6),
-                Text(value,
-                    style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF2B3424))),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF2B3424),
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text(subtitle,
-                    style: const TextStyle(
-                        fontSize: 12, color: Color(0xFF6B7A62))),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF6B7A62),
+                  ),
+                ),
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────
-//  Recent actions kaart (voorbeeld)
-// ─────────────────────────────────────────────
-
-class _RecentActionsCard extends StatelessWidget {
-  const _RecentActionsCard({
-    required this.actions,
-    required this.onTap,
-  });
-
-  final List<OvaAssignedAction> actions;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return _BaseCard(
-      onTap: onTap,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Recente acties',
-            style: TextStyle(
-              fontSize: 13,
-              color: Color(0xFF6B7A62),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Divider(color: Color(0xFFE8EBE3), height: 1),
-          const SizedBox(height: 12),
-          ...actions.map((a) {
-            final titleText = ((a.actionTitle?.isNotEmpty ?? false) ? a.actionTitle : (a.action.title ?? ''))?.trim() ?? 'Untitled';
-            final assignedByText = (a.assignedBy)?.trim() ?? 'Unknown';
-
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: a.action.isOk
-                          ? const Color(0xFFEAF4D9)
-                          : const Color(0xFFFFECEC),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      a.action.isOk ? Icons.check : Icons.close,
-                      size: 16,
-                      color: a.action.isOk
-                          ? const Color(0xFF6B8F2A)
-                          : const Color(0xFFC43C33),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          titleText,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF2B3424)),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          assignedByText,
-                          style: const TextStyle(
-                              fontSize: 12, color: Color(0xFF6B7A62)),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
         ],
       ),
     );
@@ -859,8 +777,10 @@ class _ErrorCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Text(message,
-              style: const TextStyle(fontSize: 14, color: Color(0xFF2B3424))),
+          Text(
+            message,
+            style: const TextStyle(fontSize: 14, color: Color(0xFF2B3424)),
+          ),
           const SizedBox(height: 12),
           ElevatedButton(
             onPressed: onRetry,
@@ -926,10 +846,7 @@ class JapGppComment {
 }
 
 class _JapGppCommentaarCard extends StatelessWidget {
-  const _JapGppCommentaarCard({
-    required this.items,
-    required this.onTap,
-  });
+  const _JapGppCommentaarCard({required this.items, required this.onTap});
 
   final List<JapGppComment> items;
   final VoidCallback onTap;
@@ -958,26 +875,40 @@ class _JapGppCommentaarCard extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.comment_rounded,
-                      size: 20, color: Color(0xFF8CC63F)),
+                  const Icon(
+                    Icons.comment_rounded,
+                    size: 20,
+                    color: Color(0xFF8CC63F),
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(item.title,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 14,
-                                color: Color(0xFF2B3424))),
+                        Text(
+                          item.title,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            color: Color(0xFF2B3424),
+                          ),
+                        ),
                         const SizedBox(height: 4),
-                        Text(item.author,
-                            style: const TextStyle(
-                                fontSize: 12, color: Color(0xFF6B7A62))),
+                        Text(
+                          item.author,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF6B7A62),
+                          ),
+                        ),
                         const SizedBox(height: 6),
-                        Text(item.comment,
-                            style: const TextStyle(
-                                fontSize: 13, color: Color(0xFF4A4F45))),
+                        Text(
+                          item.comment,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF4A4F45),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -999,17 +930,11 @@ class MaintenanceItem {
   final String title;
   final String date;
 
-  MaintenanceItem({
-    required this.title,
-    required this.date,
-  });
+  MaintenanceItem({required this.title, required this.date});
 }
 
 class _UpcomingMaintenanceCard extends StatelessWidget {
-  const _UpcomingMaintenanceCard({
-    required this.items,
-    required this.onTap,
-  });
+  const _UpcomingMaintenanceCard({required this.items, required this.onTap});
 
   final List<MaintenanceItem> items;
   final VoidCallback onTap;
@@ -1037,22 +962,32 @@ class _UpcomingMaintenanceCard extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 12),
               child: Row(
                 children: [
-                  const Icon(Icons.event_available_rounded,
-                      size: 20, color: Color(0xFF8CC63F)),
+                  const Icon(
+                    Icons.event_available_rounded,
+                    size: 20,
+                    color: Color(0xFF8CC63F),
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(item.title,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 14,
-                                color: Color(0xFF2B3424))),
+                        Text(
+                          item.title,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            color: Color(0xFF2B3424),
+                          ),
+                        ),
                         const SizedBox(height: 4),
-                        Text(item.date,
-                            style: const TextStyle(
-                                fontSize: 12, color: Color(0xFF6B7A62))),
+                        Text(
+                          item.date,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF6B7A62),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -1065,4 +1000,3 @@ class _UpcomingMaintenanceCard extends StatelessWidget {
     );
   }
 }
-

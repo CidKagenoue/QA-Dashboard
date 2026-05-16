@@ -260,7 +260,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                 enabled: !_isLoading,
                                 obscureText: !_isPasswordVisible,
                                 decoration: InputDecoration(
-                                  hintText: 'Voer nieuw wachtwoord in',
+                                  hintText: 'Wachtwoord',
                                   prefixIcon: const Icon(Icons.lock),
                                   suffixIcon: IconButton(
                                     icon: Icon(
@@ -331,7 +331,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                 enabled: !_isLoading,
                                 obscureText: !_isConfirmPasswordVisible,
                                 decoration: InputDecoration(
-                                  hintText: 'Bevestig nieuw wachtwoord',
+                                  hintText: 'Bevestig wachtwoord',
                                   prefixIcon: const Icon(Icons.lock),
                                   suffixIcon: IconButton(
                                     icon: Icon(

@@ -192,8 +192,8 @@ class GppEntry {
     this.remark = '',
   });
 
-  // GPP = year range "2021–2026"
-  String get yearLabel => '$startYear–$endYear';
+  // GPP = year range "2021-2026"
+  String get yearLabel => '$startYear-$endYear';
 
   factory GppEntry.fromJson(Map<String, dynamic> json) {
     return GppEntry(

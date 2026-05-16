@@ -1344,7 +1344,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
           ),
           const SizedBox(width: 16),
           IconButton(
-            icon: const Icon(Icons.filter_list),
+            icon: const Icon(Icons.filter_alt_outlined),
             onPressed: _openFilterDialog,
           ),
           const SizedBox(width: 16),

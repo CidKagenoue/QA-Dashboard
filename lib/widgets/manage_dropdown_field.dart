@@ -57,7 +57,7 @@ class ManageDropdownField extends StatelessWidget {
           height: 40,
           width: 40,
           child: IconButton(
-            icon: const Icon(Icons.tune, size: 18),
+            icon: const Icon(Icons.format_list_bulleted, size: 18),
             tooltip: 'Beheer lijst',
             padding: EdgeInsets.zero,
             visualDensity: VisualDensity.compact,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 const kAppGreen = Color(0xFF7CB342);
 
@@ -18,6 +19,8 @@ ThemeData buildAppTheme() {
     useMaterial3: true,
     colorScheme: colorScheme,
     scaffoldBackgroundColor: background,
+    fontFamily: GoogleFonts.notoSansJp().fontFamily,
+    fontFamilyFallback: const ['Noto Sans', 'sans-serif'],
     textTheme: const TextTheme(
       headlineMedium: TextStyle(
         fontSize: 28,

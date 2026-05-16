@@ -20,7 +20,7 @@ http:
       priority: 10
 
     backend:
-      rule: "(Host(`tst.vlotterqa.tech`) || Host(`www.tst.vlotterqa.tech`)) && (PathPrefix(`/auth`) || PathPrefix(`/users`) || PathPrefix(`/departments`) || PathPrefix(`/locations`) || PathPrefix(`/maintenance-inspections`) || PathPrefix(`/ova-tickets`) || PathPrefix(`/notifications`) || PathPrefix(`/domain`) || PathPrefix(`/jap`) || PathPrefix(`/gpp`) || PathPrefix(`/accounts`) || PathPrefix(`/notification-settings`))"
+      rule: "(Host(`tst.vlotterqa.tech`) || Host(`www.tst.vlotterqa.tech`)) && (PathPrefix(`/auth`) || PathPrefix(`/users`) || PathPrefix(`/departments`) || PathPrefix(`/locations`) || PathPrefix(`/maintenance-inspections`) || PathPrefix(`/ova-tickets`) || PathPrefix(`/notifications`) || PathPrefix(`/domain`) || PathPrefix(`/executor`) || PathPrefix(`/jap`) || PathPrefix(`/gpp`) || PathPrefix(`/accounts`) || PathPrefix(`/notification-settings`))"
       service: backend
       entryPoints:
         - websecure

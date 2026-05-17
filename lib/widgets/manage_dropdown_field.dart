@@ -57,6 +57,12 @@ class ManageDropdownField extends StatelessWidget {
           height: 40,
           width: 40,
           child: IconButton(
+            style: IconButton.styleFrom(
+              foregroundColor: const Color(0xFF243022),
+              backgroundColor: const Color(0xFFF3F6EC),
+              side: const BorderSide(color: Color(0xFFDDE3D2)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
             icon: Image.asset(
               'assets/images/jap_gpp_manage_icon.png',
               width: 18,

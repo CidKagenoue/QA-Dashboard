@@ -384,11 +384,9 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
       case 4:
         break;
       case 5:
-        payload['effectivenessDate'] = DateTime.utc(
-          _effectivenessDate.year,
-          _effectivenessDate.month,
-          _effectivenessDate.day,
-        ).toIso8601String();
+        payload['effectivenessDate'] = _effectivenessDateForSave()
+            .toUtc()
+            .toIso8601String();
         payload['effectivenessNotes'] = _normalizedText(
           _effectivenessNotesController.text,
         );
@@ -400,6 +398,20 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
     }
 
     return payload;
+  }
+
+  DateTime _effectivenessDateForSave() {
+    final now = DateTime.now();
+    return DateTime(
+      _effectivenessDate.year,
+      _effectivenessDate.month,
+      _effectivenessDate.day,
+      now.hour,
+      now.minute,
+      now.second,
+      now.millisecond,
+      now.microsecond,
+    );
   }
 
   bool get _shouldIncludeMinimumTicketDetails {
@@ -1180,7 +1192,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
         _SectionCard(
           title: 'Datum controle',
           subtitle:
-              'Deze datum staat standaard op vandaag en registreert wanneer de effectiviteit beoordeeld werd.',
+              'Deze datum staat standaard op vandaag. Het uur wordt geregistreerd op het moment van opslaan.',
           child: Row(
             children: [
               Expanded(

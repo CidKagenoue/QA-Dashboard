@@ -1,4 +1,3 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import '../widgets/manage_dropdown_field.dart';
 import '../services/jap_export_service.dart';
@@ -30,7 +29,6 @@ class _JapGppScreenState extends State<JapGppScreen> {
   List<JapEntry> _japEntries = [];
   List<GppEntry> _gppEntries = [];
   bool _loading = true;
-  bool _savingImport = false;
   String? _error;
   
   // Filters
@@ -501,8 +499,6 @@ class _JapGppScreenState extends State<JapGppScreen> {
         List<JapEntry> previewEntries = [];
         bool exporting = false;
 
-        // previewEntries are computed locally from _entriesForExportYear when requested
-
         return StatefulBuilder(builder: (c, setDialogState) {
           return Dialog(
             backgroundColor: Colors.transparent,
@@ -511,7 +507,10 @@ class _JapGppScreenState extends State<JapGppScreen> {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 900, maxHeight: 720),
                 child: Container(
-                  decoration: BoxDecoration(color: const Color(0xFFF1F2EA), borderRadius: BorderRadius.circular(14)),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F2EA),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -519,7 +518,13 @@ class _JapGppScreenState extends State<JapGppScreen> {
                       Row(
                         children: [
                           Expanded(
-                            child: Text('Export JAP - kies jaar', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+                            child: Text(
+                              'Export JAP - kies jaar',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .headlineSmall
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                            ),
                           ),
                           IconButton(
                             icon: const Icon(Icons.close),
@@ -528,35 +533,45 @@ class _JapGppScreenState extends State<JapGppScreen> {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Text('Selecteer het jaar en bekijk een preview voordat je downloadt.', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[700])),
+                      Text(
+                        'Selecteer het jaar en bekijk een preview voordat je downloadt.',
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(color: Colors.grey[700]),
+                      ),
                       const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Wrap(
-                                      spacing: 8,
-                                      children: years.map((y) {
-                                        final selected = selectedYear == y;
-                                        return ChoiceChip(
-                                          label: Text(y.toString()),
-                                          selected: selected,
-                                          onSelected: (_) => setDialogState(() {
-                                            selectedYear = y;
-                                            previewEntries = _entriesForExportYear(y);
-                                          }),
-                                          backgroundColor: Colors.white,
-                                          selectedColor: const Color(0xFF8BC34A).withOpacity(0.18),
-                                        );
-                                      }).toList(),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                ],
-                              ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Wrap(
+                              spacing: 8,
+                              children: years.map((y) {
+                                final selected = selectedYear == y;
+                                return ChoiceChip(
+                                  label: Text(y.toString()),
+                                  selected: selected,
+                                  onSelected: (_) => setDialogState(() {
+                                    selectedYear = y;
+                                    previewEntries = _entriesForExportYear(y);
+                                  }),
+                                  backgroundColor: Colors.white,
+                                  selectedColor: const Color(0xFF8BC34A).withOpacity(0.18),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                        ],
+                      ),
                       const SizedBox(height: 12),
                       Expanded(
                         child: Container(
-                          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFE6E6E6))),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFE6E6E6)),
+                          ),
                           padding: const EdgeInsets.all(12),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -574,7 +589,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
                                     ? Center(child: Text('Kies een jaar om het voorbeeld te laden.', style: TextStyle(color: Colors.grey[700])))
                                     : ListView.separated(
                                         itemCount: previewEntries.length,
-                                            separatorBuilder: (_, __) => const Divider(height: 8),
+                                        separatorBuilder: (_, __) => const Divider(height: 8),
                                         itemBuilder: (context, idx) {
                                           final e = previewEntries[idx];
                                           return ListTile(
@@ -652,51 +667,6 @@ class _JapGppScreenState extends State<JapGppScreen> {
         });
       },
     );
-  }
-
-  Future<void> _importGppExcel() async {
-    if (_savingImport) return;
-
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.any,
-      withData: true,
-    );
-
-    if (result == null || result.files.isEmpty) return;
-    final file = result.files.first;
-    final bytes = file.bytes;
-    if (bytes == null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Kon het bestand niet lezen.')),
-      );
-      return;
-    }
-
-    setState(() => _savingImport = true);
-    try {
-      final response = await JapApiService.importGppExcel(
-        token: widget.token,
-        fileName: file.name,
-        bytes: bytes,
-      );
-
-      await _reloadAll();
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(response['message']?.toString() ?? 'GPP import gelukt')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('GPP import mislukt: $e')),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _savingImport = false);
-      }
-    }
   }
 
   Future<void> _showCreateGppDialog() async {
@@ -1362,24 +1332,6 @@ class _JapGppScreenState extends State<JapGppScreen> {
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               ),
               controller: _searchController,
-            ),
-          ),
-          const SizedBox(width: 12),
-          ElevatedButton.icon(
-            onPressed: _savingImport ? null : _importGppExcel,
-            icon: _savingImport
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                  )
-                : const Icon(Icons.upload_file),
-            label: const Text('Import'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF8BC34A),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             ),
           ),
           const SizedBox(width: 12),

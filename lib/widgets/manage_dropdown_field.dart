@@ -63,7 +63,12 @@ class ManageDropdownField extends StatelessWidget {
               side: const BorderSide(color: Color(0xFFDDE3D2)),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            icon: const Icon(Icons.format_list_bulleted, size: 18),
+            icon: Image.asset(
+              'assets/images/jap_gpp_manage_icon.png',
+              width: 18,
+              height: 18,
+              errorBuilder: (context, error, stackTrace) => const Icon(Icons.format_list_bulleted, size: 18),
+            ),
             tooltip: 'Beheer lijst',
             padding: EdgeInsets.zero,
             visualDensity: VisualDensity.compact,

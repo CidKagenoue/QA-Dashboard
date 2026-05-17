@@ -259,7 +259,7 @@ class _ManageValuesPageState extends State<ManageValuesPage> {
                         shrinkWrap: true,
                         padding: EdgeInsets.zero,
                         itemCount: _items.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        separatorBuilder: (_, _) => const Divider(height: 1),
                         itemBuilder: (context, index) {
                           final item = _items[index];
                           final isSelected = item == _selectedValue;

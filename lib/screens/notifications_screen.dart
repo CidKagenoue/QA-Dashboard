@@ -244,35 +244,87 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       ),
                       const Divider(height: 24),
                       ...items.map(
-                        (s) => Row(
+                        (s) => Column(
                           children: [
-                            Expanded(
-                              child: Text(
-                                _notificationTypeLabel(s),
-                                style: const TextStyle(fontSize: 15),
-                              ),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    _notificationTypeLabel(s),
+                                    style: const TextStyle(fontSize: 15),
+                                  ),
+                                ),
+                                Switch(
+                                  value: s.enabled,
+                                  onChanged: (val) {
+                                    setState(() {
+                                      _uiSettings = List<NotificationSetting>.from(
+                                        settings.map(
+                                          (item) =>
+                                              (item.module == s.module &&
+                                                  item.type == s.type)
+                                              ? NotificationSetting(
+                                                  module: item.module,
+                                                  type: item.type,
+                                                  enabled: val,
+                                                  email: item.email,
+                                                )
+                                              : item,
+                                        ),
+                                      );
+                                    });
+                                  },
+                                ),
+                              ],
                             ),
-                            Switch(
-                              value: s.enabled,
-                              onChanged: (val) {
-                                setState(() {
-                                  _uiSettings = List<NotificationSetting>.from(
-                                    settings.map(
-                                      (item) =>
-                                          (item.module == s.module &&
-                                              item.type == s.type)
-                                          ? NotificationSetting(
-                                              module: item.module,
-                                              type: item.type,
-                                              enabled: val,
-                                              email: item.email,
-                                            )
-                                          : item,
+                            if (s.enabled)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8, bottom: 8),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.email_outlined,
+                                      size: 16,
+                                      color: Colors.grey[600],
                                     ),
-                                  );
-                                });
-                              },
-                            ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Email',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ),
+                                    Switch(
+                                      value: s.email,
+                                      materialTapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                      onChanged: (val) {
+                                        setState(() {
+                                          _uiSettings = List<NotificationSetting>.from(
+                                            settings.map(
+                                              (item) =>
+                                                  (item.module == s.module &&
+                                                      item.type == s.type)
+                                                  ? NotificationSetting(
+                                                      module: item.module,
+                                                      type: item.type,
+                                                      enabled: item.enabled,
+                                                      email: val,
+                                                    )
+                                                  : item,
+                                            ),
+                                          );
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            if (items.indexOf(s) < items.length - 1)
+                              const Divider(height: 1),
                           ],
                         ),
                       ),

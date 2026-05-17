@@ -512,15 +512,17 @@ class _JapGppDetailPaneState extends State<JapGppDetailPane> {
                                     controller: _goalController,
                                     minLines: 2,
                                     maxLines: 8,
+                                    textAlignVertical: TextAlignVertical.top,
                                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                                           fontWeight: FontWeight.w800,
                                           color: const Color(0xFF243022),
-                                          height: 1.05,
                                         ),
-                                    decoration: const InputDecoration(
+                                    decoration: InputDecoration(
                                       isDense: true,
-                                      contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-                                      border: InputBorder.none,
+                                      filled: true,
+                                      fillColor: Colors.white,
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
                                       hintText: 'Detail',
                                     ),
                                     onChanged: (_) => setState(() {}),
@@ -529,10 +531,11 @@ class _JapGppDetailPaneState extends State<JapGppDetailPane> {
                               )
                             : Text(
                                 _goalController.text.trim().isEmpty ? 'Detail' : _goalController.text.trim(),
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
                                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                                       fontWeight: FontWeight.w800,
                                       color: const Color(0xFF243022),
-                                      height: 1.1,
                                     ),
                               ),
                         const SizedBox(height: 4),

@@ -288,19 +288,18 @@ class _MaintenanceInspectionsScreenState
   }
 
   List<String> _inspectionTypes() {
-    final types = [
+    final types = <String>{
       ..._defaultInspectionTypes,
       ...allInspections
-        .map((inspection) => inspection.inspectionType.trim())
-        .where((type) => type.isNotEmpty),
-    ].toSet().toList();
+          .map((inspection) => inspection.inspectionType.trim())
+          .where((type) => type.isNotEmpty),
+    };
     for (final type in customInspectionTypes) {
-      if (type.trim().isNotEmpty && !types.contains(type.trim())) {
-        types.add(type.trim());
-      }
+      final t = type.trim();
+      if (t.isNotEmpty) types.add(t);
     }
-    types.sort();
-    return types;
+    final list = types.toList()..sort();
+    return list;
   }
 
   Future<List<String>> _loadCustomInspectionTypes() async {
@@ -1672,8 +1671,9 @@ class _MaintenanceInspectionDialogState
                                       if (isChecked == true) {
                                         selectedLocationIds.add(branch.id);
                                         if (_branchesError != null &&
-                                            selectedLocationIds.isNotEmpty)
+                                            selectedLocationIds.isNotEmpty) {
                                           _branchesError = null;
+                                        }
                                       } else {
                                         selectedLocationIds.remove(branch.id);
                                       }
@@ -1811,12 +1811,15 @@ class _MaintenanceInspectionDialogState
                           }
 
                           final missing = <String>[];
-                          if (equipmentController.text.trim().isEmpty)
+                          if (equipmentController.text.trim().isEmpty) {
                             missing.add('Toestel/Installatie');
-                          if (institutionController.text.trim().isEmpty)
+                          }
+                          if (institutionController.text.trim().isEmpty) {
                             missing.add('Naam keurinstelling');
-                          if (selectedLocationIds.isEmpty)
+                          }
+                          if (selectedLocationIds.isEmpty) {
                             missing.add('Vestiging');
+                          }
 
                           if (missing.isNotEmpty) {
                             setState(() {

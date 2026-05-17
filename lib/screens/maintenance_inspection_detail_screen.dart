@@ -1086,8 +1086,9 @@ class _MaintenanceInspectionDetailScreenState
               setState(() {
                 if (isSelected) {
                   _selectedBranchIds.add(branch.id);
-                  if (_branchesError != null && _selectedBranchIds.isNotEmpty)
+                  if (_branchesError != null && _selectedBranchIds.isNotEmpty) {
                     _branchesError = null;
+                  }
                 } else {
                   _selectedBranchIds.remove(branch.id);
                 }

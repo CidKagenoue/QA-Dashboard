@@ -211,8 +211,7 @@ export class AuthService implements OnModuleInit {
       },
     });
 
-    const frontendBaseUrl =
-      requestOrigin || process.env.FRONTEND_URL || 'http://localhost:3000';
+    const frontendBaseUrl = this.resolveFrontendBaseUrl(requestOrigin);
     const resetLink = `${frontendBaseUrl}/reset-password?token=${resetToken}`;
 
     try {
@@ -472,6 +471,18 @@ export class AuthService implements OnModuleInit {
 
     const hashedPassword = await bcrypt.hash('root123', 12);
     await this.userService.create({
+
+    private resolveFrontendBaseUrl(requestOrigin?: string): string {
+      const configuredUrl =
+        process.env.PUBLIC_FRONTEND_URL || process.env.FRONTEND_URL || '';
+      const baseUrl = requestOrigin?.trim() || configuredUrl.trim();
+
+      if (!baseUrl) {
+        return 'http://localhost:3000';
+      }
+
+      return baseUrl.replace(/\/+$/, '');
+    }
       email: 'admin',
       password: hashedPassword,
       name: 'Administrator',

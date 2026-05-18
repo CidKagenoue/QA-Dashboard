@@ -55,6 +55,36 @@ export class EmailService {
     }
   }
 
+  async sendNotificationEmail(
+    email: string,
+    title: string,
+    body: string,
+    type?: string,
+    module?: string,
+    metadata?: any,
+  ): Promise<void> {
+    try {
+      const mailOptions = {
+        from: process.env.SMTP_FROM || 'noreply@qa-dashboard.local',
+        to: email,
+        subject: title,
+        html: this.getNotificationEmailTemplate(
+          title,
+          body,
+          type,
+          module,
+          metadata,
+        ),
+      };
+
+      await this.transporter.sendMail(mailOptions);
+      console.log(`Notificatie e-mail verzonden naar ${email}`);
+    } catch (error: any) {
+      console.error('Fout bij verzenden notificatie e-mail:', error);
+      // Don't throw - notification should still be created even if email fails
+    }
+  }
+
   private getPasswordResetEmailTemplate(resetLink: string, token: string): string {
     return `
       <!DOCTYPE html>
@@ -153,5 +183,290 @@ export class EmailService {
         </body>
       </html>
     `;
+  }
+
+  private getNotificationEmailTemplate(
+    title: string,
+    body: string,
+    type?: string,
+    module?: string,
+    metadata?: any,
+  ): string {
+    const timestamp = new Date().toLocaleString('nl-NL', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    // Filter metadata to only show useful fields
+    const usefulMetadata = this.filterUsefulMetadata(metadata);
+
+    let metadataHtml = '';
+    if (usefulMetadata && Object.keys(usefulMetadata).length > 0) {
+      metadataHtml = `
+        <div style="margin-top: 20px; padding: 16px; background-color: #f9fbf5; border-left: 4px solid #7CB342; border-radius: 4px;">
+          <h4 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 700; color: #7CB342;">Details:</h4>
+      `;
+      for (const [key, value] of Object.entries(usefulMetadata)) {
+        const displayKey = this.formatMetadataKey(key);
+        metadataHtml += `
+          <p style="margin: 6px 0; font-size: 13px; color: #5c6e3d;">
+            <strong>${displayKey}:</strong> ${this.formatMetadataValue(value)}
+          </p>
+        `;
+      }
+      metadataHtml += `</div>`;
+    }
+
+    return `
+      <!DOCTYPE html>
+      <html lang="nl">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>${title}</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              background-color: #f2f7ea;
+              margin: 0;
+              padding: 0;
+            }
+            .container {
+              max-width: 600px;
+              margin: 20px auto;
+              background-color: #ffffff;
+              border-radius: 10px;
+              border: 1px solid #dce8c8;
+              box-shadow: 0 8px 24px rgba(76, 117, 34, 0.12);
+              overflow: hidden;
+            }
+            .header {
+              background: linear-gradient(90deg, #7CB342, #8BC34A);
+              color: white;
+              padding: 24px;
+              text-align: center;
+            }
+            .brand {
+              font-size: 28px;
+              font-weight: 700;
+              letter-spacing: 0.5px;
+              margin: 0;
+            }
+            .subheader {
+              font-size: 13px;
+              opacity: 0.9;
+              margin-top: 8px;
+            }
+            .content {
+              padding: 24px;
+              color: #2f3a1f;
+              line-height: 1.6;
+            }
+            .module-badge {
+              display: inline-block;
+              background-color: #e8f5e9;
+              color: #558b2f;
+              padding: 6px 12px;
+              border-radius: 20px;
+              font-size: 12px;
+              font-weight: 600;
+              margin-bottom: 12px;
+            }
+            .notification-title {
+              font-size: 20px;
+              font-weight: 700;
+              margin: 0 0 8px 0;
+              color: #7CB342;
+            }
+            .notification-type {
+              font-size: 12px;
+              color: #8bc34a;
+              margin-bottom: 16px;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+            .notification-body {
+              font-size: 14px;
+              color: #2f3a1f;
+              margin: 16px 0;
+              line-height: 1.8;
+            }
+            .meta-info {
+              margin-top: 16px;
+              padding-top: 16px;
+              border-top: 1px solid #e8efd9;
+              font-size: 12px;
+              color: #7a8a5a;
+            }
+            .timestamp {
+              display: block;
+              margin-top: 4px;
+            }
+            .footer {
+              margin-top: 20px;
+              padding-top: 20px;
+              border-top: 1px solid #e8efd9;
+              font-size: 11px;
+              color: #9cac7d;
+              text-align: center;
+            }
+            .cta-button {
+              display: inline-block;
+              background-color: #7CB342;
+              color: white;
+              padding: 10px 20px;
+              text-decoration: none;
+              border-radius: 6px;
+              margin-top: 12px;
+              font-size: 14px;
+              font-weight: 600;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <p class="brand">vlotter</p>
+              <p class="subheader">Meldingen</p>
+            </div>
+            <div class="content">
+              ${module ? `<span class="module-badge">${module}</span>` : ''}
+              <h2 class="notification-title">${title}</h2>
+              ${type ? `<p class="notification-type">${type}</p>` : ''}
+              <p class="notification-body">${body}</p>
+              ${metadataHtml}
+              <div class="meta-info">
+                <strong>Ontvangen:</strong>
+                <span class="timestamp">${timestamp}</span>
+              </div>
+              <div style="text-align: center; margin-top: 20px;">
+                <a href="${this.resolvePublicFrontendUrl()}" class="cta-button">
+                  Bekijk in vlotter
+                </a>
+              </div>
+              <div class="footer">
+                <p>© 2026 vlotter. Alle rechten voorbehouden.</p>
+                <p>Je ontvangt deze e-mail omdat je meldingen via e-mail hebt ingeschakeld in je instellingen.</p>
+              </div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+  }
+
+  private filterUsefulMetadata(metadata: any): Record<string, any> {
+    if (!metadata || typeof metadata !== 'object') {
+      return {};
+    }
+
+    const uselessFields = [
+      'entryId',
+      'japEntryId',
+      'gppEntryId',
+      'entry_id',
+      'id',
+      'source',
+    ];
+
+    const usefulFields = [
+      'createdBy',
+      'createdByName',
+      'createdByUser',
+      'userName',
+      'userEmail',
+      'ticketId',
+      'ticket_id',
+      'actionId',
+      'action_id',
+      'accountId',
+      'account_id',
+      'departmentName',
+      'department_name',
+      'status',
+      'priority',
+      'description',
+      'reason',
+      'type',
+    ];
+
+    const filtered: Record<string, any> = {};
+
+    // First, add useful fields that exist
+    for (const field of usefulFields) {
+      if (metadata[field] !== undefined && metadata[field] !== null) {
+        filtered[field] = metadata[field];
+      }
+    }
+
+    // Then, add any other fields not in useless list
+    for (const [key, value] of Object.entries(metadata)) {
+      if (
+        !uselessFields.includes(key) &&
+        !usefulFields.includes(key) &&
+        value !== undefined &&
+        value !== null &&
+        value !== ''
+      ) {
+        filtered[key] = value;
+      }
+    }
+
+    return filtered;
+  }
+
+  private formatMetadataKey(key: string): string {
+    // Handle special cases
+    const specialCases: Record<string, string> = {
+      createdBy: 'Gemaakt door (ID)',
+      createdByName: 'Gemaakt door',
+      createdByUser: 'Gemaakt door',
+      userName: 'Persoon',
+      userEmail: 'E-mailadres',
+      ticketId: 'Ticket',
+      ticket_id: 'Ticket',
+      actionId: 'Actie ID',
+      action_id: 'Actie ID',
+      accountId: 'Account',
+      account_id: 'Account',
+      departmentName: 'Afdeling',
+      department_name: 'Afdeling',
+    };
+
+    if (specialCases[key]) {
+      return specialCases[key];
+    }
+
+    // Default: convert camelCase/snake_case to readable format
+    return key
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/_/g, ' ')
+      .replace(/^./, (str) => str.toUpperCase())
+      .trim();
+  }
+
+  private formatMetadataValue(value: any): string {
+    if (typeof value === 'boolean') {
+      return value ? 'Ja' : 'Nee';
+    }
+    if (typeof value === 'object') {
+      return JSON.stringify(value, null, 2);
+    }
+    return String(value);
+  }
+
+  private resolvePublicFrontendUrl(): string {
+    const configuredUrl =
+      process.env.PUBLIC_FRONTEND_URL || process.env.FRONTEND_URL || '';
+    const baseUrl = configuredUrl.trim();
+
+    if (!baseUrl) {
+      return 'https://vlotter.local';
+    }
+
+    return baseUrl.replace(/\/+$/, '');
   }
 }

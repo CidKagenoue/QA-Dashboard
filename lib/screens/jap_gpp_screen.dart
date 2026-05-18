@@ -1,4 +1,3 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import '../widgets/manage_dropdown_field.dart';
 import '../services/jap_export_service.dart';
@@ -30,7 +29,6 @@ class _JapGppScreenState extends State<JapGppScreen> {
   List<JapEntry> _japEntries = [];
   List<GppEntry> _gppEntries = [];
   bool _loading = true;
-  bool _savingImport = false;
   String? _error;
   
   // Filters
@@ -501,8 +499,6 @@ class _JapGppScreenState extends State<JapGppScreen> {
         List<JapEntry> previewEntries = [];
         bool exporting = false;
 
-        // previewEntries are computed locally from _entriesForExportYear when requested
-
         return StatefulBuilder(builder: (c, setDialogState) {
           return Dialog(
             backgroundColor: Colors.transparent,
@@ -511,7 +507,10 @@ class _JapGppScreenState extends State<JapGppScreen> {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 900, maxHeight: 720),
                 child: Container(
-                  decoration: BoxDecoration(color: const Color(0xFFF1F2EA), borderRadius: BorderRadius.circular(14)),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F2EA),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -519,7 +518,13 @@ class _JapGppScreenState extends State<JapGppScreen> {
                       Row(
                         children: [
                           Expanded(
-                            child: Text('Export JAP - kies jaar', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+                            child: Text(
+                              'Export JAP - kies jaar',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .headlineSmall
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                            ),
                           ),
                           IconButton(
                             icon: const Icon(Icons.close),
@@ -528,35 +533,45 @@ class _JapGppScreenState extends State<JapGppScreen> {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Text('Selecteer het jaar en bekijk een preview voordat je downloadt.', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[700])),
+                      Text(
+                        'Selecteer het jaar en bekijk een preview voordat je downloadt.',
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(color: Colors.grey[700]),
+                      ),
                       const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Wrap(
-                                      spacing: 8,
-                                      children: years.map((y) {
-                                        final selected = selectedYear == y;
-                                        return ChoiceChip(
-                                          label: Text(y.toString()),
-                                          selected: selected,
-                                          onSelected: (_) => setDialogState(() {
-                                            selectedYear = y;
-                                            previewEntries = _entriesForExportYear(y);
-                                          }),
-                                          backgroundColor: Colors.white,
-                                          selectedColor: const Color(0xFF8BC34A).withOpacity(0.18),
-                                        );
-                                      }).toList(),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                ],
-                              ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Wrap(
+                              spacing: 8,
+                              children: years.map((y) {
+                                final selected = selectedYear == y;
+                                return ChoiceChip(
+                                  label: Text(y.toString()),
+                                  selected: selected,
+                                  onSelected: (_) => setDialogState(() {
+                                    selectedYear = y;
+                                    previewEntries = _entriesForExportYear(y);
+                                  }),
+                                  backgroundColor: Colors.white,
+                                  selectedColor: const Color(0xFF8BC34A).withOpacity(0.18),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                        ],
+                      ),
                       const SizedBox(height: 12),
                       Expanded(
                         child: Container(
-                          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFE6E6E6))),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFE6E6E6)),
+                          ),
                           padding: const EdgeInsets.all(12),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -574,7 +589,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
                                     ? Center(child: Text('Kies een jaar om het voorbeeld te laden.', style: TextStyle(color: Colors.grey[700])))
                                     : ListView.separated(
                                         itemCount: previewEntries.length,
-                                            separatorBuilder: (_, __) => const Divider(height: 8),
+                                        separatorBuilder: (_, __) => const Divider(height: 8),
                                         itemBuilder: (context, idx) {
                                           final e = previewEntries[idx];
                                           return ListTile(
@@ -652,51 +667,6 @@ class _JapGppScreenState extends State<JapGppScreen> {
         });
       },
     );
-  }
-
-  Future<void> _importGppExcel() async {
-    if (_savingImport) return;
-
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.any,
-      withData: true,
-    );
-
-    if (result == null || result.files.isEmpty) return;
-    final file = result.files.first;
-    final bytes = file.bytes;
-    if (bytes == null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Kon het bestand niet lezen.')),
-      );
-      return;
-    }
-
-    setState(() => _savingImport = true);
-    try {
-      final response = await JapApiService.importGppExcel(
-        token: widget.token,
-        fileName: file.name,
-        bytes: bytes,
-      );
-
-      await _reloadAll();
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(response['message']?.toString() ?? 'GPP import gelukt')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('GPP import mislukt: $e')),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _savingImport = false);
-      }
-    }
   }
 
   Future<void> _showCreateGppDialog() async {
@@ -1290,10 +1260,9 @@ class _JapGppScreenState extends State<JapGppScreen> {
       }
     }
 
-    // Show list view in container
     return Container(
       color: const Color(0xFFF6F6F3),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 6),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -1309,12 +1278,53 @@ class _JapGppScreenState extends State<JapGppScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(),
-            _buildToolbar(),
-            const SizedBox(height: 12),
-            Expanded(child: _buildContent()),
+            _buildBreadcrumb(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 6, 2, 0),
+              child: Text(
+                'JAP & GPP',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 6),
+                    _buildToolbar(),
+                    const SizedBox(height: 8),
+                    Expanded(child: _buildContent()),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildBreadcrumb() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 8, 2, 0),
+      child: Row(
+        children: [
+          Text(
+            'Dashboard',
+            style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Icon(Icons.chevron_right, size: 14, color: Colors.grey[400]),
+          ),
+          Text(
+            'JAP & GPP',
+            style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+          ),
+        ],
       ),
     );
   }
@@ -1322,80 +1332,100 @@ class _JapGppScreenState extends State<JapGppScreen> {
   Widget _buildHeader() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-      child: Text('JAP & GPP', style: Theme.of(context).textTheme.headlineMedium),
+      child: Text(
+        'JAP & GPP',
+        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 
   Widget _buildToolbar() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
-      child: Row(
-        children: [
-          ElevatedButton.icon(
-            onPressed: _loading ? null : _showCreateGppDialog,
-            icon: const Icon(Icons.add),
-            label: const Text('Nieuw'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF8BC34A),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            ),
-          ),
-          const SizedBox(width: 16),
-          IconButton(
-            icon: const Icon(Icons.filter_alt_outlined),
-            onPressed: _openFilterDialog,
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Zoeken',
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: const Color(0xFFF8F8F8),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(28),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    return Row(
+      children: [
+        const Spacer(),
+        SizedBox(
+          width: 260,
+          child: TextField(
+            decoration: InputDecoration(
+              hintText: 'Zoeken',
+              hintStyle: const TextStyle(fontSize: 14),
+              prefixIcon: const Icon(Icons.search, size: 20),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 10,
               ),
-              controller: _searchController,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(999),
+                borderSide: const BorderSide(
+                  color: Color(0xFFD7DBD2),
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(999),
+                borderSide: const BorderSide(
+                  color: Color(0xFFD7DBD2),
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(999),
+                borderSide: const BorderSide(
+                  color: Color(0xFF8CC63F),
+                  width: 1.5,
+                ),
+              ),
+              filled: true,
+              fillColor: Colors.white,
+            ),
+            controller: _searchController,
+          ),
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+          icon: const Icon(Icons.filter_alt_outlined),
+          onPressed: _openFilterDialog,
+          tooltip: 'Filteren',
+          color: const Color(0xFF6B7A62),
+        ),
+        const SizedBox(width: 4),
+        ElevatedButton.icon(
+          onPressed: _loading ? null : _showCreateGppDialog,
+          icon: const Icon(Icons.add, size: 18),
+          label: const Text('Nieuw'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF8CC63F),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            textStyle: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(999),
             ),
           ),
-          const SizedBox(width: 12),
-          ElevatedButton.icon(
-            onPressed: _savingImport ? null : _importGppExcel,
-            icon: _savingImport
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                  )
-                : const Icon(Icons.upload_file),
-            label: const Text('Import'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF8BC34A),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        ),
+        const SizedBox(width: 8),
+        ElevatedButton.icon(
+          onPressed: _exportByYear,
+          icon: const Icon(Icons.download_outlined, size: 18),
+          label: const Text('Export'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF8CC63F),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            textStyle: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(999),
             ),
           ),
-          const SizedBox(width: 12),
-          ElevatedButton.icon(
-            onPressed: _exportByYear,
-            icon: const Icon(Icons.download_outlined),
-            label: const Text('Export'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF8BC34A),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -1424,84 +1454,106 @@ class _JapGppScreenState extends State<JapGppScreen> {
   }
 
   Widget _buildListPane() {
-    final combinedItems = <_CombinedListItem>[
-      ..._filteredJapEntries().map((entry) => _CombinedListItem.jap(entry)),
-      ..._filteredGppEntries().map((entry) => _CombinedListItem.gpp(entry)),
-    ]
+    final combinedItems = <_CombinedListItem>[..._filteredJapEntries().map((e) => _CombinedListItem.jap(e)), ..._filteredGppEntries().map((e) => _CombinedListItem.gpp(e))]
       ..sort((a, b) {
         final yearCompare = b.sortYear.compareTo(a.sortYear);
         if (yearCompare != 0) return yearCompare;
         return a.goalMeasure.compareTo(b.goalMeasure);
       });
 
+    final rows = combinedItems.map((it) {
+      return TableRow(
+        decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Color(0xFFF0F2EC)))),
+        children: [
+          _tappableJapCell(it, it.yearLabel),
+          _tappableJapCell(it, it.goalMeasure),
+          _tappableJapCell(it, it.domain),
+          _tappableJapCell(it, it.priorityLabel),
+          _tappableJapCell(it, it.realisationLabel, isLast: true, color: _japValueColor(it.realisationLabel)),
+        ],
+      );
+    }).toList();
+
+    final availableWidth =  (MediaQuery.of(context).size.width) - 32;
+    final tableWidth = availableWidth > 980 ? availableWidth : 980.0;
+    final tableHeight = 520.0;
+    const Map<int, TableColumnWidth> columnWidths = {
+      0: FlexColumnWidth(1.0),
+      1: FlexColumnWidth(3.0),
+      2: FlexColumnWidth(2.0),
+      3: FlexColumnWidth(1.0),
+      4: FlexColumnWidth(2.0),
+    };
+
     return Container(
-      margin: const EdgeInsets.fromLTRB(24, 20, 24, 24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
+      margin: const EdgeInsets.fromLTRB(0, 8, 0, 8),
+      width: double.infinity,
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE4E9DD))),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.vertical,
-          child: SizedBox(
-            width: double.infinity,
-            child: DataTable(
-              showCheckboxColumn: false,
-              headingRowHeight: 56,
-              dataRowMinHeight: 58,
-              dataRowMaxHeight: 72,
-              columnSpacing: 32,
-              horizontalMargin: 24,
-              headingRowColor: WidgetStateColor.resolveWith(
-                (states) => const Color(0xFFF5F5F5),
-              ),
-              columns: const [
-                DataColumn(label: Text('Jaar')),
-                DataColumn(label: Text('Doelstelling - maatregel')),
-                DataColumn(label: Text('Domein')),
-                DataColumn(label: Text('Prioriteit')),
-                DataColumn(label: Text('Realisatie')),
-              ],
-              rows: combinedItems.isEmpty
-                  ? [
-                      const DataRow(cells: [
-                        DataCell(Text('Geen resultaten')),
-                        DataCell(Text('')),
-                        DataCell(Text('')),
-                        DataCell(Text('')),
-                        DataCell(Text('')),
-                      ]),
-                    ]
-                  : combinedItems.map((item) {
-                      return DataRow(
-                        onSelectChanged: (_) {
-                          if (item.isJap) {
-                            _selectJap(item.jap!);
-                          } else {
-                            _selectGpp(item.gpp!);
-                          }
-                        },
-                        cells: [
-                          DataCell(Text(item.yearLabel)),
-                          DataCell(
-                            Text(
-                              item.goalMeasure,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              softWrap: true,
-                            ),
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(
+              width: tableWidth,
+              height: tableHeight,
+              child: Column(
+                children: [
+                  Table(columnWidths: columnWidths, children: [_buildJapHeaderRow()]),
+                  Expanded(
+                    child: combinedItems.isEmpty
+                        ? const Center(child: Text('Geen resultaten', style: TextStyle(fontSize: 13, color: Color(0xFF4D5548))))
+                        : SingleChildScrollView(
+                            scrollDirection: Axis.vertical,
+                            child: Padding(padding: const EdgeInsets.only(bottom: 12), child: Table(columnWidths: columnWidths, children: rows)),
                           ),
-                          DataCell(Text(item.domain, overflow: TextOverflow.ellipsis)),
-                          DataCell(Text(item.priorityLabel)),
-                          DataCell(Text(item.realisationLabel)),
-                        ],
-                      );
-                    }).toList(),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  TableRow _buildJapHeaderRow() {
+    return TableRow(decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Color(0xFFE4E9DD)))), children: const [
+      _JapHeaderCell(label: 'Jaar'),
+      _JapHeaderCell(label: 'Doelstelling - maatregel'),
+      _JapHeaderCell(label: 'Domein'),
+      _JapHeaderCell(label: 'Prioriteit'),
+      _JapHeaderCell(label: 'Realisatie', isLast: true),
+    ]);
+  }
+
+  Widget _buildJapTableTextCell(String value, {bool isLast = false, Color? color}) {
+    return Padding(
+      padding: EdgeInsets.only(left: 16, right: isLast ? 20 : 16, top: 16, bottom: 16),
+      child: Text(
+        value,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 13,
+          color: color ?? const Color(0xFF4D5548),
+        ),
+      ),
+    );
+  }
+
+  Widget _tappableJapCell(_CombinedListItem item, String value, {bool isLast = false, Color? color}) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        if (item.isJap) {
+          if (item.jap != null) _selectJap(item.jap!);
+        } else {
+          if (item.gpp != null) _selectGpp(item.gpp!);
+        }
+      },
+      child: _buildJapTableTextCell(value, isLast: isLast, color: color),
     );
   }
 
@@ -1583,5 +1635,124 @@ class _CombinedListItem {
       default:
         return 'Vul aan';
     }
+  }
+}
+
+class _JapHeaderCell extends StatelessWidget {
+  const _JapHeaderCell({required this.label, this.isLast = false});
+
+  final String label;
+  final bool isLast;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(left: 16, right: isLast ? 20 : 16, top: 14, bottom: 14),
+      child: Text(
+        label,
+        textAlign: TextAlign.left,
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF6B7A62),
+        ),
+      ),
+    );
+  }
+}
+
+class _JapTextCell extends StatelessWidget {
+  const _JapTextCell(
+    this.value, {
+    this.color,
+    this.weight = FontWeight.w400,
+    this.maxLines = 2,
+  });
+
+  final String value;
+  final Color? color;
+  final FontWeight weight;
+  final int maxLines;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      child: Text(
+        value,
+        maxLines: maxLines,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.left,
+        style: TextStyle(
+          fontSize: 13,
+          color: color ?? const Color(0xFF4D5548),
+          fontWeight: weight,
+        ),
+      ),
+    );
+  }
+}
+
+class _JapStickyHeaderRow extends StatelessWidget {
+  const _JapStickyHeaderRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFFF5F5F5),
+      child: Row(
+        children: const [
+          Expanded(flex: 1, child: _JapHeaderCell(label: 'Jaar')),
+          Expanded(flex: 3, child: _JapHeaderCell(label: 'Doelstelling - maatregel')),
+          Expanded(flex: 2, child: _JapHeaderCell(label: 'Domein')),
+          Expanded(flex: 1, child: _JapHeaderCell(label: 'Prioriteit')),
+          Expanded(flex: 4, child: _JapHeaderCell(label: 'Realisatie')),
+        ],
+      ),
+    );
+  }
+}
+
+class _JapTableRow extends StatelessWidget {
+  const _JapTableRow({required this.item, required this.onTap});
+
+  final _CombinedListItem item;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(flex: 1, child: _JapTextCell(item.yearLabel)),
+          Expanded(flex: 3, child: _JapTextCell(item.goalMeasure, maxLines: 2)),
+          Expanded(flex: 2, child: _JapTextCell(item.domain)),
+          Expanded(flex: 1, child: _JapTextCell(item.priorityLabel)),
+          Expanded(
+            flex: 4,
+            child: _JapTextCell(
+              item.realisationLabel,
+              color: _japValueColor(item.realisationLabel),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Color _japValueColor(String value) {
+  switch (value) {
+    case 'Uitgevoerd':
+      return Colors.green;
+    case 'In uitvoering':
+      return Colors.blue;
+    case 'Nog niet':
+    case 'Nog niet uitgevoerd':
+      return Colors.red;
+    default:
+      return const Color(0xFF4D5548);
   }
 }

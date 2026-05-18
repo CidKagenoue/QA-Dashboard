@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Prisma, NotificationType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationSettingsService } from '../notification-settings/notification-settings.service';
+import { EmailService } from '../email/email.service';
 
 const notificationSelect = {
   id: true,
@@ -25,6 +26,7 @@ export class NotificationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationSettingsService: NotificationSettingsService,
+    private readonly emailService: EmailService,
   ) {}
 
   async listForUser(userId: number, options?: { limit?: number }) {
@@ -148,12 +150,12 @@ export class NotificationService {
       return false;
     }
 
-    const recipientExists = await this.prisma.user.findUnique({
+    const recipientUser = await this.prisma.user.findUnique({
       where: { id: params.recipientUserId },
-      select: { id: true },
+      select: { id: true, email: true },
     });
 
-    if (!recipientExists) {
+    if (!recipientUser) {
       this.logger.warn(
         `[NotifyUser] Recipient user ${params.recipientUserId} not found`,
       );
@@ -174,6 +176,25 @@ export class NotificationService {
       `[NotifyUser] Successfully created notification for user ${params.recipientUserId}`,
     );
 
+    // Check if user has email notifications enabled for this type
+    const shouldSendEmail = await this.shouldSendEmailNotification(
+      params.recipientUserId,
+      params.type,
+    );
+
+    if (shouldSendEmail && recipientUser.email) {
+      this.logger.debug(
+        `[NotifyUser] Sending email notification to ${recipientUser.email}`,
+      );
+      await this.emailService.sendNotificationEmail(
+        recipientUser.email,
+        params.title,
+        params.body,
+        params.type,
+        this.getModuleFromType(params.type),
+        params.metadata,
+      );
+    }
 
     return true;
   }
@@ -215,6 +236,33 @@ export class NotificationService {
         metadata: params.metadata,
       })),
     });
+
+    // Send emails to users who have email notifications enabled
+    const usersData = await this.prisma.user.findMany({
+      where: { id: { in: allowedRecipients } },
+      select: { id: true, email: true },
+    });
+
+    for (const user of usersData) {
+      const shouldSendEmail = await this.shouldSendEmailNotification(
+        user.id,
+        params.type,
+      );
+
+      if (shouldSendEmail && user.email) {
+        this.logger.debug(
+          `[NotifyUsers] Sending email notification to ${user.email}`,
+        );
+        await this.emailService.sendNotificationEmail(
+          user.email,
+          params.title,
+          params.body,
+          params.type,
+          this.getModuleFromType(params.type),
+          params.metadata,
+        );
+      }
+    }
   }
 
   private async filterRecipientsByPreference(
@@ -256,6 +304,26 @@ export class NotificationService {
     }
   }
 
+  private async shouldSendEmailNotification(
+    userId: number,
+    type: NotificationType,
+  ) {
+    try {
+      return await this.notificationSettingsService.shouldSendNotification(
+        userId,
+        type,
+        'IN_APP',
+        'email',
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Unable to read notification settings for user ${userId} and type ${type}; skipping email notification.`,
+      );
+      this.logger.debug(error);
+      return false;
+    }
+  }
+
   private serialize(record: NotificationRecord) {
     return {
       id: record.id,
@@ -267,5 +335,13 @@ export class NotificationService {
       readAt: record.readAt?.toISOString() ?? null,
       createdAt: record.createdAt.toISOString(),
     };
+  }
+
+  private getModuleFromType(type: string): string {
+    if (type.includes('JAP')) return 'JAP/GPP';
+    if (type.includes('MAINTENANCE')) return 'Onderhoud Keuringen';
+    if (type.includes('OVA')) return 'OVA';
+    if (type.includes('WHS')) return 'WHS-Tours';
+    return 'Meldingen';
   }
 }

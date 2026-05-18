@@ -471,23 +471,23 @@ export class AuthService implements OnModuleInit {
 
     const hashedPassword = await bcrypt.hash('root123', 12);
     await this.userService.create({
-
-    private resolveFrontendBaseUrl(requestOrigin?: string): string {
-      const configuredUrl =
-        process.env.PUBLIC_FRONTEND_URL || process.env.FRONTEND_URL || '';
-      const baseUrl = requestOrigin?.trim() || configuredUrl.trim();
-
-      if (!baseUrl) {
-        return 'http://localhost:3000';
-      }
-
-      return baseUrl.replace(/\/+$/, '');
-    }
       email: 'admin',
       password: hashedPassword,
       name: 'Administrator',
       isAdmin: true,
     });
+  }
+
+  private resolveFrontendBaseUrl(requestOrigin?: string): string {
+    const configuredUrl =
+      process.env.PUBLIC_FRONTEND_URL || process.env.FRONTEND_URL || '';
+    const baseUrl = requestOrigin?.trim() || configuredUrl.trim();
+
+    if (!baseUrl) {
+      return 'http://localhost:3000';
+    }
+
+    return baseUrl.replace(/\/+$/, '');
   }
 
   private async ensureTestUser() {

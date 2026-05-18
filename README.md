@@ -58,6 +58,19 @@ JWT_SECRET="8e7c0bf3c75692835fe967af1db691c4f8a7e603b34a1d9426c1ef577c8702aa"
 JWT_ISSUER="qa-login-backend"
 JWT_AUDIENCE="qa-dashboard"
 JWT_EXPIRES_IN="15m"
+
+# Password reset link target
+FRONTEND_URL="https://tst.vlotterqa.tech"
+PUBLIC_FRONTEND_URL="https://tst.vlotterqa.tech"
+
+# SMTP (required for forgot-password/reset e-mails)
+SMTP_HOST="smtp.your-provider.com"
+SMTP_PORT="587"
+SMTP_SECURE="false"
+SMTP_USER="your-smtp-user"
+SMTP_PASSWORD="your-smtp-password"
+SMTP_FROM="noreply@your-domain.com"
+SMTP_IGNORE_TLS_ERRORS="false"
 ```
 
 **Environment Variables Explained:**
@@ -69,6 +82,13 @@ JWT_EXPIRES_IN="15m"
 | `JWT_ISSUER` | JWT issuer claim | `qa-login-backend` |
 | `JWT_AUDIENCE` | JWT audience claim | `qa-dashboard` |
 | `JWT_EXPIRES_IN` | Access token expiration time | `15m` |
+| `FRONTEND_URL` / `PUBLIC_FRONTEND_URL` | URL used in reset links sent by e-mail | `https://tst.vlotterqa.tech` |
+| `SMTP_HOST` | SMTP server hostname | `smtp.your-provider.com` |
+| `SMTP_PORT` | SMTP server port | `587` |
+| `SMTP_SECURE` | Start with TLS immediately (usually true on port 465) | `false` |
+| `SMTP_USER` / `SMTP_PASSWORD` | SMTP credentials | `your-smtp-user` / `your-smtp-password` |
+| `SMTP_FROM` | Sender e-mail address | `noreply@your-domain.com` |
+| `SMTP_IGNORE_TLS_ERRORS` | Ignore bad certs (only for self-signed/broken SMTP TLS) | `false` |
 
 ### Step 3: Setup Database
 
@@ -221,6 +241,11 @@ Check `qa-login-backend/prisma/schema.prisma` for full schema details.
 ### JWT Token Issues
 - Regenerate `JWT_SECRET` in `.env` if needed
 - Ensure `JWT_EXPIRES_IN` is properly formatted (e.g., `15m`, `1h`)
+
+### Reset E-mail Works Locally But Not On VM
+- Set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` and `SMTP_FROM` in `qa-login-backend/.env`.
+- Verify the VM/container can reach your SMTP provider on the configured SMTP port.
+- Set `FRONTEND_URL` or `PUBLIC_FRONTEND_URL` to your public web URL so reset links do not point to localhost.
 
 ## Domain And HTTPS (Docker)
 

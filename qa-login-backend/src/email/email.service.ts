@@ -1,28 +1,65 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 
 @Injectable()
-export class EmailService {
-  private transporter: nodemailer.Transporter;
+export class EmailService implements OnModuleInit {
+  private readonly logger = new Logger(EmailService.name);
+  private readonly transporter?: nodemailer.Transporter;
+  private readonly fromAddress: string;
+  private readonly smtpConfigured: boolean;
 
   constructor() {
-    // Configure Gmail SMTP
-    const secure = process.env.SMTP_PORT === '465'; // Use secure (SSL) for port 465
-    
+    const host = this.readEnv('SMTP_HOST');
+    const port = Number(this.readEnv('SMTP_PORT') || '587');
+    const secure = this.readBooleanEnv('SMTP_SECURE') ?? port === 465;
+    const user = this.readEnv('SMTP_USER');
+    const pass = this.readEnv('SMTP_PASSWORD');
+    const ignoreTlsErrors = this.readBooleanEnv('SMTP_IGNORE_TLS_ERRORS') ?? false;
+
+    this.fromAddress =
+      this.readEnv('SMTP_FROM') || this.readEnv('MAIL_FROM') || 'noreply@qa-dashboard.local';
+
+    if (!host) {
+      this.smtpConfigured = false;
+      this.logger.warn(
+        'SMTP is not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD and SMTP_FROM in qa-login-backend/.env.',
+      );
+      return;
+    }
+
+    if (!Number.isFinite(port) || port <= 0) {
+      throw new Error('SMTP_PORT must be a valid positive number.');
+    }
+
+    if ((user && !pass) || (!user && pass)) {
+      throw new Error('SMTP_USER and SMTP_PASSWORD must be set together.');
+    }
+
     this.transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'localhost',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: secure,
-      auth: process.env.SMTP_USER ? {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASSWORD,
-      } : undefined,
-      // Disable certificate rejection for development
-      // In production, remove this or handle properly
+      host,
+      port,
+      secure,
+      auth: user && pass ? { user, pass } : undefined,
       tls: {
-        rejectUnauthorized: false,
+        rejectUnauthorized: !ignoreTlsErrors,
       },
     });
+    this.smtpConfigured = true;
+  }
+
+  async onModuleInit(): Promise<void> {
+    if (!this.smtpConfigured || !this.transporter) {
+      return;
+    }
+
+    try {
+      await this.transporter.verify();
+      this.logger.log('SMTP connection verified successfully.');
+    } catch (error: any) {
+      this.logger.error(
+        `SMTP verification failed: ${error?.message || 'unknown error'}. Email sending will fail until SMTP settings are fixed.`,
+      );
+    }
   }
 
   async sendPasswordResetEmail(
@@ -31,14 +68,16 @@ export class EmailService {
     resetLink: string,
   ): Promise<void> {
     try {
+      this.ensureSmtpConfigured();
+
       const mailOptions = {
-        from: process.env.SMTP_FROM || 'noreply@qa-dashboard.local',
+        from: this.fromAddress,
         to: email,
         subject: 'Wachtwoord opnieuw instellen - vlotter',
         html: this.getPasswordResetEmailTemplate(resetLink, resetToken),
       };
 
-      await this.transporter.sendMail(mailOptions);
+      await this.transporter!.sendMail(mailOptions);
       console.log(`Reset e-mail verzonden naar ${email}`);
     } catch (error: any) {
       console.error('Fout bij verzenden reset e-mail:', error);
@@ -64,8 +103,10 @@ export class EmailService {
     metadata?: any,
   ): Promise<void> {
     try {
+      this.ensureSmtpConfigured();
+
       const mailOptions = {
-        from: process.env.SMTP_FROM || 'noreply@qa-dashboard.local',
+        from: this.fromAddress,
         to: email,
         subject: title,
         html: this.getNotificationEmailTemplate(
@@ -77,12 +118,41 @@ export class EmailService {
         ),
       };
 
-      await this.transporter.sendMail(mailOptions);
+      await this.transporter!.sendMail(mailOptions);
       console.log(`Notificatie e-mail verzonden naar ${email}`);
     } catch (error: any) {
       console.error('Fout bij verzenden notificatie e-mail:', error);
       // Don't throw - notification should still be created even if email fails
     }
+  }
+
+  private ensureSmtpConfigured(): void {
+    if (!this.smtpConfigured || !this.transporter) {
+      throw new Error(
+        'SMTP is niet geconfigureerd op de server. Stel SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD en SMTP_FROM in.',
+      );
+    }
+  }
+
+  private readEnv(name: string): string {
+    return process.env[name]?.trim() || '';
+  }
+
+  private readBooleanEnv(name: string): boolean | undefined {
+    const value = this.readEnv(name).toLowerCase();
+    if (!value) {
+      return undefined;
+    }
+
+    if (value === '1' || value === 'true' || value === 'yes' || value === 'on') {
+      return true;
+    }
+
+    if (value === '0' || value === 'false' || value === 'no' || value === 'off') {
+      return false;
+    }
+
+    throw new Error(`${name} must be true/false, 1/0, yes/no or on/off.`);
   }
 
   private getPasswordResetEmailTemplate(resetLink: string, token: string): string {

@@ -20,7 +20,7 @@ services:
     image: postgres:16-alpine
     container_name: qa-db
     env_file:
-      - ./qa-login-backend/.env
+      - ../backend/.env
     environment:
       POSTGRES_DB: qa_login_backend
       POSTGRES_USER: postgres
@@ -37,14 +37,14 @@ services:
 
   backend:
     build:
-      context: ./qa-login-backend
+      context: ../backend
       dockerfile: Dockerfile
     container_name: qa-login-backend
     depends_on:
       db:
         condition: service_healthy
     env_file:
-      - ./qa-login-backend/.env
+      - ../backend/.env
     environment:
       DATABASE_URL: "postgresql://postgres:root@db:5432/qa_login_backend"
     restart: unless-stopped
@@ -53,7 +53,7 @@ services:
 
   frontend:
     build:
-      context: .
+      context: ../frontend
       dockerfile: Dockerfile.frontend
     container_name: qa-frontend
     depends_on:

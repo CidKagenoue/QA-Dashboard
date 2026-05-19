@@ -22,7 +22,7 @@ export class EmailService implements OnModuleInit {
     if (!host) {
       this.smtpConfigured = false;
       this.logger.warn(
-        'SMTP is not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD and SMTP_FROM in qa-login-backend/.env.',
+        'SMTP is not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD and SMTP_FROM in backend/.env.',
       );
       return;
     }

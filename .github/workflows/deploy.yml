@@ -29,4 +29,4 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
             git clean -fd
-            docker compose up -d --build --remove-orphans
+            docker compose -f build/docker-compose.yml up -d --build --remove-orphans

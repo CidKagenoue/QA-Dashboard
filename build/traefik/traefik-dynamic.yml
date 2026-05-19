@@ -1,7 +1,7 @@
 http:
   routers:
     dashboard:
-      rule: "Host(`traefik.vlotterqa.tech`)"
+      rule: "Host(`traefik.tst.vlotterqa.tech`)"
       service: api@internal
       entryPoints:
         - websecure
@@ -12,7 +12,7 @@ http:
       priority: 100
 
     frontend:
-      rule: "Host(`vlotterqa.tech`) || Host(`www.vlotterqa.tech`)"
+      rule: "Host(`tst.vlotterqa.tech`) || Host(`www.tst.vlotterqa.tech`)"
       service: frontend
       entryPoints:
         - websecure
@@ -21,7 +21,7 @@ http:
       priority: 10
 
     backend:
-      rule: "(Host(`vlotterqa.tech`) || Host(`www.vlotterqa.tech`)) && (PathPrefix(`/auth`) || PathPrefix(`/users`) || PathPrefix(`/departments`) || PathPrefix(`/locations`) || PathPrefix(`/branches`) || PathPrefix(`/ova`) || PathPrefix(`/accounts`) || PathPrefix(`/jap`) || PathPrefix(`/gpp`) || PathPrefix(`/domain`) || PathPrefix(`/executor`) || PathPrefix(`/notifications`) || PathPrefix(`/notification-settings`) || PathPrefix(`/maintenance-inspections`))"
+      rule: "(Host(`tst.vlotterqa.tech`) || Host(`www.tst.vlotterqa.tech`)) && (PathPrefix(`/auth`) || PathPrefix(`/users`) || PathPrefix(`/departments`) || PathPrefix(`/locations`) || PathPrefix(`/branches`) || PathPrefix(`/ova`) || PathPrefix(`/accounts`) || PathPrefix(`/jap`) || PathPrefix(`/gpp`) || PathPrefix(`/domain`) || PathPrefix(`/executor`) || PathPrefix(`/notifications`) || PathPrefix(`/notification-settings`) || PathPrefix(`/maintenance-inspections`))"
       service: backend
       entryPoints:
         - websecure
@@ -30,7 +30,7 @@ http:
       priority: 100
 
     whs-backend:
-      rule: "(Host(`vlotterqa.tech`) || Host(`www.vlotterqa.tech`)) && (PathPrefix(`/api/rapport`) || PathPrefix(`/api/melding`) || PathPrefix(`/api/locatie`) || PathPrefix(`/api/vestiging`) || PathPrefix(`/api/probleem`) || PathPrefix(`/api/vraag`) || PathPrefix(`/api/afdeling`) || PathPrefix(`/api/domein`) || PathPrefix(`/api/probleem_opmerking`) || PathPrefix(`/api/gebruikers`))"
+      rule: "(Host(`tst.vlotterqa.tech`) || Host(`www.tst.vlotterqa.tech`)) && (PathPrefix(`/api/rapport`) || PathPrefix(`/api/melding`) || PathPrefix(`/api/locatie`) || PathPrefix(`/api/vestiging`) || PathPrefix(`/api/probleem`) || PathPrefix(`/api/vraag`) || PathPrefix(`/api/afdeling`) || PathPrefix(`/api/domein`) || PathPrefix(`/api/probleem_opmerking`) || PathPrefix(`/api/gebruikers`))"
       service: whs
       entryPoints:
         - websecure

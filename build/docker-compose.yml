@@ -63,7 +63,7 @@ services:
       - qa_net
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`vlotterqa.tech`) || Host(`www.vlotterqa.tech`)"
+      - "traefik.http.routers.frontend.rule=Host(`tst.vlotterqa.tech`) || Host(`www.tst.vlotterqa.tech`)"
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"

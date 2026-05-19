@@ -48,9 +48,9 @@ class ApiService {
 
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
-        return 'https://vlotterqa.tech';
+        return 'https://tst.vlotterqa.tech';
       default:
-        return 'https://vlotterqa.tech';
+        return 'https://tst.vlotterqa.tech';
     }
   }
 

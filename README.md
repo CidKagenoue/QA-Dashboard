@@ -256,7 +256,7 @@ Check `backend/prisma/schema.prisma` for full schema details.
 
 This project is configured for:
 
-- Domain: `vlotterqa.tech` and `www.vlotterqa.tech`
+- Domain: `tst.vlotterqa.tech` and `www.tst.vlotterqa.tech`
 - HTTP on port `80`
 - HTTPS on port `443` (enabled automatically when certificates are available)
 
@@ -285,7 +285,7 @@ docker run --rm \
   -v "$PWD/certbot/www:/var/www/certbot" \
   certbot/certbot certonly --webroot \
   -w /var/www/certbot \
-  -d vlotterqa.tech -d www.vlotterqa.tech \
+  -d tst.vlotterqa.tech -d www.tst.vlotterqa.tech \
   --email your-email@example.com --agree-tos --no-eff-email
 ```
 

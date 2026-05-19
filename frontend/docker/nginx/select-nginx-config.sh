@@ -4,8 +4,8 @@ set -eu
 HTTP_CONF="/etc/nginx/templates/nginx.http.conf"
 HTTPS_CONF="/etc/nginx/templates/nginx.https.conf"
 TARGET_CONF="/etc/nginx/conf.d/default.conf"
-CERT_FULLCHAIN="/etc/letsencrypt/live/vlotterqa.tech/fullchain.pem"
-CERT_PRIVKEY="/etc/letsencrypt/live/vlotterqa.tech/privkey.pem"
+CERT_FULLCHAIN="/etc/letsencrypt/live/tst.vlotterqa.tech/fullchain.pem"
+CERT_PRIVKEY="/etc/letsencrypt/live/tst.vlotterqa.tech/privkey.pem"
 
 if [ "${ENABLE_HTTPS:-false}" = "true" ] && [ -f "$CERT_FULLCHAIN" ] && [ -f "$CERT_PRIVKEY" ]; then
   cp "$HTTPS_CONF" "$TARGET_CONF"

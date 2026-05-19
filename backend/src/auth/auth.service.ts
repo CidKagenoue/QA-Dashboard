@@ -480,7 +480,7 @@ export class AuthService implements OnModuleInit {
 
   private resolveFrontendBaseUrl(requestOrigin?: string): string {
     const configuredUrl =
-      process.env.PUBLIC_FRONTEND_URL || process.env.FRONTEND_URL || 'https://vlotterqa.tech';
+      process.env.PUBLIC_FRONTEND_URL || process.env.FRONTEND_URL || 'https://tst.vlotterqa.tech';
     const baseUrl = requestOrigin?.trim() || configuredUrl.trim();
 
     return baseUrl.replace(/\/+$/, '');

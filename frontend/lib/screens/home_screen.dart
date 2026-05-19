@@ -294,9 +294,9 @@ class _DashboardBodyState extends State<_DashboardBody> {
 
       if (!mounted) return;
 
-      final japEntries = (results[2] as List<JapEntry>)
+      final japEntries = List<JapEntry>.from(results[2] as List)
         ..sort((a, b) => b.year.compareTo(a.year));
-      final gppEntries = (results[3] as List<GppEntry>)
+      final gppEntries = List<GppEntry>.from(results[3] as List)
         ..sort((a, b) {
           final endCompare = b.endYear.compareTo(a.endYear);
           if (endCompare != 0) return endCompare;

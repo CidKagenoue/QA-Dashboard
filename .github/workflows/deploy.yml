@@ -27,7 +27,7 @@ jobs:
           script: |
             set -e
             cd ~/QA-Dashboard
-            git fetch origin Build
-            git reset --hard origin/Build
+            git fetch origin ${{ github.ref_name }}
+            git reset --hard origin/${{ github.ref_name }}
             git clean -fd
             docker compose -f build/docker-compose.yml up -d --build --remove-orphans

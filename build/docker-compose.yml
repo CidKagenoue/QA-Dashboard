@@ -1,0 +1,76 @@
+services:
+  traefik:
+    image: traefik:v2.10
+    container_name: qa-traefik
+    command:
+      - --configfile=/etc/traefik/traefik.yml
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/acme:/letsencrypt
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/traefik-dynamic.yml:/etc/traefik/traefik-dynamic.yml:ro
+    restart: unless-stopped
+    networks:
+      - qa_net
+
+  db:
+    image: postgres:16-alpine
+    container_name: qa-db
+    env_file:
+      - ../backend/.env
+    environment:
+      POSTGRES_DB: qa_login_backend
+      POSTGRES_USER: postgres
+    volumes:
+      - qa_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d qa_login_backend"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    networks:
+      - qa_net
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: qa-login-backend
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - ../backend/.env
+    environment:
+      DATABASE_URL: "postgresql://postgres:root@db:5432/qa_login_backend"
+    restart: unless-stopped
+    networks:
+      - qa_net
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile.frontend
+    container_name: qa-frontend
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - qa_net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`tst.vlotterqa.tech`) || Host(`www.tst.vlotterqa.tech`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+
+volumes:
+  qa_db_data:
+
+networks:
+  qa_net:
+    driver: bridge

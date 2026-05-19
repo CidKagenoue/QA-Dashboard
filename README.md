@@ -18,13 +18,14 @@ A full-stack authentication system with:
 
 ```
 qa_dashboard/
-├── lib/                          # Flutter frontend
-│   ├── screens/
-│   │   └── login_screen.dart    # Login UI
-│   └── services/
-│       ├── api_service.dart     # API communication
-│       └── auth_service.dart    # Auth logic
-├── qa-login-backend/            # NestJS backend
+├── frontend/                    # Flutter frontend
+│   ├── lib/
+│   │   ├── screens/
+│   │   │   └── login_screen.dart    # Login UI
+│   │   └── services/
+│   │       ├── api_service.dart     # API communication
+│   │       └── auth_service.dart    # Auth logic
+├── backend/                     # NestJS backend
 │   ├── src/
 │   │   ├── auth/               # Auth controllers & services
 │   │   ├── user/               # User services
@@ -33,6 +34,9 @@ qa_dashboard/
 │   │   ├── schema.prisma       # Database schema
 │   │   └── migrations/         # Migration files
 │   └── .env                    # Environment variables
+├── build/                       # Deployment and infra config
+│   ├── docker-compose.yml
+│   └── traefik/
 └── README.md
 ```
 
@@ -41,13 +45,13 @@ qa_dashboard/
 ### Step 1: Install Dependencies
 
 ```bash
-cd qa-login-backend
+cd backend
 npm install
 ```
 
 ### Step 2: Configure Environment Variables
 EXAMPLE!!!!!
-Create or update `.env` file in the `qa-login-backend` directory:
+Create or update `.env` file in the `backend` directory:
 
 ```env
 # Database Connection
@@ -115,6 +119,7 @@ Backend will run on: **`http://localhost:3001`**
 Open another terminal at the repository root:
 
 ```bash
+cd frontend
 flutter pub get
 flutter run
 ```
@@ -192,7 +197,7 @@ Response: 200 OK
 
 ## 5. API Base URL Configuration
 
-The API base URL is configured in `lib/services/api_service.dart`:
+The API base URL is configured in `frontend/lib/services/api_service.dart`:
 
 - **Local development**: `http://localhost:3001`
 - **Android Emulator**: `http://10.0.2.2:3001` (use this instead of localhost)
@@ -200,7 +205,7 @@ The API base URL is configured in `lib/services/api_service.dart`:
 
 ## Common Commands
 
-From `qa-login-backend` directory:
+From `backend` directory:
 
 ```bash
 # Development
@@ -224,7 +229,7 @@ The system uses the following main tables:
 - **User**: Stores user credentials and info
 - **RefreshTokenSession**: Manages refresh token lifecycle (for token rotation)
 
-Check `qa-login-backend/prisma/schema.prisma` for full schema details.
+Check `backend/prisma/schema.prisma` for full schema details.
 
 ## Troubleshooting
 
@@ -243,7 +248,7 @@ Check `qa-login-backend/prisma/schema.prisma` for full schema details.
 - Ensure `JWT_EXPIRES_IN` is properly formatted (e.g., `15m`, `1h`)
 
 ### Reset E-mail Works Locally But Not On VM
-- Set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` and `SMTP_FROM` in `qa-login-backend/.env`.
+- Set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` and `SMTP_FROM` in `backend/.env`.
 - Verify the VM/container can reach your SMTP provider on the configured SMTP port.
 - Set `FRONTEND_URL` or `PUBLIC_FRONTEND_URL` to your public web URL so reset links do not point to localhost.
 
@@ -251,7 +256,7 @@ Check `qa-login-backend/prisma/schema.prisma` for full schema details.
 
 This project is configured for:
 
-- Domain: `vlotterqa.tech` and `www.vlotterqa.tech`
+- Domain: `tst.vlotterqa.tech` and `www.tst.vlotterqa.tech`
 - HTTP on port `80`
 - HTTPS on port `443` (enabled automatically when certificates are available)
 
@@ -265,7 +270,7 @@ In your domain provider panel, create:
 ### 2. Start Services
 
 ```bash
-docker compose up -d
+docker compose -f build/docker-compose.yml up -d
 ```
 
 If no cert is present yet, frontend starts in HTTP mode automatically.
@@ -280,14 +285,14 @@ docker run --rm \
   -v "$PWD/certbot/www:/var/www/certbot" \
   certbot/certbot certonly --webroot \
   -w /var/www/certbot \
-  -d vlotterqa.tech -d www.vlotterqa.tech \
+  -d tst.vlotterqa.tech -d www.tst.vlotterqa.tech \
   --email your-email@example.com --agree-tos --no-eff-email
 ```
 
 Then restart frontend to switch to HTTPS config:
 
 ```bash
-docker compose restart frontend
+docker compose -f build/docker-compose.yml restart frontend
 ```
 
 ### 4. Renew Certificate
@@ -300,7 +305,7 @@ docker run --rm \
   -v "$PWD/certbot/www:/var/www/certbot" \
   certbot/certbot renew
 
-docker compose restart frontend
+docker compose -f build/docker-compose.yml restart frontend
 ```
 
 ## Environment Notes

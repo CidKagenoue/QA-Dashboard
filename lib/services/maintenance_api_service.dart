@@ -192,7 +192,20 @@ class MaintenanceApiService {
       headers: _headers(token),
     );
     if (response.statusCode != 200) throw Exception('Fout bij ophalen keuringen');
-    final data = jsonDecode(response.body) as List;
-    return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    final data = jsonDecode(response.body);
+    final records = data is List
+        ? data
+        : data is Map<String, dynamic>
+            ? data['inspections'] ?? data['items'] ?? data['entries']
+            : null;
+
+    if (records is! List) {
+      throw Exception('Invalid upcoming maintenance list received from the server');
+    }
+
+    return records
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
   }
 }

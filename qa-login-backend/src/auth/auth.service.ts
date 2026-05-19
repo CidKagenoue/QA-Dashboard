@@ -480,12 +480,8 @@ export class AuthService implements OnModuleInit {
 
   private resolveFrontendBaseUrl(requestOrigin?: string): string {
     const configuredUrl =
-      process.env.PUBLIC_FRONTEND_URL || process.env.FRONTEND_URL || '';
+      process.env.PUBLIC_FRONTEND_URL || process.env.FRONTEND_URL || 'https://vlotterqa.tech';
     const baseUrl = requestOrigin?.trim() || configuredUrl.trim();
-
-    if (!baseUrl) {
-      return 'http://localhost:3000';
-    }
 
     return baseUrl.replace(/\/+$/, '');
   }

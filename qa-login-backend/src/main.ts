@@ -26,7 +26,8 @@ async function bootstrap() {
 
   expressApp.use('/jap', createJapRouter(notificationsService, prismaService));
   expressApp.use('/gpp', createGppRouter(notificationsService, prismaService));
-  await app.listen(port);
-  console.log(`🚀 Server running on http://localhost:${port}`);
+  // Bind to 0.0.0.0 so the server is reachable from other containers
+  await app.listen(port, '0.0.0.0');
+  console.log(`🚀 Server running on http://0.0.0.0:${port}`);
 }
 bootstrap();

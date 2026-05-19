@@ -43,20 +43,14 @@ class ApiService {
       if (_configuredWebApiBaseUrl.isNotEmpty) {
         return _configuredWebApiBaseUrl;
       }
-
-      final origin = Uri.base.origin;
-      if (origin.contains('localhost') || origin.contains('127.0.0.1')) {
-        return 'http://localhost:3001';
-      }
-
-      return origin;
+      return Uri.base.origin;
     }
 
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
-        return 'http://10.0.2.2:3001';
+        return 'https://vlotterqa.tech';
       default:
-        return 'http://localhost:3001';
+        return 'https://vlotterqa.tech';
     }
   }
 

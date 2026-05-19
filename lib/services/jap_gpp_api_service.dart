@@ -6,6 +6,26 @@ import '../models/jap_gpp_entry.dart';
 import 'api_service.dart';
 
 class JapApiService {
+  static List<Map<String, dynamic>> _extractEntriesList(
+    dynamic payload,
+    String label,
+  ) {
+    final rawEntries = payload is List
+        ? payload
+        : payload is Map<String, dynamic>
+            ? payload['entries'] ?? payload['items'] ?? payload[label]
+            : null;
+
+    if (rawEntries is! List) {
+      throw Exception('Ongeldige $label lijst');
+    }
+
+    return rawEntries
+        .whereType<Map>()
+        .map((entry) => Map<String, dynamic>.from(entry))
+        .toList();
+  }
+
   // ── Domains ──────────────────────────────────────────────────────────────
 
   static Future<List<String>> fetchDomains({
@@ -162,11 +182,8 @@ class JapApiService {
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final payload = jsonDecode(response.body);
-      final entries = payload['entries'];
-      if (entries is! List) throw Exception('Ongeldige GPP lijst');
-      return entries
-          .whereType<Map>()
-          .map((e) => GppEntry.fromJson(Map<String, dynamic>.from(e)))
+      return _extractEntriesList(payload, 'gpp')
+          .map(GppEntry.fromJson)
           .toList();
     }
     final error = jsonDecode(response.body);
@@ -380,11 +397,8 @@ class JapApiService {
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final payload = jsonDecode(response.body);
-      final entries = payload['entries'];
-      if (entries is! List) throw Exception('Ongeldige JAP lijst');
-      return entries
-          .whereType<Map>()
-          .map((e) => JapEntry.fromJson(Map<String, dynamic>.from(e)))
+      return _extractEntriesList(payload, 'jap')
+          .map(JapEntry.fromJson)
           .toList();
     }
     final error = jsonDecode(response.body);

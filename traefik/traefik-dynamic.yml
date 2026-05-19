@@ -1,32 +1,48 @@
 http:
   routers:
     dashboard:
-      rule: "Host(`traefik.tst.vlotterqa.tech`)"
+      rule: "Host(`traefik.vlotterqa.tech`)"
       service: api@internal
       entryPoints:
         - websecure
       tls:
-        certResolver: le
+        certResolver: letsencrypt
       middlewares:
-        - auth
+        - dashboard-auth
+      priority: 100
 
     frontend:
-      rule: "Host(`tst.vlotterqa.tech`) || Host(`www.tst.vlotterqa.tech`)"
+      rule: "Host(`vlotterqa.tech`) || Host(`www.vlotterqa.tech`)"
       service: frontend
       entryPoints:
         - websecure
       tls:
-        certResolver: le
+        certResolver: letsencrypt
       priority: 10
 
     backend:
-      rule: "(Host(`tst.vlotterqa.tech`) || Host(`www.tst.vlotterqa.tech`)) && (PathPrefix(`/auth`) || PathPrefix(`/users`) || PathPrefix(`/departments`) || PathPrefix(`/locations`) || PathPrefix(`/maintenance-inspections`) || PathPrefix(`/ova-tickets`) || PathPrefix(`/notifications`) || PathPrefix(`/domain`) || PathPrefix(`/executor`) || PathPrefix(`/jap`) || PathPrefix(`/gpp`) || PathPrefix(`/accounts`) || PathPrefix(`/notification-settings`))"
+      rule: "(Host(`vlotterqa.tech`) || Host(`www.vlotterqa.tech`)) && (PathPrefix(`/auth`) || PathPrefix(`/users`) || PathPrefix(`/departments`) || PathPrefix(`/locations`) || PathPrefix(`/branches`) || PathPrefix(`/ova`) || PathPrefix(`/accounts`) || PathPrefix(`/jap`) || PathPrefix(`/gpp`) || PathPrefix(`/domain`) || PathPrefix(`/executor`) || PathPrefix(`/notifications`) || PathPrefix(`/notification-settings`) || PathPrefix(`/maintenance-inspections`))"
       service: backend
       entryPoints:
         - websecure
       tls:
-        certResolver: le
+        certResolver: letsencrypt
       priority: 100
+
+    whs-backend:
+      rule: "(Host(`vlotterqa.tech`) || Host(`www.vlotterqa.tech`)) && (PathPrefix(`/api/rapport`) || PathPrefix(`/api/melding`) || PathPrefix(`/api/locatie`) || PathPrefix(`/api/vestiging`) || PathPrefix(`/api/probleem`) || PathPrefix(`/api/vraag`) || PathPrefix(`/api/afdeling`) || PathPrefix(`/api/domein`) || PathPrefix(`/api/probleem_opmerking`) || PathPrefix(`/api/gebruikers`))"
+      service: whs
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      priority: 100
+
+  middlewares:
+    dashboard-auth:
+      basicAuth:
+        users:
+          - "admin:$apr1$qTfH/uji$e5qDZy.BuGzftSLe99QIw1"
 
   services:
     frontend:
@@ -38,9 +54,7 @@ http:
       loadBalancer:
         servers:
           - url: "http://qa-login-backend:3001"
-
-  middlewares:
-    auth:
-      basicAuth:
-        users:
-          - "admin:$apr1$IEP2F0gK$phz4Dc6ruaNxXCCJxqVKr/"
+    whs:
+      loadBalancer:
+        servers:
+          - url: "http://qa-whs-backend:8080"

@@ -1262,7 +1262,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
 
     return Container(
       color: const Color(0xFFF6F6F3),
-      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 6),
+      padding: const EdgeInsets.all(20),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -1280,7 +1280,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
           children: [
             _buildBreadcrumb(),
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 6, 2, 0),
+              padding: const EdgeInsets.fromLTRB(28, 8, 24, 0),
               child: Text(
                 'JAP & GPP',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -1290,7 +1290,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
             ),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Column(
                   children: [
                     const SizedBox(height: 6),
@@ -1309,7 +1309,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
 
   Widget _buildBreadcrumb() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 8, 2, 0),
+      padding: const EdgeInsets.fromLTRB(28, 8, 24, 0),
       child: Row(
         children: [
           Text(
@@ -1476,7 +1476,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
 
     final availableWidth =  (MediaQuery.of(context).size.width) - 32;
     final tableWidth = availableWidth > 980 ? availableWidth : 980.0;
-    final tableHeight = 520.0;
+    final tableHeight = 420.0;
     const Map<int, TableColumnWidth> columnWidths = {
       0: FlexColumnWidth(1.0),
       1: FlexColumnWidth(3.0),

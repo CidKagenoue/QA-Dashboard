@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { NotificationType } from '@prisma/client';
 import * as multer from 'multer';
-import * as XLSX from 'xlsx';
+import * as ExcelJS from 'exceljs';
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -109,22 +109,43 @@ function parseDelimitedRows(text: string): string[][] {
   return rows;
 }
 
-function readImportRows(file: any): { rows: unknown[][]; sourceName: string } {
+function worksheetToRows(worksheet: ExcelJS.Worksheet): unknown[][] {
+  const rows: unknown[][] = [];
+
+  worksheet.eachRow({ includeEmpty: false }, (row) => {
+    const values = Array.isArray(row.values) ? row.values.slice(1) : [];
+    rows.push(values.map((value) => (
+      value instanceof Date
+        ? value
+        : value && typeof value === 'object' && 'text' in value
+          ? String((value as any).text ?? '')
+          : value ?? ''
+    )));
+  });
+
+  return rows;
+}
+
+async function readImportRows(file: any): Promise<{ rows: unknown[][]; sourceName: string }> {
   const fileName = file.originalname || 'GPP import';
   const lowerName = fileName.toLowerCase();
 
   if (lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls')) {
-    const workbook = XLSX.read(file.buffer, { type: 'buffer', cellDates: true });
-    const gppSheetName = workbook.SheetNames.find((name) => name.toLowerCase().includes('gpp'));
+    if (lowerName.endsWith('.xls')) {
+      throw new Error('Het .xls formaat wordt niet ondersteund. Gebruik een .xlsx bestand.');
+    }
 
-    if (!gppSheetName) {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(file.buffer);
+    const gppSheet = workbook.worksheets.find((sheet) => sheet.name.toLowerCase().includes('gpp'));
+
+    if (!gppSheet) {
       throw new Error('Geen GPP sheet gevonden in het Excel bestand.');
     }
 
-    const sheet = workbook.Sheets[gppSheetName];
     return {
-      rows: XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true }) as unknown[][],
-      sourceName: gppSheetName,
+      rows: worksheetToRows(gppSheet),
+      sourceName: gppSheet.name,
     };
   }
 
@@ -141,13 +162,18 @@ function readCell(row: unknown[], idx: number | undefined): string {
 
 function parseExcelDate(value: unknown): string {
   if (value == null || value === '') return '';
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
   // If Excel stores as a serial number, parse to day/month/year then return ISO yyyy-mm-dd
   if (typeof value === 'number' && Number.isFinite(value)) {
-    const date = XLSX.SSF.parse_date_code(value);
-    if (!date) return '';
-    const day = String(date.d).padStart(2, '0');
-    const month = String(date.m).padStart(2, '0');
-    const year = String(date.y).padStart(4, '0');
+    const epoch = Date.UTC(1899, 11, 30);
+    const millis = Math.round(value * 86400000);
+    const date = new Date(epoch + millis);
+    if (Number.isNaN(date.getTime())) return '';
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const year = String(date.getUTCFullYear()).padStart(4, '0');
     return `${year}-${month}-${day}`;
   }
 
@@ -302,7 +328,7 @@ export default function createGppRouter(
         });
       }
 
-      const { rows, sourceName } = readImportRows(file);
+      const { rows, sourceName } = await readImportRows(file);
       const headerIndex = findHeaderRow(rows);
 
       if (headerIndex < 0) {

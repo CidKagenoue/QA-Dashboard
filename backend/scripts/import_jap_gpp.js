@@ -2,7 +2,7 @@ require('dotenv/config');
 
 const fs = require('fs');
 const path = require('path');
-const XLSX = require('xlsx');
+const ExcelJS = require('exceljs');
 const { Pool } = require('pg');
 const { PrismaPg } = require('@prisma/adapter-pg');
 const { PrismaClient } = require('@prisma/client');
@@ -18,6 +18,12 @@ const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
 
 function parseDate(text) {
   if (!text) return null;
+  if (text instanceof Date && !isNaN(text.getTime())) return text;
+  if (typeof text === 'number' && Number.isFinite(text)) {
+    const epoch = Date.UTC(1899, 11, 30);
+    const date = new Date(epoch + Math.round(text * 86400000));
+    return isNaN(date.getTime()) ? null : date;
+  }
   const t = String(text).trim();
   if (!t) return null;
   // Accept formats like 1.01.2021 or 01.01.2025 or 2021-01-01
@@ -34,6 +40,30 @@ function parseDate(text) {
   const d = new Date(t);
   if (!isNaN(d.getTime())) return d;
   return null;
+}
+
+function pickDelimiter(text) {
+  const sample = text.split(/\r?\n/).slice(0, 8).join('\n');
+  const candidates = ['\t', ';', ','];
+  return candidates
+    .map((delimiter) => ({
+      delimiter,
+      count: sample.split(delimiter).length - 1,
+    }))
+    .sort((a, b) => b.count - a.count)[0]?.delimiter || '\t';
+}
+
+function worksheetToRows(worksheet) {
+  const rows = [];
+  worksheet.eachRow({ includeEmpty: false }, (row) => {
+    const values = Array.isArray(row.values) ? row.values.slice(1) : [];
+    rows.push(values.map((value) => (
+      value && typeof value === 'object' && Object.prototype.hasOwnProperty.call(value, 'text')
+        ? String(value.text || '')
+        : (value ?? '')
+    )));
+  });
+  return rows;
 }
 
 function parseYearField(jaar) {
@@ -57,9 +87,35 @@ async function run() {
     }
 
     console.log('Reading', csvPath);
-    const workbook = XLSX.readFile(csvPath, { raw: false });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+    const workbook = new ExcelJS.Workbook();
+    const ext = path.extname(csvPath).toLowerCase();
+
+    if (ext === '.xlsx') {
+      await workbook.xlsx.readFile(csvPath);
+    } else if (ext === '.csv' || ext === '.tsv' || ext === '.txt') {
+      const raw = fs.readFileSync(csvPath, 'utf8');
+      await workbook.csv.readFile(csvPath, {
+        parserOptions: {
+          delimiter: pickDelimiter(raw),
+        },
+      });
+    } else {
+      throw new Error(`Unsupported import file extension: ${ext || 'none'}. Use .xlsx or .csv/.tsv.`);
+    }
+
+    const sheet = workbook.worksheets[0];
+    if (!sheet) throw new Error('No worksheet found in import file.');
+    const matrixRows = worksheetToRows(sheet);
+    if (matrixRows.length === 0) throw new Error('No rows found in import file.');
+
+    const [headerRow, ...dataRows] = matrixRows;
+    const headers = headerRow.map((h) => String(h ?? '').trim());
+    const rows = dataRows.map((dataRow) => (
+      headers.reduce((acc, header, idx) => {
+        acc[header] = dataRow[idx] ?? '';
+        return acc;
+      }, {})
+    ));
 
     const toCreate = [];
     function cell(r, ...keys) {

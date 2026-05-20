@@ -21,14 +21,11 @@ const List<String> kOvaTicketStepLabels = [
 const List<String> _kOvaTypeOptions = ['Near Miss', 'OVA 1', 'OVA 2', 'OVA 3'];
 
 const List<String> _kReasonOptions = [
-  'Klachten en externe incidenten',
-  'Interne afwijking, incidenten en accidenten',
-  'Doelstelling of rapport',
-  'Verbetervoorstel',
-  'Directiebeoordeling',
-  'Interne en externe audit',
-  'Leiderschap',
-  'Risico en kans',
+  'Klacht',
+  'Audit',
+  'Incident',
+  'Risico',
+  'Andere',
 ];
 
 const List<String> _kCauseMethodOptions = ['5 Why', 'Fishbone', 'Andere'];
@@ -91,12 +88,17 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
   DateTime _findingDate = DateTime.now();
   DateTime _effectivenessDate = DateTime.now();
   String? _ovaType;
+  int? _selectedDepartmentId;
+  int? _selectedBranchId;
   Set<String> _selectedReasons = <String>{};
   String? _causeMethod;
   List<EditableOvaFollowUpAction> _actions = const [];
   List<OvaTicketUser> _assignableUsers = const [];
+  List<OvaTicketOption> _departments = const [];
+  List<OvaTicketOption> _branches = const [];
 
   bool _isLoading = false;
+  bool _isLoadingFormData = false;
   bool _isSaving = false;
   bool _didPersistChanges = false;
   String? _error;
@@ -109,6 +111,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
     if (widget.ticketId != null) {
       _loadTicket();
     }
+    _loadFormData();
     _loadAssignableUsers();
   }
 
@@ -178,11 +181,48 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
     }
   }
 
+  Future<void> _loadFormData() async {
+    setState(() {
+      _isLoadingFormData = true;
+      _error = null;
+    });
+
+    try {
+      final token = await context.read<AuthService>().getValidAccessToken();
+      final response = await ApiService.fetchOvaFormData(token: token);
+      final formData = OvaTicketFormData.fromJson(response);
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _departments = formData.departments;
+        _branches = formData.branches;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _error = error.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingFormData = false;
+        });
+      }
+    }
+  }
+
   void _applyTicket(OvaTicket ticket) {
     _ticket = ticket;
     _findingDate = ticket.findingDate ?? _findingDate;
     _effectivenessDate = ticket.effectivenessDate ?? _effectivenessDate;
     _ovaType = ticket.ovaType;
+    _selectedDepartmentId = ticket.departmentId ?? ticket.department?.id;
+    _selectedBranchId = ticket.branchId ?? ticket.branch?.id;
     _selectedReasons = ticket.reasons.toSet();
     _otherReasonController.text = ticket.otherReason ?? '';
     _incidentController.text = ticket.incidentDescription ?? '';
@@ -291,6 +331,12 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
     bool silent = false,
     String? successMessage,
   }) async {
+    if (_shouldIncludeMinimumTicketDetails &&
+        !_hasDepartmentAndBranchSelection) {
+      _showValidationMessage('Selecteer een afdeling en vestiging.');
+      return;
+    }
+
     setState(() {
       _isSaving = true;
       _error = null;
@@ -363,6 +409,8 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
     if (_shouldIncludeMinimumTicketDetails) {
       payload['findingDate'] = _findingDate.toUtc().toIso8601String();
       payload['ovaType'] = _normalizedText(_ovaType);
+      payload['departmentId'] = _selectedDepartmentId;
+      payload['branchId'] = _selectedBranchId;
       payload['reasons'] = _selectedReasons.toList()..sort();
       payload['otherReason'] = _normalizedText(_otherReasonController.text);
       payload['incidentDescription'] = _normalizedText(
@@ -431,6 +479,14 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
         : normalizedValue;
   }
 
+  int? _selectedOptionValue(int? selectedId, List<OvaTicketOption> options) {
+    if (selectedId == null) {
+      return null;
+    }
+
+    return options.any((option) => option.id == selectedId) ? selectedId : null;
+  }
+
   bool get _hasReasonInput {
     return _selectedReasons.isNotEmpty ||
         (_normalizedText(_otherReasonController.text) ?? '').isNotEmpty;
@@ -441,6 +497,13 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
   }
 
   bool _validateMinimumTicketDetailsForSave() {
+    if (!_hasDepartmentAndBranchSelection) {
+      _showValidationMessage(
+        'Selecteer eerst een afdeling en vestiging voordat je opslaat.',
+      );
+      return false;
+    }
+
     if (!_hasReasonInput) {
       _showValidationMessage(
         'Vul eerst de aanleiding en vaststelling in voordat je opslaat.',
@@ -461,7 +524,11 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
   bool _validateCurrentStep() {
     switch (_currentStep) {
       case 0:
-        return true;
+        if (_hasDepartmentAndBranchSelection) {
+          return true;
+        }
+        _showValidationMessage('Selecteer een afdeling en vestiging.');
+        return false;
       case 1:
         if (_hasReasonInput) {
           return true;
@@ -498,6 +565,10 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
       default:
         return true;
     }
+  }
+
+  bool get _hasDepartmentAndBranchSelection {
+    return _selectedDepartmentId != null && _selectedBranchId != null;
   }
 
   void _showValidationMessage(String message) {
@@ -709,7 +780,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
     final isClosed = _ticket?.isClosed ?? false;
 
     Widget body;
-    if (_isLoading) {
+    if (_isLoading || _isLoadingFormData) {
       body = const Center(child: CircularProgressIndicator());
     } else if (_error != null && _ticket == null && widget.ticketId != null) {
       body = Center(
@@ -1036,6 +1107,61 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
                 _ovaType = value;
               });
             },
+          ),
+        ),
+        const SizedBox(height: 18),
+        _SectionCard(
+          title: _requiredLabel('Vestiging'),
+          subtitle:
+              'Kies een bestaande vestiging. Vrij typen is uitgeschakeld om rapportage schoon te houden.',
+          child: DropdownButtonFormField<int?>(
+            initialValue: _selectedOptionValue(_selectedBranchId, _branches),
+            decoration: const InputDecoration(labelText: 'Vestiging'),
+            hint: const Text('Selecteer vestiging'),
+            items: _branches
+                .map(
+                  (branch) => DropdownMenuItem<int?>(
+                    value: branch.id,
+                    child: Text(branch.name),
+                  ),
+                )
+                .toList(),
+            onChanged: _branches.isEmpty
+                ? null
+                : (value) {
+                    setState(() {
+                      _selectedBranchId = value;
+                    });
+                  },
+          ),
+        ),
+        const SizedBox(height: 18),
+        _SectionCard(
+          title: _requiredLabel('Afdeling'),
+          subtitle:
+              'Kies een bestaande afdeling zodat tickets correct gefilterd en gerapporteerd kunnen worden.',
+          child: DropdownButtonFormField<int?>(
+            initialValue: _selectedOptionValue(
+              _selectedDepartmentId,
+              _departments,
+            ),
+            decoration: const InputDecoration(labelText: 'Afdeling'),
+            hint: const Text('Selecteer afdeling'),
+            items: _departments
+                .map(
+                  (department) => DropdownMenuItem<int?>(
+                    value: department.id,
+                    child: Text(department.name),
+                  ),
+                )
+                .toList(),
+            onChanged: _departments.isEmpty
+                ? null
+                : (value) {
+                    setState(() {
+                      _selectedDepartmentId = value;
+                    });
+                  },
           ),
         ),
       ],

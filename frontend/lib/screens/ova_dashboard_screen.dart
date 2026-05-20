@@ -6,13 +6,17 @@ import 'ova_actions_screen.dart';
 import 'ova_ticket_list_screen.dart';
 import 'ova_ticket_wizard_screen.dart';
 
+enum OvaDashboardInitialPage { overview, tickets, actions }
+
 class OvaDashboardScreen extends StatelessWidget {
   const OvaDashboardScreen({
     super.key,
+    this.initialPage = OvaDashboardInitialPage.overview,
     this.initialTicketId,
     this.onCloseInitialTicket,
   });
 
+  final OvaDashboardInitialPage initialPage;
   final int? initialTicketId;
   final VoidCallback? onCloseInitialTicket;
 
@@ -28,8 +32,31 @@ class OvaDashboardScreen extends StatelessWidget {
 
     return Navigator(
       onGenerateRoute: (_) => MaterialPageRoute<void>(
-        builder: (routeContext) => _OvaOverviewRoute(),
+        builder: (routeContext) => _buildInitialPage(routeContext),
       ),
+    );
+  }
+
+  Widget _buildInitialPage(BuildContext routeContext) {
+    switch (initialPage) {
+      case OvaDashboardInitialPage.tickets:
+        return OvaTicketListScreen(
+          embedded: true,
+          onNavigateBack: () => _replaceWithOverview(routeContext),
+        );
+      case OvaDashboardInitialPage.actions:
+        return OvaActionsScreen(
+          embedded: true,
+          onNavigateBack: () => _replaceWithOverview(routeContext),
+        );
+      case OvaDashboardInitialPage.overview:
+        return _OvaOverviewRoute();
+    }
+  }
+
+  void _replaceWithOverview(BuildContext routeContext) {
+    Navigator.of(routeContext).pushReplacement(
+      MaterialPageRoute<void>(builder: (_) => _OvaOverviewRoute()),
     );
   }
 }

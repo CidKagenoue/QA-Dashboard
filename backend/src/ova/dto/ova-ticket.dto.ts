@@ -23,6 +23,8 @@ export class UpdateOvaFollowUpActionDto {
 export class CreateOvaTicketDto {
   findingDate?: string | null;
   ovaType?: string | null;
+  departmentId?: number | null;
+  branchId?: number | null;
   reasons?: string[];
   otherReason?: string | null;
   incidentDescription?: string | null;

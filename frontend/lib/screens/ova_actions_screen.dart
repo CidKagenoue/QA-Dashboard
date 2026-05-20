@@ -10,6 +10,12 @@ import 'ova_ticket_wizard_screen.dart';
 
 enum _ActionScope { mine, all }
 
+enum _ActionStatusFilter { nok, ok, all }
+
+enum _ActionDeadlineFilter { all, overdue, thisWeek, later }
+
+enum _ActionTypeFilter { all, corrective, preventive }
+
 class OvaActionsScreen extends StatefulWidget {
   const OvaActionsScreen({
     super.key,
@@ -25,10 +31,17 @@ class OvaActionsScreen extends StatefulWidget {
 }
 
 class _OvaActionsScreenState extends State<OvaActionsScreen> {
+  final TextEditingController _searchController = TextEditingController();
+
   bool _isLoading = true;
   String? _error;
   List<OvaAssignedAction> _actions = const [];
   _ActionScope _selectedScope = _ActionScope.mine;
+  _ActionStatusFilter _selectedStatusFilter = _ActionStatusFilter.nok;
+  _ActionDeadlineFilter _selectedDeadlineFilter = _ActionDeadlineFilter.all;
+  _ActionTypeFilter _selectedTypeFilter = _ActionTypeFilter.all;
+  String? _selectedAssignee;
+  bool _filtersExpanded = false;
   bool _scopeInitialized = false;
   bool _canViewAllActions = false;
   final Set<int> _savingActionIds = <int>{};
@@ -36,7 +49,22 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
   @override
   void initState() {
     super.initState();
+    _searchController.addListener(_handleSearchChanged);
     _loadActions();
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_handleSearchChanged);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _handleSearchChanged() {
+    if (!mounted) {
+      return;
+    }
+    setState(() {});
   }
 
   Future<void> _loadActions() async {
@@ -118,8 +146,55 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
 
     setState(() {
       _selectedScope = scope;
+      if (scope == _ActionScope.mine) {
+        _selectedAssignee = null;
+      }
     });
     _loadActions();
+  }
+
+  void _setStatusFilter(_ActionStatusFilter filter) {
+    setState(() {
+      _selectedStatusFilter = filter;
+    });
+  }
+
+  void _setDeadlineFilter(_ActionDeadlineFilter filter) {
+    setState(() {
+      _selectedDeadlineFilter = filter;
+    });
+  }
+
+  void _setTypeFilter(_ActionTypeFilter filter) {
+    setState(() {
+      _selectedTypeFilter = filter;
+    });
+  }
+
+  void _setAssignee(String? assignee) {
+    setState(() {
+      _selectedAssignee = assignee;
+    });
+  }
+
+  void _toggleFiltersExpanded() {
+    setState(() {
+      _filtersExpanded = !_filtersExpanded;
+    });
+  }
+
+  void _clearFilters() {
+    if (!_hasActiveFilters) {
+      return;
+    }
+
+    _searchController.clear();
+    setState(() {
+      _selectedStatusFilter = _ActionStatusFilter.nok;
+      _selectedDeadlineFilter = _ActionDeadlineFilter.all;
+      _selectedTypeFilter = _ActionTypeFilter.all;
+      _selectedAssignee = null;
+    });
   }
 
   Future<void> _updateActionStatus(OvaAssignedAction item, bool isOk) async {
@@ -184,6 +259,124 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
     if (result != null && mounted) {
       await _loadActions();
     }
+  }
+
+  List<OvaAssignedAction> get _filteredActions {
+    final query = _normalizeValue(_searchController.text);
+    Iterable<OvaAssignedAction> actions = _actions;
+
+    if (query.isNotEmpty) {
+      actions = actions.where((item) => _matchesSearch(item, query));
+    }
+
+    switch (_selectedStatusFilter) {
+      case _ActionStatusFilter.nok:
+        actions = actions.where((item) => !item.action.isOk);
+        break;
+      case _ActionStatusFilter.ok:
+        actions = actions.where((item) => item.action.isOk);
+        break;
+      case _ActionStatusFilter.all:
+        break;
+    }
+
+    switch (_selectedDeadlineFilter) {
+      case _ActionDeadlineFilter.overdue:
+        actions = actions.where(_isOverdue);
+        break;
+      case _ActionDeadlineFilter.thisWeek:
+        actions = actions.where(_isDueThisWeek);
+        break;
+      case _ActionDeadlineFilter.later:
+        actions = actions.where(_isDueLater);
+        break;
+      case _ActionDeadlineFilter.all:
+        break;
+    }
+
+    switch (_selectedTypeFilter) {
+      case _ActionTypeFilter.corrective:
+        actions = actions.where((item) => item.action.isCorrective);
+        break;
+      case _ActionTypeFilter.preventive:
+        actions = actions.where((item) => !item.action.isCorrective);
+        break;
+      case _ActionTypeFilter.all:
+        break;
+    }
+
+    if (_selectedScope == _ActionScope.all &&
+        _selectedAssignee != null &&
+        _selectedAssignee!.trim().isNotEmpty) {
+      actions = actions.where(
+        (item) => item.action.assigneeLabel == _selectedAssignee,
+      );
+    }
+
+    return actions.toList();
+  }
+
+  bool get _hasActiveFilters =>
+      _searchController.text.trim().isNotEmpty ||
+      _selectedStatusFilter != _ActionStatusFilter.all ||
+      _selectedDeadlineFilter != _ActionDeadlineFilter.all ||
+      _selectedTypeFilter != _ActionTypeFilter.all ||
+      _selectedAssignee != null;
+
+  int get _activeFilterCount {
+    var count = 0;
+    if (_selectedStatusFilter != _ActionStatusFilter.all) count += 1;
+    if (_selectedDeadlineFilter != _ActionDeadlineFilter.all) count += 1;
+    if (_selectedTypeFilter != _ActionTypeFilter.all) count += 1;
+    if (_selectedAssignee != null) count += 1;
+    return count;
+  }
+
+  List<String> get _availableAssignees {
+    final labels = _actions
+        .map((item) => item.action.assigneeLabel.trim())
+        .where((label) => label.isNotEmpty)
+        .toSet()
+        .toList();
+    labels.sort(
+      (left, right) => left.toLowerCase().compareTo(right.toLowerCase()),
+    );
+    return labels;
+  }
+
+  bool _matchesSearch(OvaAssignedAction item, String query) {
+    return <String>[
+      item.action.description,
+      item.action.assigneeLabel,
+      item.action.typeLabel,
+      item.ticket.id.toString(),
+      item.ticket.ovaType ?? '',
+    ].any((value) => _normalizeValue(value).contains(query));
+  }
+
+  bool _isOverdue(OvaAssignedAction item) {
+    return item.action.dueDate.isBefore(_todayStart());
+  }
+
+  bool _isDueThisWeek(OvaAssignedAction item) {
+    final today = _todayStart();
+    final nextWeek = today.add(const Duration(days: 7));
+    final dueDate = item.action.dueDate;
+    return !dueDate.isBefore(today) && dueDate.isBefore(nextWeek);
+  }
+
+  bool _isDueLater(OvaAssignedAction item) {
+    final nextWeek = _todayStart().add(const Duration(days: 7));
+    return !item.action.dueDate.isBefore(nextWeek);
+  }
+
+  DateTime _todayStart() {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
+  }
+
+  String _normalizeValue(String value) {
+    return value.trim().toLowerCase();
   }
 
   String get _summaryText {
@@ -256,16 +449,40 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
                     onSelected: _selectScope,
                   ),
                 ],
+                const SizedBox(height: 18),
+                _ActionFilters(
+                  searchController: _searchController,
+                  visibleCount: _filteredActions.length,
+                  hasActiveFilters: _hasActiveFilters,
+                  activeFilterCount: _activeFilterCount,
+                  filtersExpanded: _filtersExpanded,
+                  onToggleFilters: _toggleFiltersExpanded,
+                  selectedStatus: _selectedStatusFilter,
+                  onStatusSelected: _setStatusFilter,
+                  selectedDeadline: _selectedDeadlineFilter,
+                  onDeadlineSelected: _setDeadlineFilter,
+                  selectedType: _selectedTypeFilter,
+                  onTypeSelected: _setTypeFilter,
+                  showAssignees: _selectedScope == _ActionScope.all,
+                  assignees: _availableAssignees,
+                  selectedAssignee: _selectedAssignee,
+                  onAssigneeSelected: _setAssignee,
+                  onClearFilters: _clearFilters,
+                ),
                 const SizedBox(height: 28),
                 if (_isLoading)
                   const Center(child: CircularProgressIndicator())
                 else if (_error != null)
                   _ActionErrorState(message: _error!, onRetry: _loadActions)
-                else if (_actions.isEmpty)
-                  _ActionEmptyState(scope: _selectedScope)
+                else if (_filteredActions.isEmpty)
+                  _ActionEmptyState(
+                    scope: _selectedScope,
+                    filtered: _hasActiveFilters,
+                    onClearFilters: _clearFilters,
+                  )
                 else
                   _ActionsOverview(
-                    actions: _actions,
+                    actions: _filteredActions,
                     savingActionIds: _savingActionIds,
                     onOpenTicket: (item) => _openTicket(item.ticket.id),
                     onStatusChanged: _updateActionStatus,
@@ -393,6 +610,505 @@ class _ActionScopeChip extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ActionFilters extends StatelessWidget {
+  const _ActionFilters({
+    required this.searchController,
+    required this.visibleCount,
+    required this.hasActiveFilters,
+    required this.activeFilterCount,
+    required this.filtersExpanded,
+    required this.onToggleFilters,
+    required this.selectedStatus,
+    required this.onStatusSelected,
+    required this.selectedDeadline,
+    required this.onDeadlineSelected,
+    required this.selectedType,
+    required this.onTypeSelected,
+    required this.showAssignees,
+    required this.assignees,
+    required this.selectedAssignee,
+    required this.onAssigneeSelected,
+    required this.onClearFilters,
+  });
+
+  final TextEditingController searchController;
+  final int visibleCount;
+  final bool hasActiveFilters;
+  final int activeFilterCount;
+  final bool filtersExpanded;
+  final VoidCallback onToggleFilters;
+  final _ActionStatusFilter selectedStatus;
+  final ValueChanged<_ActionStatusFilter> onStatusSelected;
+  final _ActionDeadlineFilter selectedDeadline;
+  final ValueChanged<_ActionDeadlineFilter> onDeadlineSelected;
+  final _ActionTypeFilter selectedType;
+  final ValueChanged<_ActionTypeFilter> onTypeSelected;
+  final bool showAssignees;
+  final List<String> assignees;
+  final String? selectedAssignee;
+  final ValueChanged<String?> onAssigneeSelected;
+  final VoidCallback onClearFilters;
+
+  @override
+  Widget build(BuildContext context) {
+    final searchField = SizedBox(
+      width: 320,
+      child: TextField(
+        controller: searchController,
+        decoration: InputDecoration(
+          hintText: 'Zoeken op actie of ticket',
+          prefixIcon: const Icon(Icons.search_rounded, size: 20),
+          filled: true,
+          fillColor: const Color(0xFFF4F4F0),
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(999),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(999),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(999),
+            borderSide: const BorderSide(color: Color(0xFF8CC63F)),
+          ),
+        ),
+      ),
+    );
+
+    final filterButton = OutlinedButton.icon(
+      onPressed: onToggleFilters,
+      icon: const Icon(Icons.filter_alt_rounded, size: 18),
+      label: Text(
+        activeFilterCount > 0 ? 'Filters $activeFilterCount' : 'Filters',
+      ),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: filtersExpanded || activeFilterCount > 0
+            ? const Color(0xFF4E721C)
+            : const Color(0xFF3F473B),
+        backgroundColor: filtersExpanded
+            ? const Color(0xFFEAF4D9)
+            : Colors.white,
+        side: BorderSide(
+          color: filtersExpanded || activeFilterCount > 0
+              ? const Color(0xFF98C74D)
+              : const Color(0xFFD9DDD1),
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      ),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 900;
+        final counter = Text(
+          '$visibleCount actie${visibleCount == 1 ? '' : 's'} zichtbaar',
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF7A8078),
+          ),
+        );
+        final actions = compact
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  searchField,
+                  const SizedBox(height: 10),
+                  Align(alignment: Alignment.centerLeft, child: filterButton),
+                ],
+              )
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  searchField,
+                  const SizedBox(width: 10),
+                  filterButton,
+                ],
+              );
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (compact) ...[
+              counter,
+              const SizedBox(height: 12),
+              actions,
+            ] else
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(child: counter),
+                  actions,
+                ],
+              ),
+            if (activeFilterCount > 0) ...[
+              const SizedBox(height: 12),
+              _buildActiveFilters(),
+            ],
+            if (filtersExpanded) ...[
+              const SizedBox(height: 12),
+              _ActionFilterPanel(
+                selectedStatus: selectedStatus,
+                onStatusSelected: onStatusSelected,
+                selectedDeadline: selectedDeadline,
+                onDeadlineSelected: onDeadlineSelected,
+                selectedType: selectedType,
+                onTypeSelected: onTypeSelected,
+                showAssignees: showAssignees,
+                assignees: assignees,
+                selectedAssignee: selectedAssignee,
+                onAssigneeSelected: onAssigneeSelected,
+                hasActiveFilters: hasActiveFilters,
+                onClearFilters: onClearFilters,
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildActiveFilters() {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        if (selectedStatus != _ActionStatusFilter.all)
+          _ActionActiveFilterChip(
+            label: 'Status: ${_statusLabel(selectedStatus)}',
+            onRemove: () => onStatusSelected(_ActionStatusFilter.all),
+          ),
+        if (selectedDeadline != _ActionDeadlineFilter.all)
+          _ActionActiveFilterChip(
+            label: 'Deadline: ${_deadlineLabel(selectedDeadline)}',
+            onRemove: () => onDeadlineSelected(_ActionDeadlineFilter.all),
+          ),
+        if (selectedType != _ActionTypeFilter.all)
+          _ActionActiveFilterChip(
+            label: 'Type: ${_typeLabel(selectedType)}',
+            onRemove: () => onTypeSelected(_ActionTypeFilter.all),
+          ),
+        if (selectedAssignee != null)
+          _ActionActiveFilterChip(
+            label: 'Verantwoordelijke: $selectedAssignee',
+            onRemove: () => onAssigneeSelected(null),
+          ),
+        TextButton(
+          onPressed: onClearFilters,
+          child: const Text('Filters wissen'),
+        ),
+      ],
+    );
+  }
+
+  String _statusLabel(_ActionStatusFilter filter) {
+    switch (filter) {
+      case _ActionStatusFilter.nok:
+        return 'NOK';
+      case _ActionStatusFilter.ok:
+        return 'OK';
+      case _ActionStatusFilter.all:
+        return 'Alles';
+    }
+  }
+
+  String _deadlineLabel(_ActionDeadlineFilter filter) {
+    switch (filter) {
+      case _ActionDeadlineFilter.overdue:
+        return 'Te laat';
+      case _ActionDeadlineFilter.thisWeek:
+        return 'Deze week';
+      case _ActionDeadlineFilter.later:
+        return 'Later';
+      case _ActionDeadlineFilter.all:
+        return 'Alle deadlines';
+    }
+  }
+
+  String _typeLabel(_ActionTypeFilter filter) {
+    switch (filter) {
+      case _ActionTypeFilter.corrective:
+        return 'Corrigerend';
+      case _ActionTypeFilter.preventive:
+        return 'Preventief';
+      case _ActionTypeFilter.all:
+        return 'Alle types';
+    }
+  }
+}
+
+class _ActionFilterPanel extends StatelessWidget {
+  const _ActionFilterPanel({
+    required this.selectedStatus,
+    required this.onStatusSelected,
+    required this.selectedDeadline,
+    required this.onDeadlineSelected,
+    required this.selectedType,
+    required this.onTypeSelected,
+    required this.showAssignees,
+    required this.assignees,
+    required this.selectedAssignee,
+    required this.onAssigneeSelected,
+    required this.hasActiveFilters,
+    required this.onClearFilters,
+  });
+
+  final _ActionStatusFilter selectedStatus;
+  final ValueChanged<_ActionStatusFilter> onStatusSelected;
+  final _ActionDeadlineFilter selectedDeadline;
+  final ValueChanged<_ActionDeadlineFilter> onDeadlineSelected;
+  final _ActionTypeFilter selectedType;
+  final ValueChanged<_ActionTypeFilter> onTypeSelected;
+  final bool showAssignees;
+  final List<String> assignees;
+  final String? selectedAssignee;
+  final ValueChanged<String?> onAssigneeSelected;
+  final bool hasActiveFilters;
+  final VoidCallback onClearFilters;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFBFCF8),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E6DD)),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final fieldCount = showAssignees ? 4 : 3;
+          final fieldWidth = constraints.maxWidth < 760
+              ? constraints.maxWidth
+              : (constraints.maxWidth - (12 * (fieldCount - 1))) / fieldCount;
+          return Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            crossAxisAlignment: WrapCrossAlignment.end,
+            children: [
+              _ActionFilterSelectField<_ActionStatusFilter>(
+                width: fieldWidth,
+                label: 'Status',
+                value: selectedStatus,
+                options: const [
+                  _ActionFilterOption(
+                    value: _ActionStatusFilter.nok,
+                    label: 'NOK',
+                  ),
+                  _ActionFilterOption(
+                    value: _ActionStatusFilter.ok,
+                    label: 'OK',
+                  ),
+                  _ActionFilterOption(
+                    value: _ActionStatusFilter.all,
+                    label: 'Alles',
+                  ),
+                ],
+                onChanged: onStatusSelected,
+              ),
+              _ActionFilterSelectField<_ActionDeadlineFilter>(
+                width: fieldWidth,
+                label: 'Deadline',
+                value: selectedDeadline,
+                options: const [
+                  _ActionFilterOption(
+                    value: _ActionDeadlineFilter.all,
+                    label: 'Alle deadlines',
+                  ),
+                  _ActionFilterOption(
+                    value: _ActionDeadlineFilter.overdue,
+                    label: 'Te laat',
+                  ),
+                  _ActionFilterOption(
+                    value: _ActionDeadlineFilter.thisWeek,
+                    label: 'Deze week',
+                  ),
+                  _ActionFilterOption(
+                    value: _ActionDeadlineFilter.later,
+                    label: 'Later',
+                  ),
+                ],
+                onChanged: onDeadlineSelected,
+              ),
+              _ActionFilterSelectField<_ActionTypeFilter>(
+                width: fieldWidth,
+                label: 'Type',
+                value: selectedType,
+                options: const [
+                  _ActionFilterOption(
+                    value: _ActionTypeFilter.all,
+                    label: 'Alle types',
+                  ),
+                  _ActionFilterOption(
+                    value: _ActionTypeFilter.corrective,
+                    label: 'Corrigerend',
+                  ),
+                  _ActionFilterOption(
+                    value: _ActionTypeFilter.preventive,
+                    label: 'Preventief',
+                  ),
+                ],
+                onChanged: onTypeSelected,
+              ),
+              if (showAssignees)
+                _ActionFilterSelectField<String?>(
+                  width: fieldWidth,
+                  label: 'Verantwoordelijke',
+                  hintText: 'Alle verantwoordelijken',
+                  value: selectedAssignee,
+                  options: [
+                    const _ActionFilterOption<String?>(
+                      value: null,
+                      label: 'Alle verantwoordelijken',
+                    ),
+                    ...assignees.map(
+                      (assignee) => _ActionFilterOption<String?>(
+                        value: assignee,
+                        label: assignee,
+                      ),
+                    ),
+                  ],
+                  onChanged: onAssigneeSelected,
+                ),
+              if (hasActiveFilters)
+                TextButton(
+                  onPressed: onClearFilters,
+                  child: const Text('Filters wissen'),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ActionActiveFilterChip extends StatelessWidget {
+  const _ActionActiveFilterChip({required this.label, required this.onRemove});
+
+  final String label;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 32,
+      padding: const EdgeInsets.only(left: 10, right: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEAF4D9),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFCFE5A8)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF4E721C),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(width: 4),
+          InkWell(
+            onTap: onRemove,
+            borderRadius: BorderRadius.circular(999),
+            child: const Padding(
+              padding: EdgeInsets.all(4),
+              child: Icon(
+                Icons.close_rounded,
+                size: 14,
+                color: Color(0xFF4E721C),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionFilterSelectField<T> extends StatelessWidget {
+  const _ActionFilterSelectField({
+    required this.width,
+    required this.label,
+    required this.value,
+    required this.options,
+    required this.onChanged,
+    this.hintText,
+  });
+
+  final double width;
+  final String label;
+  final T value;
+  final List<_ActionFilterOption<T>> options;
+  final ValueChanged<T> onChanged;
+  final String? hintText;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width,
+      child: DropdownButtonFormField<T>(
+        initialValue: value,
+        isExpanded: true,
+        hint: hintText == null ? null : Text(hintText!),
+        decoration: InputDecoration(
+          labelText: label,
+          filled: true,
+          fillColor: Colors.white,
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 12,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Color(0xFFD9DDD1)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Color(0xFFD9DDD1)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Color(0xFF8CC63F)),
+          ),
+        ),
+        items: options
+            .map(
+              (option) => DropdownMenuItem<T>(
+                value: option.value,
+                child: Text(
+                  option.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            )
+            .toList(),
+        onChanged: (value) => onChanged(value as T),
+      ),
+    );
+  }
+}
+
+class _ActionFilterOption<T> {
+  const _ActionFilterOption({required this.value, required this.label});
+
+  final T value;
+  final String label;
 }
 
 class _ActionsTable extends StatelessWidget {
@@ -802,9 +1518,15 @@ class _TableHeaderLabel extends StatelessWidget {
 }
 
 class _ActionEmptyState extends StatelessWidget {
-  const _ActionEmptyState({required this.scope});
+  const _ActionEmptyState({
+    required this.scope,
+    required this.filtered,
+    required this.onClearFilters,
+  });
 
   final _ActionScope scope;
+  final bool filtered;
+  final VoidCallback onClearFilters;
 
   @override
   Widget build(BuildContext context) {
@@ -826,18 +1548,29 @@ class _ActionEmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Text(
-            isAllScope
+            filtered
+                ? 'Geen acties voor deze filters'
+                : isAllScope
                 ? 'Geen openstaande OVA-acties'
                 : 'Je hebt geen openstaande acties',
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
           Text(
-            isAllScope
+            filtered
+                ? 'Pas je zoekterm of filters aan om opnieuw acties te tonen.'
+                : isAllScope
                 ? 'Zodra er een opvolgactie op een open OVA-ticket staat, verschijnt ze hier automatisch.'
                 : 'Zodra een opvolgactie aan jou is toegewezen, verschijnt ze hier automatisch.',
             textAlign: TextAlign.center,
           ),
+          if (filtered) ...[
+            const SizedBox(height: 18),
+            OutlinedButton(
+              onPressed: onClearFilters,
+              child: const Text('Filters wissen'),
+            ),
+          ],
         ],
       ),
     );

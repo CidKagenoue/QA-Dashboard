@@ -312,6 +312,17 @@ class ApiService {
     return Map<String, dynamic>.from(ticket);
   }
 
+  static Future<Map<String, dynamic>> fetchOvaFormData({
+    required String token,
+  }) async {
+    return _requestObject(
+      () => http.get(
+        Uri.parse('$baseUrl/ova/form-data'),
+        headers: _headers(token: token),
+      ),
+    );
+  }
+
   static Future<List<Map<String, dynamic>>> fetchOvaAssignableUsers({
     required String token,
   }) async {
@@ -387,15 +398,15 @@ class ApiService {
     required int ticketId,
     required Map<String, dynamic> payload,
   }) async {
-    final response = await _requestObject(  
+    final response = await _requestObject(
       () => http.patch(
         Uri.parse('$baseUrl/ova/tickets/$ticketId'),
-        headers: _headers(token: token), 
+        headers: _headers(token: token),
         body: jsonEncode(payload),
       ),
     );
 
-    final ticket = response['ticket']; 
+    final ticket = response['ticket'];
     if (ticket is! Map) {
       throw Exception('Invalid OVA ticket received from the server');
     }
@@ -407,13 +418,14 @@ class ApiService {
     required String token,
     required int ticketId,
   }) async {
-    await _requestObject(  
+    await _requestObject(
       () => http.delete(
         Uri.parse('$baseUrl/ova/tickets/$ticketId'),
-        headers: _headers(token: token), 
+        headers: _headers(token: token),
       ),
     );
   }
+
   static Future<List<Map<String, dynamic>>> fetchMyOvaActions({
     required String token,
   }) async {
@@ -568,9 +580,7 @@ class ApiService {
     );
   }
 
-  static Future<void> deleteAllNotifications({
-    required String token,
-  }) async {
+  static Future<void> deleteAllNotifications({required String token}) async {
     await _requestObject(
       () => http.delete(
         Uri.parse('$baseUrl/notifications'),

@@ -9,10 +9,7 @@ import { Prisma } from '@prisma/client';
 import { NotificationType } from '@prisma/client';
 import { NotificationService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
-import {
-  AssignableOvaUser,
-  UserService,
-} from '../user/user.service';
+import { AssignableOvaUser, UserService } from '../user/user.service';
 import {
   CreateOvaTicketDto,
   OvaExternalResponsibleDto,
@@ -20,7 +17,6 @@ import {
   UpdateOvaFollowUpActionDto,
   UpdateOvaTicketDto,
 } from './dto/ova-ticket.dto';
-
 
 const ovaUserSelect = {
   id: true,
@@ -58,6 +54,20 @@ const ovaTicketSelect = {
   currentStep: true,
   findingDate: true,
   ovaType: true,
+  departmentId: true,
+  branchId: true,
+  department: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+  branch: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
   reasons: true,
   otherReason: true,
   incidentDescription: true,
@@ -102,6 +112,18 @@ const assignedActionSelect = {
       currentStep: true,
       findingDate: true,
       ovaType: true,
+      department: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      branch: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
     },
   },
 } satisfies Prisma.OvaFollowUpActionSelect;
@@ -245,10 +267,31 @@ export class OvaService {
     };
   }
 
+  async getFormData(actorId: number) {
+    await this.assertCanAccessOva(actorId);
+
+    const [departments, branches] = await Promise.all([
+      this.prisma.department.findMany({
+        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        select: { id: true, name: true },
+      }),
+      this.prisma.branch.findMany({
+        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        select: { id: true, name: true },
+      }),
+    ]);
+
+    return { departments, branches };
+  }
+
   async createTicket(actorId: number, dto: CreateOvaTicketDto) {
     await this.assertCanAccessOva(actorId);
 
     const mutation = this.normalizeCreateInput(dto, actorId);
+    await this.assertOvaRelationsExist(
+      mutation.ticketData.departmentId,
+      mutation.ticketData.branchId,
+    );
 
     const ticket = await this.prisma.$transaction(async (tx) => {
       const actionCount = mutation.actions?.length ?? 0;
@@ -261,7 +304,7 @@ export class OvaService {
           findingDate: mutation.ticketData.findingDate ?? new Date(),
           currentStep: isClosing
             ? 7
-            : mutation.ticketData.currentStep ?? undefined,
+            : (mutation.ticketData.currentStep ?? undefined),
           status: this.deriveTicketStatus({
             requestedStatus,
             actionCount,
@@ -299,7 +342,8 @@ export class OvaService {
     // 1. Bepaal meldingstekst en het bijbehorende notification type
     let notificationTitle = 'OVA-ticket aangemaakt';
     let notificationBody = `Ticket #${ticket.id} is aangemaakt.`;
-    let notificationType: NotificationType = NotificationType.OVA_TICKET_CREATED;
+    let notificationType: NotificationType =
+      NotificationType.OVA_TICKET_CREATED;
     if (dto.ovaType) {
       // Maak type-vergelijking robuuster: verwijder spaties en hoofdletters
       const type = dto.ovaType.replace(/\s+/g, '').toLowerCase();
@@ -341,9 +385,15 @@ export class OvaService {
         metadata: { ticketId: ticket.id, ovaType: dto.ovaType },
       });
       if (notificationCreated) {
-        console.log('[OVA] Melding succesvol aangemaakt voor ticket', ticket.id);
+        console.log(
+          '[OVA] Melding succesvol aangemaakt voor ticket',
+          ticket.id,
+        );
       } else {
-        console.log('[OVA] Melding overgeslagen vanwege notificatievoorkeur voor ticket', ticket.id);
+        console.log(
+          '[OVA] Melding overgeslagen vanwege notificatievoorkeur voor ticket',
+          ticket.id,
+        );
       }
     } catch (err) {
       console.error('[OVA] Fout bij aanmaken melding:', err);
@@ -380,6 +430,11 @@ export class OvaService {
     }
 
     const mutation = this.normalizeUpdateInput(dto, actorId);
+    await this.assertOvaRelationsExist(
+      mutation.ticketData.departmentId,
+      mutation.ticketData.branchId,
+    );
+
     const beforeAssignments: InternalAssignmentSnapshot[] =
       existingTicket.actions
         .filter(
@@ -596,8 +651,7 @@ export class OvaService {
   async listActions(actorId: number, scope?: string) {
     const actor = await this.assertCanAccessOva(actorId);
     const canViewAllActions = actor.isAdmin || actor.ovaAccess;
-    const resolvedScope =
-      scope === 'all' && canViewAllActions ? 'all' : 'mine';
+    const resolvedScope = scope === 'all' && canViewAllActions ? 'all' : 'mine';
 
     const where: Prisma.OvaFollowUpActionWhereInput = {
       ...(resolvedScope === 'mine' ? { internalAssigneeId: actor.id } : {}),
@@ -653,9 +707,7 @@ export class OvaService {
       !actor.ovaAccess &&
       !actor.basisAccess
     ) {
-      throw new ForbiddenException(
-        'Je mag deze opvolgactie niet aanpassen',
-      );
+      throw new ForbiddenException('Je mag deze opvolgactie niet aanpassen');
     }
 
     const status = this.normalizeActionStatus(dto.status, {
@@ -704,6 +756,50 @@ export class OvaService {
     return actor;
   }
 
+  private async assertOvaRelationsExist(
+    departmentIdValue: unknown,
+    branchIdValue: unknown,
+  ) {
+    const departmentId =
+      typeof departmentIdValue === 'number' ? departmentIdValue : undefined;
+    const branchId =
+      typeof branchIdValue === 'number' ? branchIdValue : undefined;
+
+    const checks: Promise<unknown>[] = [];
+    if (departmentId !== undefined) {
+      checks.push(
+        this.prisma.department.findUnique({
+          where: { id: departmentId },
+          select: { id: true },
+        }),
+      );
+    }
+    if (branchId !== undefined) {
+      checks.push(
+        this.prisma.branch.findUnique({
+          where: { id: branchId },
+          select: { id: true },
+        }),
+      );
+    }
+
+    if (checks.length === 0) {
+      return;
+    }
+
+    const [department, branch] = await Promise.all(checks);
+
+    if (departmentId !== undefined && !department) {
+      throw new BadRequestException('Onbekende afdeling geselecteerd');
+    }
+    if (branchId !== undefined) {
+      const branchResult = departmentId !== undefined ? branch : department;
+      if (!branchResult) {
+        throw new BadRequestException('Onbekende vestiging geselecteerd');
+      }
+    }
+  }
+
   private normalizeCreateInput(
     dto: CreateOvaTicketDto | UpdateOvaTicketDto,
     actorId: number,
@@ -714,6 +810,14 @@ export class OvaService {
     };
 
     this.assignTicketFields(ticketData, dto);
+    ticketData.departmentId = this.normalizeRequiredId(
+      dto.departmentId,
+      'Selecteer een afdeling',
+    );
+    ticketData.branchId = this.normalizeRequiredId(
+      dto.branchId,
+      'Selecteer een vestiging',
+    );
 
     return {
       ticketData,
@@ -752,6 +856,18 @@ export class OvaService {
     }
     if (Object.prototype.hasOwnProperty.call(dto, 'ovaType')) {
       data.ovaType = this.normalizeOptionalText(dto.ovaType);
+    }
+    if (Object.prototype.hasOwnProperty.call(dto, 'departmentId')) {
+      data.departmentId = this.normalizeRequiredId(
+        dto.departmentId,
+        'Selecteer een afdeling',
+      );
+    }
+    if (Object.prototype.hasOwnProperty.call(dto, 'branchId')) {
+      data.branchId = this.normalizeRequiredId(
+        dto.branchId,
+        'Selecteer een vestiging',
+      );
     }
     if (Object.prototype.hasOwnProperty.call(dto, 'reasons')) {
       data.reasons = this.normalizeReasons(dto.reasons);
@@ -859,14 +975,21 @@ export class OvaService {
       // Notificatie sturen naar verantwoordelijke
       if (action.assigneeType === 'internal' && action.internalAssigneeId) {
         const recipientUserId = action.internalAssigneeId;
-        const actionTypeLabel = action.type === 'corrective' ? 'corrigerende actie' : 'preventieve actie';
+        const actionTypeLabel =
+          action.type === 'corrective'
+            ? 'corrigerende actie'
+            : 'preventieve actie';
         const body = `Er is een ${actionTypeLabel} aan jou toegewezen voor OVA-ticket #${ticketId}. Deadline: ${this.formatActionDate(action.dueDate)}.`;
         await this.notificationsService.notifyUser?.({
           recipientUserId,
           type: NotificationType.OVA_NEW_ACTION,
           title: `Nieuwe opvolgactie toegewezen (${actionTypeLabel})`,
           body,
-          metadata: { ticketId, actionType: action.type, actionId: createdAction.id },
+          metadata: {
+            ticketId,
+            actionType: action.type,
+            actionId: createdAction.id,
+          },
         });
       }
     }
@@ -1075,7 +1198,9 @@ export class OvaService {
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(normalizedValue.toLowerCase())) {
-      throw new BadRequestException('E-mailadres van externe verantwoordelijke is ongeldig');
+      throw new BadRequestException(
+        'E-mailadres van externe verantwoordelijke is ongeldig',
+      );
     }
 
     return normalizedValue.toLowerCase();
@@ -1159,9 +1284,7 @@ export class OvaService {
     index: number,
   ): NormalizedFollowUpActionInput {
     if (!value || typeof value !== 'object') {
-      throw new BadRequestException(
-        `Opvolgactie ${index + 1} is ongeldig`,
-      );
+      throw new BadRequestException(`Opvolgactie ${index + 1} is ongeldig`);
     }
 
     const assigneeType = this.normalizeAssigneeType(value.assigneeType);
@@ -1196,7 +1319,9 @@ export class OvaService {
     };
   }
 
-  private normalizeExternalResponsible(value?: OvaExternalResponsibleDto | null) {
+  private normalizeExternalResponsible(
+    value?: OvaExternalResponsibleDto | null,
+  ) {
     if (!value || typeof value !== 'object') {
       throw new BadRequestException('Selecteer een verantwoordelijke');
     }
@@ -1263,9 +1388,7 @@ export class OvaService {
     throw new BadRequestException(`${fieldName} moet OK of NOK zijn`);
   }
 
-  private normalizeAssigneeType(
-    value?: string | null,
-  ): NormalizedAssigneeType {
+  private normalizeAssigneeType(value?: string | null): NormalizedAssigneeType {
     const normalizedValue = value?.trim().toLowerCase();
     if (normalizedValue === 'internal') {
       return 'internal';
@@ -1287,7 +1410,10 @@ export class OvaService {
     return this.normalizeRequiredId(value, fieldName);
   }
 
-  private normalizeRequiredId(value: number | null | undefined, fieldName: string) {
+  private normalizeRequiredId(
+    value: number | null | undefined,
+    fieldName: string,
+  ) {
     if (!Number.isInteger(value) || Number(value) <= 0) {
       throw new BadRequestException(`${fieldName} is ongeldig`);
     }
@@ -1302,6 +1428,10 @@ export class OvaService {
       currentStep: ticket.currentStep,
       findingDate: ticket.findingDate?.toISOString() ?? null,
       ovaType: ticket.ovaType,
+      departmentId: ticket.departmentId,
+      branchId: ticket.branchId,
+      department: ticket.department,
+      branch: ticket.branch,
       reasons: ticket.reasons,
       otherReason: ticket.otherReason,
       incidentDescription: ticket.incidentDescription,
@@ -1347,6 +1477,8 @@ export class OvaService {
         currentStep: action.ticket.currentStep,
         findingDate: action.ticket.findingDate?.toISOString() ?? null,
         ovaType: action.ticket.ovaType,
+        department: action.ticket.department,
+        branch: action.ticket.branch,
       },
     };
   }

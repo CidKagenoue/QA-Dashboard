@@ -48,12 +48,12 @@ http:
     frontend:
       loadBalancer:
         servers:
-          - url: "http://qa-frontend:80"
+          - url: "http://frontend:80"
 
     backend:
       loadBalancer:
         servers:
-          - url: "http://qa-login-backend:3001"
+          - url: "http://backend:3001"
     whs:
       loadBalancer:
         servers:

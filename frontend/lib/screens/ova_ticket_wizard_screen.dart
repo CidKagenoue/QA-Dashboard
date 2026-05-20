@@ -21,14 +21,11 @@ const List<String> kOvaTicketStepLabels = [
 const List<String> _kOvaTypeOptions = ['Near Miss', 'OVA 1', 'OVA 2', 'OVA 3'];
 
 const List<String> _kReasonOptions = [
-  'Klachten en externe incidenten',
-  'Interne afwijking, incidenten en accidenten',
-  'Doelstelling of rapport',
-  'Verbetervoorstel',
-  'Directiebeoordeling',
-  'Interne en externe audit',
-  'Leiderschap',
-  'Risico en kans',
+  'Klacht',
+  'Audit',
+  'Incident',
+  'Risico',
+  'Andere',
 ];
 
 const List<String> _kCauseMethodOptions = ['5 Why', 'Fishbone', 'Andere'];

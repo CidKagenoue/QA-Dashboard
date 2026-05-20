@@ -11,10 +11,30 @@ async function bootstrap() {
   assertJwtConfiguration();
 
   const app = await NestFactory.create(AppModule);
-  
-  // Enable CORS for Flutter app
+
+  const allowedOrigins = new Set(
+    [
+      process.env.PUBLIC_FRONTEND_URL,
+      process.env.FRONTEND_URL,
+      'https://tst.vlotterqa.tech',
+      'https://www.tst.vlotterqa.tech',
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+    ]
+      .map((origin) => origin?.trim().replace(/\/+$/, ''))
+      .filter((origin): origin is string => Boolean(origin)),
+  );
+
   app.enableCors({
-    origin: true, // Allow all origins in development
+    origin: (origin, callback) => {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      const normalizedOrigin = origin.trim().replace(/\/+$/, '');
+      callback(null, allowedOrigins.has(normalizedOrigin));
+    },
     credentials: true,
   });
   const port = Number(process.env.PORT ?? 3001);

@@ -28,4 +28,14 @@ export class AppController {
       timestamp: new Date().toISOString(),
     };
   }
+
+  @Public()
+  @Get('health')
+  getHealth() {
+    return {
+      status: 'ok',
+      service: 'qa-dashboard-backend',
+      timestamp: new Date().toISOString(),
+    };
+  }
 }

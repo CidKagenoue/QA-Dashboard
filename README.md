@@ -77,11 +77,17 @@ SMTP_FROM="noreply@your-domain.com"
 SMTP_IGNORE_TLS_ERRORS="false"
 ```
 
+For production deployment through GitHub Actions, keep secrets in repository settings instead of any file:
+
+`VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `POSTGRES_PASSWORD`, `JWT_SECRET`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`
+
+Optional overrides: `JWT_REFRESH_SECRET`, `JWT_ISSUER`, `JWT_AUDIENCE`, `JWT_EXPIRES_IN`, `JWT_REFRESH_EXPIRES_IN`, `SMTP_SECURE`, `SMTP_IGNORE_TLS_ERRORS`
+
 **Environment Variables Explained:**
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql://postgres:root@localhost:5432/qa_dashboard?schema=public` |
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql://postgres:<password>@localhost:5432/qa_dashboard?schema=public` |
 | `JWT_SECRET` | Secret key for JWT signing (use a strong random string) | `8e7c0bf3c75692835fe967af1db691c4f8a7e603b34a1d9426c1ef577c8702aa` |
 | `JWT_ISSUER` | JWT issuer claim | `qa-login-backend` |
 | `JWT_AUDIENCE` | JWT audience claim | `qa-dashboard` |

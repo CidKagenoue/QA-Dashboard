@@ -22,7 +22,7 @@ export class EmailService implements OnModuleInit {
     if (!host) {
       this.smtpConfigured = false;
       this.logger.warn(
-        'SMTP is not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD and SMTP_FROM in backend/.env.',
+        'SMTP is not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD and SMTP_FROM in the runtime environment.',
       );
       return;
     }
@@ -129,7 +129,7 @@ export class EmailService implements OnModuleInit {
   private ensureSmtpConfigured(): void {
     if (!this.smtpConfigured || !this.transporter) {
       throw new Error(
-        'SMTP is niet geconfigureerd op de server. Stel SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD en SMTP_FROM in.',
+        'SMTP is niet geconfigureerd. Stel SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD en SMTP_FROM in de runtime environment in.',
       );
     }
   }

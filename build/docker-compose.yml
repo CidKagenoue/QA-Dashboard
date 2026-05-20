@@ -17,11 +17,10 @@ services:
 
   db:
     image: postgres:16-alpine
-    env_file:
-      - ../backend/.env
     environment:
       POSTGRES_DB: qa_login_backend
       POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
     volumes:
       - qa_db_data:/var/lib/postgresql/data
     healthcheck:
@@ -40,10 +39,29 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    env_file:
-      - ../backend/.env
     environment:
-      DATABASE_URL: "postgresql://postgres:root@db:5432/qa_login_backend"
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET must be set}
+      JWT_ISSUER: ${JWT_ISSUER:-qa-login-backend}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-qa-dashboard}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      FRONTEND_URL: ${FRONTEND_URL:-https://tst.vlotterqa.tech}
+      PUBLIC_FRONTEND_URL: ${PUBLIC_FRONTEND_URL:-https://tst.vlotterqa.tech}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-noreply@tst.vlotterqa.tech}
+      SMTP_IGNORE_TLS_ERRORS: ${SMTP_IGNORE_TLS_ERRORS:-false}
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3001/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
     restart: unless-stopped
     networks:
       - qa_net
@@ -54,6 +72,12 @@ services:
       dockerfile: Dockerfile.frontend
     depends_on:
       - backend
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1/ >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
     restart: unless-stopped
     networks:
       - qa_net

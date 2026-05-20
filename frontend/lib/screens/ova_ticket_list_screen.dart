@@ -11,12 +11,18 @@ import 'ova_ticket_wizard_screen.dart';
 
 enum _TicketSection { open, closed }
 
+const List<String> _reasonFilterOptions = [
+  'Klacht',
+  'Audit',
+  'Incident',
+  'Risico',
+  'Andere',
+];
+
 const double _ticketTableColumnGap = 10;
 const int _ticketIdFlex = 6;
 const int _ticketStatusFlex = 9;
 const int _ticketTypeFlex = 10;
-const int _ticketDepartmentFlex = 13;
-const int _ticketBranchFlex = 13;
 const int _ticketDateFlex = 13;
 const int _ticketReasonsFlex = 24;
 const int _ticketDescriptionFlex = 32;
@@ -45,6 +51,8 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
   String? _selectedOvaType;
   int? _selectedDepartmentId;
   int? _selectedBranchId;
+  String? _selectedReason;
+  bool _filtersExpanded = false;
 
   @override
   void initState() {
@@ -134,25 +142,33 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
     });
   }
 
-  void _toggleOvaType(String type) {
+  void _setOvaType(String? type) {
     setState(() {
-      if (_sameOvaType(_selectedOvaType, type)) {
-        _selectedOvaType = null;
-        return;
-      }
       _selectedOvaType = type;
     });
   }
 
-  void _toggleDepartment(int id) {
+  void _setDepartment(int? id) {
     setState(() {
-      _selectedDepartmentId = _selectedDepartmentId == id ? null : id;
+      _selectedDepartmentId = id;
     });
   }
 
-  void _toggleBranch(int id) {
+  void _setBranch(int? id) {
     setState(() {
-      _selectedBranchId = _selectedBranchId == id ? null : id;
+      _selectedBranchId = id;
+    });
+  }
+
+  void _setReason(String? reason) {
+    setState(() {
+      _selectedReason = reason;
+    });
+  }
+
+  void _toggleFiltersExpanded() {
+    setState(() {
+      _filtersExpanded = !_filtersExpanded;
     });
   }
 
@@ -163,6 +179,7 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
       _selectedOvaType = null;
       _selectedDepartmentId = null;
       _selectedBranchId = null;
+      _selectedReason = null;
     });
   }
 
@@ -226,6 +243,11 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
         (ticket) => ticket.branch?.id == _selectedBranchId,
       );
     }
+    if (_selectedReason != null && _selectedReason!.trim().isNotEmpty) {
+      tickets = tickets.where(
+        (ticket) => _matchesReason(ticket, _selectedReason!),
+      );
+    }
     return tickets.toList();
   }
 
@@ -233,7 +255,35 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
       _searchController.text.trim().isNotEmpty ||
       (_selectedOvaType != null && _selectedOvaType!.trim().isNotEmpty) ||
       _selectedDepartmentId != null ||
-      _selectedBranchId != null;
+      _selectedBranchId != null ||
+      (_selectedReason != null && _selectedReason!.trim().isNotEmpty);
+
+  int get _activeFilterCount {
+    var count = 0;
+    if (_selectedOvaType != null && _selectedOvaType!.trim().isNotEmpty) {
+      count += 1;
+    }
+    if (_selectedBranchId != null) count += 1;
+    if (_selectedDepartmentId != null) count += 1;
+    if (_selectedReason != null && _selectedReason!.trim().isNotEmpty) {
+      count += 1;
+    }
+    return count;
+  }
+
+  String? get _selectedDepartmentLabel {
+    for (final department in _availableDepartments) {
+      if (department.id == _selectedDepartmentId) return department.name;
+    }
+    return null;
+  }
+
+  String? get _selectedBranchLabel {
+    for (final branch in _availableBranches) {
+      if (branch.id == _selectedBranchId) return branch.name;
+    }
+    return null;
+  }
 
   bool _matchesSearch(OvaTicket ticket, String query) {
     return <String>[
@@ -249,9 +299,18 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
     ].any((v) => _normalizeValue(v).contains(query));
   }
 
-  String _departmentLabel(OvaTicket ticket) => ticket.department?.name ?? '-';
+  bool _matchesReason(OvaTicket ticket, String reason) {
+    final normalizedReason = _normalizeValue(reason);
+    final hasReason = ticket.reasons.any(
+      (item) => _normalizeValue(item) == normalizedReason,
+    );
+    if (hasReason) {
+      return true;
+    }
 
-  String _branchLabel(OvaTicket ticket) => ticket.branch?.name ?? '-';
+    return normalizedReason == 'andere' &&
+        (ticket.otherReason ?? '').trim().isNotEmpty;
+  }
 
   String _ticketDescription(OvaTicket ticket) {
     for (final c in [ticket.incidentDescription, ticket.followUpActions]) {
@@ -572,15 +631,23 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
                       _TicketToolbar(
                         searchController: _searchController,
                         hasActiveFilters: _hasActiveFilters,
+                        activeFilterCount: _activeFilterCount,
+                        filtersExpanded: _filtersExpanded,
+                        onToggleFilters: _toggleFiltersExpanded,
                         availableOvaTypes: _availableOvaTypes,
                         selectedOvaType: _selectedOvaType,
-                        onToggleOvaType: _toggleOvaType,
+                        onOvaTypeChanged: _setOvaType,
                         availableDepartments: _availableDepartments,
                         selectedDepartmentId: _selectedDepartmentId,
-                        onToggleDepartment: _toggleDepartment,
+                        selectedDepartmentLabel: _selectedDepartmentLabel,
+                        onDepartmentChanged: _setDepartment,
                         availableBranches: _availableBranches,
                         selectedBranchId: _selectedBranchId,
-                        onToggleBranch: _toggleBranch,
+                        selectedBranchLabel: _selectedBranchLabel,
+                        onBranchChanged: _setBranch,
+                        reasonOptions: _reasonFilterOptions,
+                        selectedReason: _selectedReason,
+                        onReasonChanged: _setReason,
                         onClearFilters: _clearFilters,
                         visibleCount: _filteredTickets.length,
                       ),
@@ -617,13 +684,11 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
 
   Widget _buildSelectedTable() {
     return _TicketTable(
-      minWidth: 1320,
+      minWidth: 1080,
       columns: const [
         _TableColumnData(label: 'ID', flex: _ticketIdFlex),
         _TableColumnData(label: 'Status', flex: _ticketStatusFlex),
         _TableColumnData(label: 'Type OVA', flex: _ticketTypeFlex),
-        _TableColumnData(label: 'Afdeling', flex: _ticketDepartmentFlex),
-        _TableColumnData(label: 'Vestiging', flex: _ticketBranchFlex),
         _TableColumnData(label: 'Datum vaststelling', flex: _ticketDateFlex),
         _TableColumnData(label: 'Redenen', flex: _ticketReasonsFlex),
         _TableColumnData(label: 'Omschrijving', flex: _ticketDescriptionFlex),
@@ -648,14 +713,6 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
             _TableCellData(
               flex: _ticketTypeFlex,
               child: _OvaTypeChip(label: _ticketTypeLabel(ticket)),
-            ),
-            _TableCellData(
-              flex: _ticketDepartmentFlex,
-              child: _CellText(_departmentLabel(ticket), emphasized: true),
-            ),
-            _TableCellData(
-              flex: _ticketBranchFlex,
-              child: _CellText(_branchLabel(ticket), emphasized: true),
             ),
             _TableCellData(
               flex: _ticketDateFlex,
@@ -839,39 +896,51 @@ class _TicketToolbar extends StatelessWidget {
   const _TicketToolbar({
     required this.searchController,
     required this.hasActiveFilters,
+    required this.activeFilterCount,
+    required this.filtersExpanded,
+    required this.onToggleFilters,
     required this.availableOvaTypes,
     required this.selectedOvaType,
-    required this.onToggleOvaType,
+    required this.onOvaTypeChanged,
     required this.availableDepartments,
     required this.selectedDepartmentId,
-    required this.onToggleDepartment,
+    required this.selectedDepartmentLabel,
+    required this.onDepartmentChanged,
     required this.availableBranches,
     required this.selectedBranchId,
-    required this.onToggleBranch,
+    required this.selectedBranchLabel,
+    required this.onBranchChanged,
+    required this.reasonOptions,
+    required this.selectedReason,
+    required this.onReasonChanged,
     required this.onClearFilters,
     required this.visibleCount,
   });
 
   final TextEditingController searchController;
   final bool hasActiveFilters;
+  final int activeFilterCount;
+  final bool filtersExpanded;
+  final VoidCallback onToggleFilters;
   final List<String> availableOvaTypes;
   final String? selectedOvaType;
-  final ValueChanged<String> onToggleOvaType;
+  final ValueChanged<String?> onOvaTypeChanged;
   final List<OvaTicketOption> availableDepartments;
   final int? selectedDepartmentId;
-  final ValueChanged<int> onToggleDepartment;
+  final String? selectedDepartmentLabel;
+  final ValueChanged<int?> onDepartmentChanged;
   final List<OvaTicketOption> availableBranches;
   final int? selectedBranchId;
-  final ValueChanged<int> onToggleBranch;
+  final String? selectedBranchLabel;
+  final ValueChanged<int?> onBranchChanged;
+  final List<String> reasonOptions;
+  final String? selectedReason;
+  final ValueChanged<String?> onReasonChanged;
   final VoidCallback onClearFilters;
   final int visibleCount;
 
   @override
   Widget build(BuildContext context) {
-    final showTypeFilters = availableOvaTypes.isNotEmpty;
-    final showDepartmentFilters = availableDepartments.isNotEmpty;
-    final showBranchFilters = availableBranches.isNotEmpty;
-
     final searchField = SizedBox(
       width: 320,
       child: TextField(
@@ -902,141 +971,368 @@ class _TicketToolbar extends StatelessWidget {
       ),
     );
 
-    final filterButton = Tooltip(
-      message: 'Wis filters',
-      child: InkWell(
-        onTap: hasActiveFilters ? onClearFilters : null,
-        borderRadius: BorderRadius.circular(12),
-        child: Ink(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: hasActiveFilters
-                ? const Color(0xFFF4F4F0)
-                : const Color(0xFFF8F8F5),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: hasActiveFilters
-                  ? const Color(0xFFD9DDD1)
-                  : const Color(0xFFE8EBE1),
-            ),
-          ),
-          child: Icon(
-            Icons.filter_alt_off_rounded,
-            size: 20,
-            color: hasActiveFilters
-                ? const Color(0xFF2F382E)
-                : const Color(0xFFB5BBB0),
-          ),
+    final filterButton = OutlinedButton.icon(
+      onPressed: onToggleFilters,
+      icon: const Icon(Icons.filter_alt_rounded, size: 18),
+      label: Text(
+        activeFilterCount > 0 ? 'Filters $activeFilterCount' : 'Filters',
+      ),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: filtersExpanded || activeFilterCount > 0
+            ? const Color(0xFF4E721C)
+            : const Color(0xFF3F473B),
+        backgroundColor: filtersExpanded
+            ? const Color(0xFFEAF4D9)
+            : Colors.white,
+        side: BorderSide(
+          color: filtersExpanded || activeFilterCount > 0
+              ? const Color(0xFF98C74D)
+              : const Color(0xFFD9DDD1),
         ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
       ),
     );
 
     return LayoutBuilder(
       builder: (context, c) {
         final compact = c.maxWidth < 940;
-        final left = Column(
+        final counter = Text(
+          '$visibleCount ticket${visibleCount == 1 ? '' : 's'} zichtbaar',
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF7A8078),
+          ),
+        );
+        final actions = compact
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  searchField,
+                  const SizedBox(height: 10),
+                  Align(alignment: Alignment.centerLeft, child: filterButton),
+                ],
+              )
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  searchField,
+                  const SizedBox(width: 10),
+                  filterButton,
+                ],
+              );
+
+        return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '$visibleCount ticket${visibleCount == 1 ? '' : 's'} zichtbaar',
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF7A8078),
+            if (compact) ...[
+              counter,
+              const SizedBox(height: 12),
+              actions,
+            ] else
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(child: counter),
+                  actions,
+                ],
               ),
-            ),
-            if (showTypeFilters ||
-                showDepartmentFilters ||
-                showBranchFilters) ...[
+            if (activeFilterCount > 0) ...[
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  ...availableOvaTypes.map((type) {
-                    final sel = _norm(type) == _norm(selectedOvaType);
-                    return _buildFilterChip(
-                      label: type,
-                      selected: sel,
-                      onSelected: () => onToggleOvaType(type),
-                    );
-                  }),
-                  ...availableDepartments.map((department) {
-                    return _buildFilterChip(
-                      label: 'Afd. ${department.name}',
-                      selected: selectedDepartmentId == department.id,
-                      onSelected: () => onToggleDepartment(department.id),
-                    );
-                  }),
-                  ...availableBranches.map((branch) {
-                    return _buildFilterChip(
-                      label: 'Vest. ${branch.name}',
-                      selected: selectedBranchId == branch.id,
-                      onSelected: () => onToggleBranch(branch.id),
-                    );
-                  }),
+                  if (selectedOvaType != null &&
+                      selectedOvaType!.trim().isNotEmpty)
+                    _ActiveFilterChip(
+                      label: 'Type: $selectedOvaType',
+                      onRemove: () => onOvaTypeChanged(null),
+                    ),
+                  if (selectedBranchId != null && selectedBranchLabel != null)
+                    _ActiveFilterChip(
+                      label: 'Vestiging: $selectedBranchLabel',
+                      onRemove: () => onBranchChanged(null),
+                    ),
+                  if (selectedDepartmentId != null &&
+                      selectedDepartmentLabel != null)
+                    _ActiveFilterChip(
+                      label: 'Afdeling: $selectedDepartmentLabel',
+                      onRemove: () => onDepartmentChanged(null),
+                    ),
+                  if (selectedReason != null &&
+                      selectedReason!.trim().isNotEmpty)
+                    _ActiveFilterChip(
+                      label: 'Aanleiding: $selectedReason',
+                      onRemove: () => onReasonChanged(null),
+                    ),
+                  TextButton(
+                    onPressed: onClearFilters,
+                    child: const Text('Filters wissen'),
+                  ),
                 ],
               ),
             ],
-          ],
-        );
-
-        if (compact) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              left,
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  filterButton,
-                  const SizedBox(width: 10),
-                  Expanded(child: searchField),
-                ],
+            if (filtersExpanded) ...[
+              const SizedBox(height: 12),
+              _TicketFilterPanel(
+                availableOvaTypes: availableOvaTypes,
+                selectedOvaType: selectedOvaType,
+                onOvaTypeChanged: onOvaTypeChanged,
+                availableDepartments: availableDepartments,
+                selectedDepartmentId: selectedDepartmentId,
+                onDepartmentChanged: onDepartmentChanged,
+                availableBranches: availableBranches,
+                selectedBranchId: selectedBranchId,
+                onBranchChanged: onBranchChanged,
+                reasonOptions: reasonOptions,
+                selectedReason: selectedReason,
+                onReasonChanged: onReasonChanged,
+                hasActiveFilters: hasActiveFilters,
+                onClearFilters: onClearFilters,
               ),
             ],
-          );
-        }
-
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(child: left),
-            const SizedBox(width: 16),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [filterButton, const SizedBox(width: 10), searchField],
-            ),
           ],
         );
       },
     );
   }
+}
 
-  String _norm(String? v) => v?.trim().toLowerCase() ?? '';
+class _TicketFilterPanel extends StatelessWidget {
+  const _TicketFilterPanel({
+    required this.availableOvaTypes,
+    required this.selectedOvaType,
+    required this.onOvaTypeChanged,
+    required this.availableDepartments,
+    required this.selectedDepartmentId,
+    required this.onDepartmentChanged,
+    required this.availableBranches,
+    required this.selectedBranchId,
+    required this.onBranchChanged,
+    required this.reasonOptions,
+    required this.selectedReason,
+    required this.onReasonChanged,
+    required this.hasActiveFilters,
+    required this.onClearFilters,
+  });
 
-  Widget _buildFilterChip({
-    required String label,
-    required bool selected,
-    required VoidCallback onSelected,
-  }) {
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => onSelected(),
-      selectedColor: const Color(0xFFEAF4D9),
-      labelStyle: TextStyle(
-        color: selected ? const Color(0xFF6B8F2A) : const Color(0xFF4D5548),
-        fontWeight: FontWeight.w600,
+  final List<String> availableOvaTypes;
+  final String? selectedOvaType;
+  final ValueChanged<String?> onOvaTypeChanged;
+  final List<OvaTicketOption> availableDepartments;
+  final int? selectedDepartmentId;
+  final ValueChanged<int?> onDepartmentChanged;
+  final List<OvaTicketOption> availableBranches;
+  final int? selectedBranchId;
+  final ValueChanged<int?> onBranchChanged;
+  final List<String> reasonOptions;
+  final String? selectedReason;
+  final ValueChanged<String?> onReasonChanged;
+  final bool hasActiveFilters;
+  final VoidCallback onClearFilters;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFBFCF8),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E6DD)),
       ),
-      side: BorderSide(
-        color: selected ? const Color(0xFF98C74D) : const Color(0xFFD9DDD1),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final fieldWidth = constraints.maxWidth < 760
+              ? constraints.maxWidth
+              : (constraints.maxWidth - 36) / 4;
+          return Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            crossAxisAlignment: WrapCrossAlignment.end,
+            children: [
+              _FilterSelectField<String>(
+                width: fieldWidth,
+                label: 'OVA-type',
+                value: selectedOvaType,
+                allLabel: 'Alle types',
+                options: availableOvaTypes
+                    .map((type) => _FilterOption(value: type, label: type))
+                    .toList(),
+                onChanged: onOvaTypeChanged,
+              ),
+              _FilterSelectField<int>(
+                width: fieldWidth,
+                label: 'Vestiging',
+                value: selectedBranchId,
+                allLabel: 'Alle vestigingen',
+                options: availableBranches
+                    .map(
+                      (branch) =>
+                          _FilterOption(value: branch.id, label: branch.name),
+                    )
+                    .toList(),
+                onChanged: onBranchChanged,
+              ),
+              _FilterSelectField<int>(
+                width: fieldWidth,
+                label: 'Afdeling',
+                value: selectedDepartmentId,
+                allLabel: 'Alle afdelingen',
+                options: availableDepartments
+                    .map(
+                      (department) => _FilterOption(
+                        value: department.id,
+                        label: department.name,
+                      ),
+                    )
+                    .toList(),
+                onChanged: onDepartmentChanged,
+              ),
+              _FilterSelectField<String>(
+                width: fieldWidth,
+                label: 'Aanleiding',
+                value: selectedReason,
+                allLabel: 'Alle aanleidingen',
+                options: reasonOptions
+                    .map(
+                      (reason) => _FilterOption(value: reason, label: reason),
+                    )
+                    .toList(),
+                onChanged: onReasonChanged,
+              ),
+              if (hasActiveFilters)
+                TextButton(
+                  onPressed: onClearFilters,
+                  child: const Text('Filters wissen'),
+                ),
+            ],
+          );
+        },
       ),
-      backgroundColor: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
     );
   }
+}
+
+class _ActiveFilterChip extends StatelessWidget {
+  const _ActiveFilterChip({required this.label, required this.onRemove});
+
+  final String label;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 32,
+      padding: const EdgeInsets.only(left: 10, right: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEAF4D9),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFCFE5A8)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF4E721C),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(width: 4),
+          InkWell(
+            onTap: onRemove,
+            borderRadius: BorderRadius.circular(999),
+            child: const Padding(
+              padding: EdgeInsets.all(4),
+              child: Icon(
+                Icons.close_rounded,
+                size: 14,
+                color: Color(0xFF4E721C),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilterSelectField<T extends Object> extends StatelessWidget {
+  const _FilterSelectField({
+    required this.width,
+    required this.label,
+    required this.value,
+    required this.allLabel,
+    required this.options,
+    required this.onChanged,
+  });
+
+  final double width;
+  final String label;
+  final T? value;
+  final String allLabel;
+  final List<_FilterOption<T>> options;
+  final ValueChanged<T?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width,
+      child: DropdownButtonFormField<T?>(
+        initialValue: value,
+        isExpanded: true,
+        hint: Text(allLabel),
+        decoration: InputDecoration(
+          labelText: label,
+          filled: true,
+          fillColor: Colors.white,
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 12,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Color(0xFFD9DDD1)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Color(0xFFD9DDD1)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Color(0xFF8CC63F)),
+          ),
+        ),
+        items: [
+          DropdownMenuItem<T?>(value: null, child: Text(allLabel)),
+          ...options.map(
+            (option) => DropdownMenuItem<T?>(
+              value: option.value,
+              child: Text(
+                option.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+        ],
+        onChanged: onChanged,
+      ),
+    );
+  }
+}
+
+class _FilterOption<T extends Object> {
+  const _FilterOption({required this.value, required this.label});
+
+  final T value;
+  final String label;
 }
 
 // ---------------------------------------------------------------------------
@@ -1351,14 +1647,14 @@ class _SectionEmptyState extends StatelessWidget {
           const Icon(Icons.inbox_outlined, size: 42, color: Color(0xFF6B8F2A)),
           const SizedBox(height: 14),
           Text(
-            filtered ? 'Geen resultaten voor deze filters' : title,
+            filtered ? 'Geen tickets voor deze filters' : title,
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
           Text(
             filtered
-                ? 'Pas je zoekterm of typefilter aan om opnieuw tickets te tonen.'
+                ? 'Pas je zoekterm of filters aan om opnieuw tickets te tonen.'
                 : message,
             textAlign: TextAlign.center,
           ),

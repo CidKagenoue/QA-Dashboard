@@ -371,35 +371,53 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
 
   Widget _buildSummaryStrip(OvaTicket ticket) {
     final metrics = [
-      _buildSummaryMetric(
-        icon: Icons.category_outlined,
-        label: 'Type',
-        value: _display(ticket.ovaType),
+      (
+        flex: 4,
+        widget: _buildSummaryMetric(
+          icon: Icons.category_outlined,
+          label: 'Type',
+          value: _display(ticket.ovaType),
+        ),
       ),
-      _buildSummaryMetric(
-        icon: Icons.event_note_outlined,
-        label: 'Vaststelling',
-        value: _findingDateLabel(ticket),
+      (
+        flex: 6,
+        widget: _buildSummaryMetric(
+          icon: Icons.event_note_outlined,
+          label: 'Datum vaststelling',
+          value: _findingDateLabel(ticket),
+        ),
       ),
-      _buildSummaryMetric(
-        icon: Icons.account_tree_outlined,
-        label: 'Afdeling',
-        value: _display(ticket.department?.name),
+      (
+        flex: 5,
+        widget: _buildSummaryMetric(
+          icon: Icons.business_outlined,
+          label: 'Vestiging',
+          value: _display(ticket.branch?.name),
+        ),
       ),
-      _buildSummaryMetric(
-        icon: Icons.business_outlined,
-        label: 'Vestiging',
-        value: _display(ticket.branch?.name),
+      (
+        flex: 5,
+        widget: _buildSummaryMetric(
+          icon: Icons.account_tree_outlined,
+          label: 'Afdeling',
+          value: _display(ticket.department?.name),
+        ),
       ),
-      _buildSummaryMetric(
-        icon: Icons.checklist_rtl_outlined,
-        label: 'Opvolging',
-        value: _actionProgressLabel(ticket),
+      (
+        flex: 5,
+        widget: _buildSummaryMetric(
+          icon: Icons.checklist_rtl_outlined,
+          label: 'Opvolging',
+          value: _actionProgressLabel(ticket),
+        ),
       ),
-      _buildSummaryMetric(
-        icon: Icons.person_outline,
-        label: 'Aangemaakt door',
-        value: ticket.createdBy.displayName,
+      (
+        flex: 6,
+        widget: _buildSummaryMetric(
+          icon: Icons.person_outline,
+          label: 'Aangemaakt door',
+          value: ticket.createdBy.displayName,
+        ),
       ),
     ];
 
@@ -418,21 +436,22 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 SizedBox(
-                  width: 72,
+                  width: 66,
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: _buildStatusBadge(ticket),
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 ...List.generate(metrics.length, (index) {
                   return Expanded(
+                    flex: metrics[index].flex,
                     child: Padding(
                       padding: EdgeInsets.only(
-                        left: index == 0 ? 0 : 12,
-                        right: index == metrics.length - 1 ? 0 : 12,
+                        left: index == 0 ? 0 : 8,
+                        right: index == metrics.length - 1 ? 0 : 8,
                       ),
-                      child: metrics[index],
+                      child: metrics[index].widget,
                     ),
                   );
                 }),
@@ -457,7 +476,7 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
                 ),
               ),
               ...metrics.map(
-                (metric) => SizedBox(width: itemWidth, child: metric),
+                (metric) => SizedBox(width: itemWidth, child: metric.widget),
               ),
             ],
           );
@@ -501,22 +520,6 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
           title: 'Incident',
           icon: Icons.report_problem_outlined,
           child: _buildInfoGrid([
-            (label: 'Type OVA', value: _display(ticket.ovaType), wide: false),
-            (
-              label: 'Datum vaststelling',
-              value: _findingDateLabel(ticket),
-              wide: false,
-            ),
-            (
-              label: 'Afdeling',
-              value: _display(ticket.department?.name),
-              wide: false,
-            ),
-            (
-              label: 'Vestiging',
-              value: _display(ticket.branch?.name),
-              wide: false,
-            ),
             (label: 'Redenen', value: _reasonsLabel(ticket), wide: true),
             (
               label: 'Omschrijving incident',

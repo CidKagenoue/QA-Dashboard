@@ -10,6 +10,7 @@ class ApiService {
     'API_BASE_URL',
     defaultValue: '',
   );
+  static const String _productionApiBaseUrl = 'https://tst.vlotterqa.tech';
 
   static Future<void> changePassword({
     required String token,
@@ -39,18 +40,23 @@ class ApiService {
   }
 
   static String get baseUrl {
+    if (_configuredWebApiBaseUrl.isNotEmpty) {
+      return _configuredWebApiBaseUrl;
+    }
+
+    if (kReleaseMode) {
+      return _productionApiBaseUrl;
+    }
+
     if (kIsWeb) {
-      if (_configuredWebApiBaseUrl.isNotEmpty) {
-        return _configuredWebApiBaseUrl;
-      }
-      return Uri.base.origin;
+      return 'http://localhost:3001';
     }
 
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
-        return 'https://tst.vlotterqa.tech';
+        return 'http://10.0.2.2:3001';
       default:
-        return 'https://tst.vlotterqa.tech';
+        return 'http://localhost:3001';
     }
   }
 

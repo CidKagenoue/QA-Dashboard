@@ -25,6 +25,18 @@ async function bootstrap() {
       .filter((origin): origin is string => Boolean(origin)),
   );
 
+  const isLocalDevOrigin = (origin: string): boolean => {
+    try {
+      const parsedOrigin = new URL(origin);
+      return (
+        (parsedOrigin.protocol === 'http:' || parsedOrigin.protocol === 'https:') &&
+        (parsedOrigin.hostname === 'localhost' || parsedOrigin.hostname === '127.0.0.1')
+      );
+    } catch {
+      return false;
+    }
+  };
+
   app.enableCors({
     origin: (origin, callback) => {
       if (!origin) {
@@ -33,7 +45,7 @@ async function bootstrap() {
       }
 
       const normalizedOrigin = origin.trim().replace(/\/+$/, '');
-      callback(null, allowedOrigins.has(normalizedOrigin));
+      callback(null, allowedOrigins.has(normalizedOrigin) || isLocalDevOrigin(normalizedOrigin));
     },
     credentials: true,
   });

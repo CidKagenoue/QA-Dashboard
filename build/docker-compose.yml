@@ -1,7 +1,6 @@
 services:
   traefik:
     image: traefik:v2.10
-    container_name: qa-traefik
     command:
       - --configfile=/etc/traefik/traefik.yml
     ports:
@@ -18,7 +17,6 @@ services:
 
   db:
     image: postgres:16-alpine
-    container_name: qa-db
     env_file:
       - ../backend/.env
     environment:
@@ -39,7 +37,6 @@ services:
     build:
       context: ../backend
       dockerfile: Dockerfile
-    container_name: qa-login-backend
     depends_on:
       db:
         condition: service_healthy
@@ -55,7 +52,6 @@ services:
     build:
       context: ../frontend
       dockerfile: Dockerfile.frontend
-    container_name: qa-frontend
     depends_on:
       - backend
     restart: unless-stopped

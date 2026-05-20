@@ -43,6 +43,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   late _HomeSection _selected;
   int? _initialOvaTicketId;
+  OvaDashboardInitialPage _initialOvaPage = OvaDashboardInitialPage.overview;
   bool _initialOvaTicketConsumed = false;
   String? _initialJapGppModule;
   int? _initialJapGppEntryId;
@@ -117,7 +118,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: Icons.info_outline_rounded,
                   label: 'OVA',
                   selected: _selected == _HomeSection.ova,
-                  onTap: () => setState(() => _selected = _HomeSection.ova),
+                  onTap: () => setState(() {
+                    _initialOvaPage = OvaDashboardInitialPage.overview;
+                    _selected = _HomeSection.ova;
+                  }),
                 ),
                 const SizedBox(height: 12),
                 _SidebarItem(
@@ -157,6 +161,12 @@ class _HomeScreenState extends State<HomeScreen> {
               _selected = section;
             });
           },
+          onNavigateToOva: (page) {
+            setState(() {
+              _initialOvaPage = page;
+              _selected = _HomeSection.ova;
+            });
+          },
         );
       case _HomeSection.whsTours:
         return WhsToursScreen(token: token ?? '');
@@ -165,6 +175,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ? null
             : _initialOvaTicketId;
         return OvaDashboardScreen(
+          key: ValueKey<String>(
+            'ova-${_initialOvaPage.name}-${ovaTicketId ?? 'none'}',
+          ),
+          initialPage: _initialOvaPage,
           initialTicketId: ovaTicketId,
           onCloseInitialTicket: () {
             if (!mounted) {
@@ -251,10 +265,15 @@ class _SidebarItem extends StatelessWidget {
 }
 
 class _DashboardBody extends StatefulWidget {
-  const _DashboardBody({required this.authService, required this.onNavigate});
+  const _DashboardBody({
+    required this.authService,
+    required this.onNavigate,
+    required this.onNavigateToOva,
+  });
 
   final AuthService authService;
   final ValueChanged<_HomeSection> onNavigate;
+  final ValueChanged<OvaDashboardInitialPage> onNavigateToOva;
 
   @override
   State<_DashboardBody> createState() => _DashboardBodyState();
@@ -465,7 +484,9 @@ class _DashboardBodyState extends State<_DashboardBody> {
                     _OvaTicketsCard(
                       openTickets: _openTickets,
                       ticketsByType: _ticketsByType,
-                      onTap: () => widget.onNavigate(_HomeSection.ova),
+                      onTap: () => widget.onNavigateToOva(
+                        OvaDashboardInitialPage.tickets,
+                      ),
                     ),
                     _StatCard(
                       title: 'Mijn OVA Acties',
@@ -473,7 +494,9 @@ class _DashboardBodyState extends State<_DashboardBody> {
                       subtitle: 'NOK',
                       accentColor: const Color(0xFF8CC63F),
                       icon: Icons.format_list_bulleted_rounded,
-                      onTap: () => widget.onNavigate(_HomeSection.ova),
+                      onTap: () => widget.onNavigateToOva(
+                        OvaDashboardInitialPage.actions,
+                      ),
                     ),
                     _StatCard(
                       title: 'OVA Incidenten',
@@ -481,7 +504,9 @@ class _DashboardBodyState extends State<_DashboardBody> {
                       subtitle: 'open deze maand',
                       accentColor: const Color(0xFFF5A623),
                       icon: Icons.warning_amber_rounded,
-                      onTap: () => widget.onNavigate(_HomeSection.ova),
+                      onTap: () => widget.onNavigateToOva(
+                        OvaDashboardInitialPage.tickets,
+                      ),
                     ),
                   ],
                 ),

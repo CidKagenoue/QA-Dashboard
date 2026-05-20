@@ -48,8 +48,15 @@ jobs:
             cd ~/QA-Dashboard
             git fetch origin ${{ github.ref_name }}
             git reset --hard origin/${{ github.ref_name }}
-            git clean -fdx
             docker compose -f build/docker-compose.yml down --remove-orphans || true
+
+            # Certbot/ACME artifacts can be root-owned from prior runs; exclude them
+            # from git clean so deploys do not fail on harmless permission warnings.
+            git clean -fdx \
+              -e build/traefik/acme \
+              -e certbot \
+              || true
+
             docker compose -f build/docker-compose.yml up -d --build --remove-orphans
 
             wait_for_service() {

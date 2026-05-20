@@ -15,9 +15,11 @@ const double _ticketTableColumnGap = 10;
 const int _ticketIdFlex = 6;
 const int _ticketStatusFlex = 9;
 const int _ticketTypeFlex = 10;
+const int _ticketDepartmentFlex = 13;
+const int _ticketBranchFlex = 13;
 const int _ticketDateFlex = 13;
 const int _ticketReasonsFlex = 24;
-const int _ticketDescriptionFlex = 38;
+const int _ticketDescriptionFlex = 32;
 
 class OvaTicketListScreen extends StatefulWidget {
   const OvaTicketListScreen({
@@ -41,6 +43,8 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
   List<OvaTicket> _tickets = const [];
   _TicketSection _selectedSection = _TicketSection.open;
   String? _selectedOvaType;
+  int? _selectedDepartmentId;
+  int? _selectedBranchId;
 
   @override
   void initState() {
@@ -104,9 +108,6 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
 
     setState(() {
       _selectedSection = targetSection;
-      if (targetSection != _TicketSection.open) {
-        _selectedOvaType = null;
-      }
     });
   }
 
@@ -130,9 +131,6 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
     if (_selectedSection == section) return;
     setState(() {
       _selectedSection = section;
-      if (section != _TicketSection.open) {
-        _selectedOvaType = null;
-      }
     });
   }
 
@@ -146,10 +144,26 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
     });
   }
 
+  void _toggleDepartment(int id) {
+    setState(() {
+      _selectedDepartmentId = _selectedDepartmentId == id ? null : id;
+    });
+  }
+
+  void _toggleBranch(int id) {
+    setState(() {
+      _selectedBranchId = _selectedBranchId == id ? null : id;
+    });
+  }
+
   void _clearFilters() {
     if (!_hasActiveFilters) return;
     _searchController.clear();
-    setState(() => _selectedOvaType = null);
+    setState(() {
+      _selectedOvaType = null;
+      _selectedDepartmentId = null;
+      _selectedBranchId = null;
+    });
   }
 
   _TicketSection _sectionForResult(String value) {
@@ -181,8 +195,11 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
       _sortTickets(_tickets.where(_isOpenTicket));
   List<OvaTicket> get _closedTickets =>
       _sortTickets(_tickets.where((t) => t.isClosed));
-  List<String> get _availableOvaTypes =>
-      _resolveAvailableOvaTypes(_openTickets);
+  List<String> get _availableOvaTypes => _resolveAvailableOvaTypes(_tickets);
+  List<OvaTicketOption> get _availableDepartments =>
+      _resolveAvailableOptions(_tickets.map((ticket) => ticket.department));
+  List<OvaTicketOption> get _availableBranches =>
+      _resolveAvailableOptions(_tickets.map((ticket) => ticket.branch));
 
   List<OvaTicket> get _filteredTickets {
     final query = _normalizeValue(_searchController.text);
@@ -196,19 +213,27 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
     if (query.isNotEmpty) {
       tickets = tickets.where((t) => _matchesSearch(t, query));
     }
-    if (_selectedSection == _TicketSection.open &&
-        _selectedOvaType != null &&
-        _selectedOvaType!.trim().isNotEmpty) {
+    if (_selectedOvaType != null && _selectedOvaType!.trim().isNotEmpty) {
       tickets = tickets.where((t) => _sameOvaType(t.ovaType, _selectedOvaType));
+    }
+    if (_selectedDepartmentId != null) {
+      tickets = tickets.where(
+        (ticket) => ticket.department?.id == _selectedDepartmentId,
+      );
+    }
+    if (_selectedBranchId != null) {
+      tickets = tickets.where(
+        (ticket) => ticket.branch?.id == _selectedBranchId,
+      );
     }
     return tickets.toList();
   }
 
   bool get _hasActiveFilters =>
       _searchController.text.trim().isNotEmpty ||
-      (_selectedSection == _TicketSection.open &&
-          _selectedOvaType != null &&
-          _selectedOvaType!.trim().isNotEmpty);
+      (_selectedOvaType != null && _selectedOvaType!.trim().isNotEmpty) ||
+      _selectedDepartmentId != null ||
+      _selectedBranchId != null;
 
   bool _matchesSearch(OvaTicket ticket, String query) {
     return <String>[
@@ -216,11 +241,17 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
       _ticketDescription(ticket),
       _reasonsLabel(ticket),
       ticket.ovaType ?? '',
+      ticket.department?.name ?? '',
+      ticket.branch?.name ?? '',
       ticket.statusLabel,
       ticket.createdBy.displayName,
       ticket.lastEditedBy.displayName,
     ].any((v) => _normalizeValue(v).contains(query));
   }
+
+  String _departmentLabel(OvaTicket ticket) => ticket.department?.name ?? '-';
+
+  String _branchLabel(OvaTicket ticket) => ticket.branch?.name ?? '-';
 
   String _ticketDescription(OvaTicket ticket) {
     for (final c in [ticket.incidentDescription, ticket.followUpActions]) {
@@ -335,6 +366,25 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
     for (final t in types) {
       if (!ordered.any((e) => _sameOvaType(e, t))) ordered.add(t);
     }
+    return ordered;
+  }
+
+  List<OvaTicketOption> _resolveAvailableOptions(
+    Iterable<OvaTicketOption?> options,
+  ) {
+    final byId = <int, OvaTicketOption>{};
+    for (final option in options) {
+      if (option == null || option.name.trim().isEmpty) {
+        continue;
+      }
+      byId.putIfAbsent(option.id, () => option);
+    }
+
+    final ordered = byId.values.toList();
+    ordered.sort(
+      (left, right) =>
+          left.name.toLowerCase().compareTo(right.name.toLowerCase()),
+    );
     return ordered;
   }
 
@@ -520,12 +570,17 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
                       )
                     else ...[
                       _TicketToolbar(
-                        section: _selectedSection,
                         searchController: _searchController,
                         hasActiveFilters: _hasActiveFilters,
                         availableOvaTypes: _availableOvaTypes,
                         selectedOvaType: _selectedOvaType,
                         onToggleOvaType: _toggleOvaType,
+                        availableDepartments: _availableDepartments,
+                        selectedDepartmentId: _selectedDepartmentId,
+                        onToggleDepartment: _toggleDepartment,
+                        availableBranches: _availableBranches,
+                        selectedBranchId: _selectedBranchId,
+                        onToggleBranch: _toggleBranch,
                         onClearFilters: _clearFilters,
                         visibleCount: _filteredTickets.length,
                       ),
@@ -562,11 +617,13 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
 
   Widget _buildSelectedTable() {
     return _TicketTable(
-      minWidth: 1120,
+      minWidth: 1320,
       columns: const [
         _TableColumnData(label: 'ID', flex: _ticketIdFlex),
         _TableColumnData(label: 'Status', flex: _ticketStatusFlex),
         _TableColumnData(label: 'Type OVA', flex: _ticketTypeFlex),
+        _TableColumnData(label: 'Afdeling', flex: _ticketDepartmentFlex),
+        _TableColumnData(label: 'Vestiging', flex: _ticketBranchFlex),
         _TableColumnData(label: 'Datum vaststelling', flex: _ticketDateFlex),
         _TableColumnData(label: 'Redenen', flex: _ticketReasonsFlex),
         _TableColumnData(label: 'Omschrijving', flex: _ticketDescriptionFlex),
@@ -591,6 +648,14 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
             _TableCellData(
               flex: _ticketTypeFlex,
               child: _OvaTypeChip(label: _ticketTypeLabel(ticket)),
+            ),
+            _TableCellData(
+              flex: _ticketDepartmentFlex,
+              child: _CellText(_departmentLabel(ticket), emphasized: true),
+            ),
+            _TableCellData(
+              flex: _ticketBranchFlex,
+              child: _CellText(_branchLabel(ticket), emphasized: true),
             ),
             _TableCellData(
               flex: _ticketDateFlex,
@@ -772,29 +837,40 @@ class _StatusGuideCard extends StatelessWidget {
 
 class _TicketToolbar extends StatelessWidget {
   const _TicketToolbar({
-    required this.section,
     required this.searchController,
     required this.hasActiveFilters,
     required this.availableOvaTypes,
     required this.selectedOvaType,
     required this.onToggleOvaType,
+    required this.availableDepartments,
+    required this.selectedDepartmentId,
+    required this.onToggleDepartment,
+    required this.availableBranches,
+    required this.selectedBranchId,
+    required this.onToggleBranch,
     required this.onClearFilters,
     required this.visibleCount,
   });
 
-  final _TicketSection section;
   final TextEditingController searchController;
   final bool hasActiveFilters;
   final List<String> availableOvaTypes;
   final String? selectedOvaType;
   final ValueChanged<String> onToggleOvaType;
+  final List<OvaTicketOption> availableDepartments;
+  final int? selectedDepartmentId;
+  final ValueChanged<int> onToggleDepartment;
+  final List<OvaTicketOption> availableBranches;
+  final int? selectedBranchId;
+  final ValueChanged<int> onToggleBranch;
   final VoidCallback onClearFilters;
   final int visibleCount;
 
   @override
   Widget build(BuildContext context) {
-    final showTypeFilters =
-        section == _TicketSection.open && availableOvaTypes.isNotEmpty;
+    final showTypeFilters = availableOvaTypes.isNotEmpty;
+    final showDepartmentFilters = availableDepartments.isNotEmpty;
+    final showBranchFilters = availableBranches.isNotEmpty;
 
     final searchField = SizedBox(
       width: 320,
@@ -870,36 +946,37 @@ class _TicketToolbar extends StatelessWidget {
                 color: Color(0xFF7A8078),
               ),
             ),
-            if (showTypeFilters) ...[
+            if (showTypeFilters ||
+                showDepartmentFilters ||
+                showBranchFilters) ...[
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: availableOvaTypes.map((type) {
-                  final sel = _norm(type) == _norm(selectedOvaType);
-                  return ChoiceChip(
-                    label: Text(type),
-                    selected: sel,
-                    onSelected: (_) => onToggleOvaType(type),
-                    selectedColor: const Color(0xFFEAF4D9),
-                    labelStyle: TextStyle(
-                      color: sel
-                          ? const Color(0xFF6B8F2A)
-                          : const Color(0xFF4D5548),
-                      fontWeight: FontWeight.w600,
-                    ),
-                    side: BorderSide(
-                      color: sel
-                          ? const Color(0xFF98C74D)
-                          : const Color(0xFFD9DDD1),
-                    ),
-                    backgroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                  );
-                }).toList(),
+                children: [
+                  ...availableOvaTypes.map((type) {
+                    final sel = _norm(type) == _norm(selectedOvaType);
+                    return _buildFilterChip(
+                      label: type,
+                      selected: sel,
+                      onSelected: () => onToggleOvaType(type),
+                    );
+                  }),
+                  ...availableDepartments.map((department) {
+                    return _buildFilterChip(
+                      label: 'Afd. ${department.name}',
+                      selected: selectedDepartmentId == department.id,
+                      onSelected: () => onToggleDepartment(department.id),
+                    );
+                  }),
+                  ...availableBranches.map((branch) {
+                    return _buildFilterChip(
+                      label: 'Vest. ${branch.name}',
+                      selected: selectedBranchId == branch.id,
+                      onSelected: () => onToggleBranch(branch.id),
+                    );
+                  }),
+                ],
               ),
             ],
           ],
@@ -938,6 +1015,28 @@ class _TicketToolbar extends StatelessWidget {
   }
 
   String _norm(String? v) => v?.trim().toLowerCase() ?? '';
+
+  Widget _buildFilterChip({
+    required String label,
+    required bool selected,
+    required VoidCallback onSelected,
+  }) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onSelected(),
+      selectedColor: const Color(0xFFEAF4D9),
+      labelStyle: TextStyle(
+        color: selected ? const Color(0xFF6B8F2A) : const Color(0xFF4D5548),
+        fontWeight: FontWeight.w600,
+      ),
+      side: BorderSide(
+        color: selected ? const Color(0xFF98C74D) : const Color(0xFFD9DDD1),
+      ),
+      backgroundColor: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

@@ -52,6 +52,11 @@ export class OvaController {
     return this.ovaService.listExternalContacts(this.readActorId(req), query);
   }
 
+  @Get('form-data')
+  async getFormData(@Req() req: AuthenticatedRequest) {
+    return this.ovaService.getFormData(this.readActorId(req));
+  }
+
   @Get('tickets/:id')
   async getTicket(
     @Param('id', ParseIntPipe) ticketId: number,

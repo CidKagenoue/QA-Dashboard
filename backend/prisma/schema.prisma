@@ -1,7 +1,6 @@
-
 generator client {
   provider = "prisma-client-js"
-  version = "6"
+  version  = "6"
 }
 
 datasource db {
@@ -10,36 +9,36 @@ datasource db {
 }
 
 model User {
-  id                   Int                   @id @default(autoincrement())
-  email                String                @unique
-  password             String
-  name                 String?
-  isAdmin              Boolean               @default(false) @map("is_admin")
-  basisAccess          Boolean               @default(false) @map("basis_access")
-  whsToursAccess       Boolean               @default(false) @map("whs_tours_access")
-  ovaAccess            Boolean               @default(false) @map("ova_access")
-  japGppAccess         Boolean               @default(false) @map("jap_gpp_access")
-  maintenanceInspectionsAccess Boolean       @default(false) @map("maintenance_inspections_access")
+  id                           Int                   @id @default(autoincrement())
+  email                        String                @unique
+  password                     String
+  name                         String?
+  isAdmin                      Boolean               @default(false) @map("is_admin")
+  basisAccess                  Boolean               @default(false) @map("basis_access")
+  whsToursAccess               Boolean               @default(false) @map("whs_tours_access")
+  ovaAccess                    Boolean               @default(false) @map("ova_access")
+  japGppAccess                 Boolean               @default(false) @map("jap_gpp_access")
+  maintenanceInspectionsAccess Boolean               @default(false) @map("maintenance_inspections_access")
   // Notification preferences for modules
-  notifyWhsTours       Boolean               @default(true)
-  notifyOva            Boolean               @default(true)
-  notifyJapGpp         Boolean               @default(true)
-  notifyMaintenance    Boolean               @default(true)
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
-  refreshTokenSessions RefreshTokenSession[]
-  passwordResetTokens  PasswordResetToken[]
-  createdOvaTickets    OvaTicket[]           @relation("OvaTicketCreatedBy")
-  editedOvaTickets     OvaTicket[]           @relation("OvaTicketLastEditedBy")
-  closedOvaTickets     OvaTicket[]           @relation("OvaTicketClosedBy")
-  assignedOvaActions   OvaFollowUpAction[]   @relation("OvaFollowUpActionInternalAssignee")
+  notifyWhsTours               Boolean               @default(true)
+  notifyOva                    Boolean               @default(true)
+  notifyJapGpp                 Boolean               @default(true)
+  notifyMaintenance            Boolean               @default(true)
+  createdAt                    DateTime              @default(now())
+  updatedAt                    DateTime              @updatedAt
+  refreshTokenSessions         RefreshTokenSession[]
+  passwordResetTokens          PasswordResetToken[]
+  createdOvaTickets            OvaTicket[]           @relation("OvaTicketCreatedBy")
+  editedOvaTickets             OvaTicket[]           @relation("OvaTicketLastEditedBy")
+  closedOvaTickets             OvaTicket[]           @relation("OvaTicketClosedBy")
+  assignedOvaActions           OvaFollowUpAction[]   @relation("OvaFollowUpActionInternalAssignee")
 
   departmentLeaders DepartmentLeader[]
   departments       UserDepartment[]
   profileImage      String? // base64 string van profielfoto
 
   notificationSettings NotificationSetting[]
-  notifications Notification[]
+  notifications        Notification[]
 
   @@map("users")
 }
@@ -58,13 +57,14 @@ model RefreshTokenSession {
 }
 
 model Department {
-  id Int @id @default(autoincrement())
-  name String
+  id        Int      @id @default(autoincrement())
+  name      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  leaders   DepartmentLeader[]
-  members   UserDepartment[]
+  leaders    DepartmentLeader[]
+  members    UserDepartment[]
+  ovaTickets OvaTicket[]
 }
 
 model DepartmentLeader {
@@ -98,34 +98,40 @@ model PasswordResetToken {
 }
 
 model OvaTicket {
-  id                  Int      @id @default(autoincrement())
-  status              String   @default("incomplete")
-  currentStep         Int      @default(1) @map("current_step")
-  findingDate         DateTime? @map("finding_date")
-  ovaType             String?  @map("ova_type")
-  reasons             String[] @default([])
-  otherReason         String?  @map("other_reason")
-  incidentDescription String?  @map("incident_description")
-  causeAnalysisMethod String?  @map("cause_analysis_method")
-  causeAnalysisNotes  String?  @map("cause_analysis_notes")
-  followUpActions     String?  @map("follow_up_actions")
-  effectivenessDate   DateTime? @map("effectiveness_date")
-  effectivenessNotes  String?  @map("effectiveness_notes")
-  closureNotes        String?  @map("closure_notes")
-  closedAt            DateTime? @map("closed_at")
-  closedById          Int?      @map("closed_by_id")
-  createdById         Int      @map("created_by_id")
-  lastEditedById      Int      @map("last_edited_by_id")
-  createdAt           DateTime @default(now()) @map("created_at")
-  updatedAt           DateTime @updatedAt @map("updated_at")
-  createdBy           User     @relation("OvaTicketCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
-  lastEditedBy        User     @relation("OvaTicketLastEditedBy", fields: [lastEditedById], references: [id], onDelete: Restrict)
-  closedBy            User?    @relation("OvaTicketClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
+  id                  Int                 @id @default(autoincrement())
+  status              String              @default("incomplete")
+  currentStep         Int                 @default(1) @map("current_step")
+  findingDate         DateTime?           @map("finding_date")
+  ovaType             String?             @map("ova_type")
+  departmentId        Int?                @map("department_id")
+  branchId            Int?                @map("branch_id")
+  reasons             String[]            @default([])
+  otherReason         String?             @map("other_reason")
+  incidentDescription String?             @map("incident_description")
+  causeAnalysisMethod String?             @map("cause_analysis_method")
+  causeAnalysisNotes  String?             @map("cause_analysis_notes")
+  followUpActions     String?             @map("follow_up_actions")
+  effectivenessDate   DateTime?           @map("effectiveness_date")
+  effectivenessNotes  String?             @map("effectiveness_notes")
+  closureNotes        String?             @map("closure_notes")
+  closedAt            DateTime?           @map("closed_at")
+  closedById          Int?                @map("closed_by_id")
+  createdById         Int                 @map("created_by_id")
+  lastEditedById      Int                 @map("last_edited_by_id")
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+  createdBy           User                @relation("OvaTicketCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  lastEditedBy        User                @relation("OvaTicketLastEditedBy", fields: [lastEditedById], references: [id], onDelete: Restrict)
+  closedBy            User?               @relation("OvaTicketClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
+  department          Department?         @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  branch              Branch?             @relation(fields: [branchId], references: [id], onDelete: SetNull)
   actions             OvaFollowUpAction[]
 
   @@index([createdById], map: "ova_tickets_created_by_id_idx")
   @@index([lastEditedById], map: "ova_tickets_last_edited_by_id_idx")
   @@index([closedById], map: "ova_tickets_closed_by_id_idx")
+  @@index([departmentId], map: "ova_tickets_department_id_idx")
+  @@index([branchId], map: "ova_tickets_branch_id_idx")
   @@map("ova_tickets")
 }
 
@@ -144,20 +150,20 @@ model OvaExternalContact {
 }
 
 model OvaFollowUpAction {
-  id                Int                 @id @default(autoincrement())
-  ticketId          Int                 @map("ticket_id")
-  type              String
-  description       String
-  dueDate           DateTime            @map("due_date")
-  status            String              @default("nok")
-  assigneeType      String              @map("assignee_type")
-  internalAssigneeId Int?               @map("internal_assignee_id")
-  externalContactId Int?                @map("external_contact_id")
-  createdAt         DateTime            @default(now()) @map("created_at")
-  updatedAt         DateTime            @updatedAt @map("updated_at")
-  ticket            OvaTicket           @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  internalAssignee  User?               @relation("OvaFollowUpActionInternalAssignee", fields: [internalAssigneeId], references: [id], onDelete: SetNull)
-  externalContact   OvaExternalContact? @relation(fields: [externalContactId], references: [id], onDelete: SetNull)
+  id                 Int                 @id @default(autoincrement())
+  ticketId           Int                 @map("ticket_id")
+  type               String
+  description        String
+  dueDate            DateTime            @map("due_date")
+  status             String              @default("nok")
+  assigneeType       String              @map("assignee_type")
+  internalAssigneeId Int?                @map("internal_assignee_id")
+  externalContactId  Int?                @map("external_contact_id")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+  ticket             OvaTicket           @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  internalAssignee   User?               @relation("OvaFollowUpActionInternalAssignee", fields: [internalAssigneeId], references: [id], onDelete: SetNull)
+  externalContact    OvaExternalContact? @relation(fields: [externalContactId], references: [id], onDelete: SetNull)
 
   @@index([ticketId], map: "ova_follow_up_actions_ticket_id_idx")
   @@index([internalAssigneeId], map: "ova_follow_up_actions_internal_assignee_id_idx")
@@ -165,12 +171,12 @@ model OvaFollowUpAction {
   @@map("ova_follow_up_actions")
 }
 
-
 model Branch {
-  id        Int        @id @default(autoincrement())
-  name      String
-  createdAt DateTime   @default(now())
-  locations Location[]
+  id         Int         @id @default(autoincrement())
+  name       String
+  createdAt  DateTime    @default(now())
+  locations  Location[]
+  ovaTickets OvaTicket[]
 }
 
 model Location {
@@ -178,24 +184,24 @@ model Location {
   name      String
   createdAt DateTime @default(now())
   branchId  Int?
-  branch    Branch? @relation(fields: [branchId], references: [id])
+  branch    Branch?  @relation(fields: [branchId], references: [id])
 }
 
 model MaintenanceInspection {
-  id                  Int      @id @default(autoincrement())
-  equipment           String
-  inspectionType      String
+  id                    Int       @id @default(autoincrement())
+  equipment             String
+  inspectionType        String
   inspectionInstitution String
-  contactInfo         String?
-  locationIds         Int[]    @default([])
-  frequency           String
-  selfContact         Boolean  @default(false)
-  lastInspectionDate  DateTime?
-  dueDate             DateTime
-  status              String?  @default("Open")
-  notes               String?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  contactInfo           String?
+  locationIds           Int[]     @default([])
+  frequency             String
+  selfContact           Boolean   @default(false)
+  lastInspectionDate    DateTime?
+  dueDate               DateTime
+  status                String?   @default("Open")
+  notes                 String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   @@map("maintenance_inspections")
 }
@@ -208,47 +214,47 @@ enum NotificationModule {
   OVA
   JAP
   MAINTENANCE
+}
 
-  }
-
-  enum NotificationType {
-    OVA_TICKET_CREATED
-    OVA_ACTION_ASSIGNED
-    OVA_ACTION_REASSIGNED
-    OVA_TICKET_STATUS_CHANGED
-    ACCOUNT_CREATED
-    ACCOUNT_ACCESS_CHANGED
-    ACCOUNT_DELETED
-    PASSWORD_CHANGED
-    WHS_NEW_TASK
-    WHS_COMMENT
-    WHS_NEW_REPORT
-    OVA_DEADLINE
-    OVA_NEW_ACTION
-    OVA_1
-    OVA_2
-    OVA_3
-    JAP_NEW
-    JAP_COMMENT
-    JAP_STATUS_CHANGE
-    MAINTENANCE_NEW
-    MAINTENANCE_DUE
-    MAINTENANCE_STATUS_CHANGE
-  }
+enum NotificationType {
+  OVA_TICKET_CREATED
+  OVA_ACTION_ASSIGNED
+  OVA_ACTION_REASSIGNED
+  OVA_TICKET_STATUS_CHANGED
+  ACCOUNT_CREATED
+  ACCOUNT_ACCESS_CHANGED
+  ACCOUNT_DELETED
+  PASSWORD_CHANGED
+  WHS_NEW_TASK
+  WHS_COMMENT
+  WHS_NEW_REPORT
+  OVA_DEADLINE
+  OVA_NEW_ACTION
+  OVA_1
+  OVA_2
+  OVA_3
+  JAP_NEW
+  JAP_COMMENT
+  JAP_STATUS_CHANGE
+  MAINTENANCE_NEW
+  MAINTENANCE_DUE
+  MAINTENANCE_STATUS_CHANGE
+}
 
 model NotificationSetting {
-  id               Int               @id @default(autoincrement())
-  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId           Int
-  module           NotificationModule
-  type             NotificationType
-  enabled          Boolean           @default(true)
-  email            Boolean           @default(false)
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  id        Int                @id @default(autoincrement())
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+  module    NotificationModule
+  type      NotificationType
+  enabled   Boolean            @default(true)
+  email     Boolean            @default(false)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
 
   @@unique([userId, type])
 }
+
 // Stores actual notifications for badge/count and notification list
 model Notification {
   id              Int              @id @default(autoincrement())
@@ -267,14 +273,15 @@ model Notification {
   @@index([createdAt], map: "notifications_created_at_idx")
   @@map("notifications")
 }
+
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 // Domains for JAP/GPP entries
 model Domain {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        Int           @id @default(autoincrement())
+  name      String        @unique
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
   entries   JapGppEntry[]
 
   @@map("domains")
@@ -291,26 +298,26 @@ model Executor {
 
 // JAP / GPP combined entries for seeding and reporting
 model JapGppEntry {
-  id                   Int      @id @default(autoincrement())
-  source               String   @default("JAP") // 'JAP' or 'GPP'
-  year                 Int?     // for JAP single-year entries
-  startYear            Int?     // for GPP ranges
-  endYear              Int?     // for GPP ranges
-  goalMeasure          String
-  domainId             Int?
-  domain               Domain?  @relation(fields: [domainId], references: [id], onDelete: SetNull)
-  riskField            String?
-  resourcesBudget      String?
-  priority             String?
-  realisation          String?
-  executor             String?
-  startDate            DateTime?
-  endDate              DateTime?
-  remark               String?
-  generatedFromGppId   Int?     @map("generated_from_gpp_id") // tracks auto-generated JAP entries from GPP
-  comments             JapComment[]
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  id                 Int          @id @default(autoincrement())
+  source             String       @default("JAP") // 'JAP' or 'GPP'
+  year               Int? // for JAP single-year entries
+  startYear          Int? // for GPP ranges
+  endYear            Int? // for GPP ranges
+  goalMeasure        String
+  domainId           Int?
+  domain             Domain?      @relation(fields: [domainId], references: [id], onDelete: SetNull)
+  riskField          String?
+  resourcesBudget    String?
+  priority           String?
+  realisation        String?
+  executor           String?
+  startDate          DateTime?
+  endDate            DateTime?
+  remark             String?
+  generatedFromGppId Int?         @map("generated_from_gpp_id") // tracks auto-generated JAP entries from GPP
+  comments           JapComment[]
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
 
   @@index([generatedFromGppId], map: "jap_gpp_entries_generated_from_gpp_id_idx")
   @@map("jap_gpp_entries")

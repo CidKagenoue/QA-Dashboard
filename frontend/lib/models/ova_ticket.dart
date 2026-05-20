@@ -23,6 +23,55 @@ class OvaTicketUser {
   }
 }
 
+class OvaTicketOption {
+  const OvaTicketOption({required this.id, required this.name});
+
+  final int id;
+  final String name;
+
+  factory OvaTicketOption.fromJson(Map<String, dynamic> json) {
+    return OvaTicketOption(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      name: json['name'] as String? ?? '',
+    );
+  }
+}
+
+class OvaTicketFormData {
+  const OvaTicketFormData({required this.departments, required this.branches});
+
+  final List<OvaTicketOption> departments;
+  final List<OvaTicketOption> branches;
+
+  factory OvaTicketFormData.fromJson(Map<String, dynamic> json) {
+    final departmentsJson = json['departments'];
+    final branchesJson = json['branches'];
+
+    return OvaTicketFormData(
+      departments: departmentsJson is List
+          ? departmentsJson
+                .whereType<Map>()
+                .map(
+                  (item) =>
+                      OvaTicketOption.fromJson(Map<String, dynamic>.from(item)),
+                )
+                .where((item) => item.id > 0 && item.name.trim().isNotEmpty)
+                .toList()
+          : const [],
+      branches: branchesJson is List
+          ? branchesJson
+                .whereType<Map>()
+                .map(
+                  (item) =>
+                      OvaTicketOption.fromJson(Map<String, dynamic>.from(item)),
+                )
+                .where((item) => item.id > 0 && item.name.trim().isNotEmpty)
+                .toList()
+          : const [],
+    );
+  }
+}
+
 class OvaExternalResponsible {
   const OvaExternalResponsible({
     required this.id,
@@ -147,6 +196,10 @@ class OvaTicket {
     required this.lastEditedBy,
     this.findingDate,
     this.ovaType,
+    this.departmentId,
+    this.branchId,
+    this.department,
+    this.branch,
     this.otherReason,
     this.incidentDescription,
     this.causeAnalysisMethod,
@@ -165,6 +218,10 @@ class OvaTicket {
   final int currentStep;
   final DateTime? findingDate;
   final String? ovaType;
+  final int? departmentId;
+  final int? branchId;
+  final OvaTicketOption? department;
+  final OvaTicketOption? branch;
   final List<String> reasons;
   final String? otherReason;
   final String? incidentDescription;
@@ -210,6 +267,8 @@ class OvaTicket {
     final lastEditedByJson = json['lastEditedBy'];
     final closedByJson = json['closedBy'];
     final actionsJson = json['actions'];
+    final departmentJson = json['department'];
+    final branchJson = json['branch'];
 
     return OvaTicket(
       id: (json['id'] as num?)?.toInt() ?? 0,
@@ -217,6 +276,14 @@ class OvaTicket {
       currentStep: (json['currentStep'] as num?)?.toInt() ?? 1,
       findingDate: _readDate(json['findingDate']),
       ovaType: json['ovaType'] as String?,
+      departmentId: (json['departmentId'] as num?)?.toInt(),
+      branchId: (json['branchId'] as num?)?.toInt(),
+      department: departmentJson is Map
+          ? OvaTicketOption.fromJson(Map<String, dynamic>.from(departmentJson))
+          : null,
+      branch: branchJson is Map
+          ? OvaTicketOption.fromJson(Map<String, dynamic>.from(branchJson))
+          : null,
       reasons: (json['reasons'] as List? ?? const [])
           .whereType<String>()
           .toList(),

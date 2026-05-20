@@ -382,6 +382,16 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
         value: _findingDateLabel(ticket),
       ),
       _buildSummaryMetric(
+        icon: Icons.account_tree_outlined,
+        label: 'Afdeling',
+        value: _display(ticket.department?.name),
+      ),
+      _buildSummaryMetric(
+        icon: Icons.business_outlined,
+        label: 'Vestiging',
+        value: _display(ticket.branch?.name),
+      ),
+      _buildSummaryMetric(
         icon: Icons.checklist_rtl_outlined,
         label: 'Opvolging',
         value: _actionProgressLabel(ticket),
@@ -495,6 +505,16 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
             (
               label: 'Datum vaststelling',
               value: _findingDateLabel(ticket),
+              wide: false,
+            ),
+            (
+              label: 'Afdeling',
+              value: _display(ticket.department?.name),
+              wide: false,
+            ),
+            (
+              label: 'Vestiging',
+              value: _display(ticket.branch?.name),
               wide: false,
             ),
             (label: 'Redenen', value: _reasonsLabel(ticket), wide: true),

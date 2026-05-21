@@ -1,4 +1,4 @@
-# QA Dashboard - Login System
+﻿# QA Dashboard - Login System
 
 A full-stack authentication system with:
 
@@ -17,28 +17,30 @@ A full-stack authentication system with:
 ## Project Structure
 
 ```
-qa_dashboard/
-├── frontend/                    # Flutter frontend
-│   ├── lib/
-│   │   ├── screens/
-│   │   │   └── login_screen.dart    # Login UI
-│   │   └── services/
-│   │       ├── api_service.dart     # API communication
-│   │       └── auth_service.dart    # Auth logic
-├── backend/                     # NestJS backend
-│   ├── src/
-│   │   ├── auth/               # Auth controllers & services
-│   │   ├── user/               # User services
-│   │   └── prisma/             # Database service
-│   ├── prisma/
-│   │   ├── schema.prisma       # Database schema
-│   │   └── migrations/         # Migration files
-│   └── .env                    # Environment variables
-├── build/                       # Deployment and infra config
-│   ├── docker-compose.yml
-│   └── traefik/
-└── README.md
+QA-Dashboard/
+|-- backend/                     # NestJS API
+|   |-- src/                     # Application modules, controllers and services
+|   |-- prisma/                  # Prisma schema and migrations
+|   |-- scripts/                 # Backend maintenance/import scripts
+|   |-- Dockerfile
+|   |-- package.json
+|   `-- package-lock.json
+|-- frontend/                    # Flutter application
+|   |-- lib/                     # Dart app source
+|   |-- assets/                  # Images and static frontend assets
+|   |-- test/                    # Flutter tests
+|   |-- web/                     # Flutter web shell
+|   |-- Dockerfile.frontend
+|   `-- pubspec.yaml
+|-- build/                       # Deployment and infrastructure config
+|   |-- docker-compose.yml
+|   `-- traefik/
+|-- .github/workflows/           # GitHub Actions deployment workflow
+|-- .gitignore
+`-- README.md
 ```
+
+The active application code lives only in `backend/` and `frontend/`. Root-level Flutter output, old backend experiments, local databases, logs, `node_modules`, and generated build artifacts are ignored and should not be committed.
 
 ## 1. Backend Setup
 
@@ -50,15 +52,16 @@ npm install
 ```
 
 ### Step 2: Configure Environment Variables
-EXAMPLE!!!!!
-Create or update `.env` file in the `backend` directory:
+
+The values below are examples only. Do not commit real credentials, passwords, API keys, JWT secrets, or SMTP secrets.
+Create or update a local `.env` file in the `backend` directory:
 
 ```env
 # Database Connection
 DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/qa_dashboard?schema=public"
 
 # JWT Configuration
-JWT_SECRET="8e7c0bf3c75692835fe967af1db691c4f8a7e603b34a1d9426c1ef577c8702aa"
+JWT_SECRET="replace-with-a-random-secret-at-least-32-characters"
 JWT_ISSUER="qa-login-backend"
 JWT_AUDIENCE="qa-dashboard"
 JWT_EXPIRES_IN="15m"
@@ -88,7 +91,7 @@ Optional overrides: `JWT_REFRESH_SECRET`, `JWT_ISSUER`, `JWT_AUDIENCE`, `JWT_EXP
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `DATABASE_URL` | PostgreSQL connection string | `postgresql://postgres:<password>@localhost:5432/qa_dashboard?schema=public` |
-| `JWT_SECRET` | Secret key for JWT signing (use a strong random string) | `8e7c0bf3c75692835fe967af1db691c4f8a7e603b34a1d9426c1ef577c8702aa` |
+| `JWT_SECRET` | Secret key for JWT signing (use a strong random string) | `replace-with-a-random-secret-at-least-32-characters` |
 | `JWT_ISSUER` | JWT issuer claim | `qa-login-backend` |
 | `JWT_AUDIENCE` | JWT audience claim | `qa-dashboard` |
 | `JWT_EXPIRES_IN` | Access token expiration time | `15m` |

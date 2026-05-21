@@ -165,3 +165,23 @@ node_modules/
 *.sln
 *.sw?
 build/traefik/acme/
+
+# Project layout: active apps live in /backend and /frontend.
+# Keep stale root-level Flutter/backend experiments and local tooling out of Git.
+/lib/
+/windows/
+/qa-login-backend/
+/.swarm/
+/.agents/
+/ruvector.db
+/flutter_*.log
+/package-lock.json
+/node_modules/
+
+# Build output under /build is normally deployment config; ignore generated artifacts only.
+/build/flutter_assets/
+/build/native_assets/
+/build/native_hooks/
+/build/unit_test_assets/
+/build/*.cache.dill.track.dill
+/build/[0-9a-f]*/

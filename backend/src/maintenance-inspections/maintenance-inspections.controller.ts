@@ -12,9 +12,9 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
-import { UserService } from 'src/user/user.service';
-import { AuthenticatedRequest } from 'src/auth/jwt-auth.guard';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { UserService } from '../user/user.service';
+import { AuthenticatedRequest } from '../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import {
   CreateMaintenanceInspectionDto,
   UpdateMaintenanceInspectionDto,

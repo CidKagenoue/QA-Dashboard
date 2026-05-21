@@ -1,9 +1,23 @@
-import { Router, Request, Response } from 'express';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Res,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { NotificationType } from '@prisma/client';
-import * as multer from 'multer';
+import { Response } from 'express';
 import * as ExcelJS from 'exceljs';
-
-const upload = multer({ storage: multer.memoryStorage() });
+import * as multer from 'multer';
+import { NotificationService } from '../notifications/notifications.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 const NORMALISED_HEADER_ALIASES: Record<string, string[]> = {
   jaar: ['jaar'],
@@ -11,7 +25,7 @@ const NORMALISED_HEADER_ALIASES: Record<string, string[]> = {
   domein: ['domein', 'e'],
   risicoveld: ['risicoveld'],
   prioriteit: ['prioriteit', 'prioriteittijdsplanning'],
-    uitvoerder: ['uitvoerder', 'verantwoordelijke'],
+  uitvoerder: ['uitvoerder', 'verantwoordelijke'],
   middelenBudgetWerkuren: ['middelenbudgetofwerkuren', 'middelenbudgetwerkuren', 'middelen'],
   startdatum: ['startdatum'],
   realisatie: ['realisatie'],
@@ -28,11 +42,11 @@ function normaliseHeader(value: unknown): string {
 }
 
 function findHeaderRow(rows: unknown[][]): number {
-  for (let i = 0; i < rows.length; i += 1) {
-    const row = rows[i] ?? [];
+  for (let index = 0; index < rows.length; index += 1) {
+    const row = rows[index] ?? [];
     const joined = row.map(normaliseHeader).join('|');
     if (joined.includes('doelstelling') && joined.includes('risicoveld')) {
-      return i;
+      return index;
     }
   }
   return -1;
@@ -40,14 +54,14 @@ function findHeaderRow(rows: unknown[][]): number {
 
 function findColumnIndexes(headerRow: unknown[]): Record<string, number> {
   const indexes: Record<string, number> = {};
-  headerRow.forEach((cell, idx) => {
+  headerRow.forEach((cell, index) => {
     const key = normaliseHeader(cell);
     for (const [target, aliases] of Object.entries(NORMALISED_HEADER_ALIASES)) {
       const matches = aliases.some((alias) => (
         alias.length === 1 ? key === alias : key.includes(alias)
       ));
       if (matches && indexes[target] == null) {
-        indexes[target] = idx;
+        indexes[target] = index;
       }
     }
   });
@@ -72,14 +86,14 @@ function parseDelimitedRows(text: string): string[][] {
   let cell = '';
   let inQuotes = false;
 
-  for (let i = 0; i < text.length; i += 1) {
-    const char = text[i];
-    const next = text[i + 1];
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    const next = text[index + 1];
 
     if (char === '"') {
       if (inQuotes && next === '"') {
         cell += '"';
-        i += 1;
+        index += 1;
       } else {
         inQuotes = !inQuotes;
       }
@@ -97,7 +111,7 @@ function parseDelimitedRows(text: string): string[][] {
       rows.push(row);
       row = [];
       cell = '';
-      if (char === '\r' && next === '\n') i += 1;
+      if (char === '\r' && next === '\n') index += 1;
       continue;
     }
 
@@ -155,9 +169,9 @@ async function readImportRows(file: any): Promise<{ rows: unknown[][]; sourceNam
   };
 }
 
-function readCell(row: unknown[], idx: number | undefined): string {
-  if (idx == null) return '';
-  return String(row[idx] ?? '').trim();
+function readCell(row: unknown[], index: number | undefined): string {
+  if (index == null) return '';
+  return String(row[index] ?? '').trim();
 }
 
 function parseExcelDate(value: unknown): string {
@@ -165,7 +179,6 @@ function parseExcelDate(value: unknown): string {
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
     return value.toISOString().slice(0, 10);
   }
-  // If Excel stores as a serial number, parse to day/month/year then return ISO yyyy-mm-dd
   if (typeof value === 'number' && Number.isFinite(value)) {
     const epoch = Date.UTC(1899, 11, 30);
     const millis = Math.round(value * 86400000);
@@ -178,36 +191,19 @@ function parseExcelDate(value: unknown): string {
   }
 
   const text = String(value).trim();
-  // dd.mm.yyyy or dd/mm/yyyy or dd-mm-yyyy -> convert to ISO
   if (/^\d{1,2}[./-]\d{1,2}[./-]\d{4}$/.test(text)) {
     const parts = text.replace(/\//g, '.').replace(/-/g, '.').split('.');
-    const d = parts[0].padStart(2, '0');
-    const m = parts[1].padStart(2, '0');
-    const y = parts[2];
-    return `${y}-${m}-${d}`;
+    const day = parts[0].padStart(2, '0');
+    const month = parts[1].padStart(2, '0');
+    const year = parts[2];
+    return `${year}-${month}-${day}`;
   }
-  // yyyy-mm-dd or yyyy.mm.dd -> normalize to yyyy-mm-dd
   if (/^\d{4}[./-]\d{1,2}[./-]\d{1,2}$/.test(text)) {
     const iso = text.replace(/\./g, '-').replace(/\//g, '-');
-    const [y, m, d] = iso.split('-');
-    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const [year, month, day] = iso.split('-');
+    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   }
   return text;
-}
-
-function coerceDateForYear(value: unknown, year: number, fallback: string): string {
-  const parsed = parseExcelDate(value);
-  if (!parsed) return fallback;
-  // parsed is ISO yyyy-mm-dd
-  const match = parsed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return fallback;
-
-  const parsedYear = Number(match[1]);
-  if (parsedYear < 1900 || parsedYear > 2100) return fallback;
-
-  const day = match[3];
-  const month = match[2];
-  return `${day}.${month}.${String(year)}`;
 }
 
 function parseYearRangeFromText(text: string): [number, number] | null {
@@ -240,24 +236,6 @@ function parseRealisatie(value: string): string {
   return 'vul_aan';
 }
 
-function buildDateForYear(base: string, year: number, fallback: string): string {
-  const normalized = base.replace(/\./g, '-').replace(/\//g, '-');
-  // Accept either ISO yyyy-mm-dd or dd-mm-yyyy
-  const isoMatch = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (isoMatch) {
-    const day = isoMatch[3].padStart(2, '0');
-    const month = isoMatch[2].padStart(2, '0');
-    return `${day}.${month}.${year}`;
-  }
-  const dmyMatch = normalized.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
-  if (dmyMatch) {
-    const day = dmyMatch[1].padStart(2, '0');
-    const month = dmyMatch[2].padStart(2, '0');
-    return `${day}.${month}.${year}`;
-  }
-  return fallback;
-}
-
 function normaliseYearRange(startYear: number, endYear: number): [number, number] {
   if (startYear <= endYear) return [startYear, endYear];
   return [endYear, startYear];
@@ -278,11 +256,11 @@ function formatGppEntry(entry: any) {
     startdatum: entry.startDate,
     einddatum: entry.endDate,
     opmerking: entry.remark,
-    comments: entry.comments?.map((c: any) => ({
-      id: c.id,
-      author: c.author,
-      text: c.text,
-      createdAt: c.createdAt.toISOString(),
+    comments: entry.comments?.map((comment: any) => ({
+      id: comment.id,
+      author: comment.author,
+      text: comment.text,
+      createdAt: comment.createdAt.toISOString(),
     })) ?? [],
   };
 }
@@ -298,32 +276,33 @@ async function ensureExecutor(prismaService: any, executorName: string | null | 
   });
 }
 
-export default function createGppRouter(
-  notificationsService: any,
-  prismaService: any,
-) {
-  const router = Router();
+@Controller('gpp')
+export class GppController {
+  constructor(
+    private readonly notificationsService: NotificationService,
+    private readonly prismaService: PrismaService,
+  ) {}
 
-  // Previously this helper created per-year JAP rows from a GPP entry.
-  // That behavior is intentionally removed: JAP is a generated view only.
-
-  router.post('/import-excel', upload.single('file'), async (req: Request, res: Response) => {
+  @Post('import-excel')
+  @UseInterceptors(FileInterceptor('file', { storage: multer.memoryStorage() }))
+  async importExcel(
+    @UploadedFile() file: any,
+    @Query('clearExisting') clearExisting: string | undefined,
+    @Res() res: Response,
+  ) {
     try {
-      const file = (req as any).file;
       if (!file?.buffer) {
         return res.status(400).json({ message: 'Importbestand ontbreekt (field: file)' });
       }
 
-      const shouldClear = String(req.query.clearExisting ?? 'true').toLowerCase() !== 'false';
+      const shouldClear = String(clearExisting ?? 'true').toLowerCase() !== 'false';
       if (shouldClear) {
-        // Delete generated JAP entries
-        await prismaService.japGppEntry.deleteMany({
+        await this.prismaService.japGppEntry.deleteMany({
           where: {
             generatedFromGppId: { not: null },
           },
         });
-        // Delete GPP entries
-        await prismaService.japGppEntry.deleteMany({
+        await this.prismaService.japGppEntry.deleteMany({
           where: { source: 'GPP' },
         });
       }
@@ -355,27 +334,24 @@ export default function createGppRouter(
         const endYear = range?.[1] ?? (parsedEndYear || startYear);
         const [normalizedStart, normalizedEnd] = normaliseYearRange(startYear, endYear);
 
-        // Build Date objects for startDate/endDate. Prefer explicit cell dates; fallback to year boundaries.
         const startDateObj = startFromDate ? new Date(startFromDate) : new Date(normalizedStart, 0, 1);
         const endDateObj = endFromDate ? new Date(endFromDate) : new Date(normalizedEnd, 11, 31);
 
-        // Find or create domain
         let domainId = null;
         const domeinName = readCell(row, indexes.domein);
         if (domeinName && domeinName !== 'Vul aan') {
-          let domain = await prismaService.domain.findUnique({
+          let domain = await this.prismaService.domain.findUnique({
             where: { name: domeinName },
           });
           if (!domain) {
-            domain = await prismaService.domain.create({
+            domain = await this.prismaService.domain.create({
               data: { name: domeinName },
             });
           }
           domainId = domain.id;
         }
 
-        // Create GPP entry
-        const gppEntry = await prismaService.japGppEntry.create({
+        const gppEntry = await this.prismaService.japGppEntry.create({
           data: {
             source: 'GPP',
             startYear: normalizedStart,
@@ -393,11 +369,9 @@ export default function createGppRouter(
           },
         });
 
-        await ensureExecutor(prismaService, gppEntry.executor);
+        await ensureExecutor(this.prismaService, gppEntry.executor);
 
-        importedGppCount++;
-
-        // Do not generate per-year JAP entries on import — keep only the GPP row
+        importedGppCount += 1;
       }
 
       return res.status(201).json({
@@ -412,11 +386,14 @@ export default function createGppRouter(
         details: error?.message ?? 'Onbekende fout',
       });
     }
-  });
+  }
 
-  router.get('/', async (req: Request, res: Response) => {
+  @Get()
+  async listGppEntries(
+    @Query('search') search: string | undefined,
+    @Res() res: Response,
+  ) {
     try {
-      const { search } = req.query;
       const where: any = { source: 'GPP' };
 
       if (search && typeof search === 'string') {
@@ -427,7 +404,7 @@ export default function createGppRouter(
         ];
       }
 
-      const entries = await prismaService.japGppEntry.findMany({
+      const entries = await this.prismaService.japGppEntry.findMany({
         where,
         include: {
           domain: true,
@@ -436,18 +413,18 @@ export default function createGppRouter(
         orderBy: [{ startYear: 'desc' }, { id: 'desc' }],
       });
 
-      const result = entries.map(formatGppEntry);
-      res.json({ entries: result });
+      return res.json({ entries: entries.map(formatGppEntry) });
     } catch (error) {
       console.error('Error fetching GPP entries:', error);
-      res.status(500).json({ message: 'Fout bij ophalen GPP entries' });
+      return res.status(500).json({ message: 'Fout bij ophalen GPP entries' });
     }
-  });
+  }
 
-  router.get('/:id/comments', async (req: Request, res: Response) => {
+  @Get(':id/comments')
+  async listComments(@Param('id') idParam: string, @Res() res: Response) {
     try {
-      const id = Number(req.params.id);
-      const entry = await prismaService.japGppEntry.findUnique({
+      const id = Number(idParam);
+      const entry = await this.prismaService.japGppEntry.findUnique({
         where: { id },
         include: {
           comments: {
@@ -460,30 +437,35 @@ export default function createGppRouter(
         return res.status(404).json({ message: 'Entry niet gevonden' });
       }
 
-      const comments = entry.comments.map((c: any) => ({
-        id: c.id,
-        author: c.author,
-        text: c.text,
-        createdAt: c.createdAt.toISOString(),
+      const comments = entry.comments.map((comment: any) => ({
+        id: comment.id,
+        author: comment.author,
+        text: comment.text,
+        createdAt: comment.createdAt.toISOString(),
       }));
 
-      res.json({ comments });
+      return res.json({ comments });
     } catch (error) {
       console.error('Error fetching comments:', error);
-      res.status(500).json({ message: 'Fout bij ophalen commentaar' });
+      return res.status(500).json({ message: 'Fout bij ophalen commentaar' });
     }
-  });
+  }
 
-  router.post('/:id/comments', async (req: Request, res: Response) => {
+  @Post(':id/comments')
+  async createComment(
+    @Param('id') idParam: string,
+    @Body() body: { author?: string; text?: string },
+    @Res() res: Response,
+  ) {
     try {
-      const id = Number(req.params.id);
-      const { author, text } = req.body;
+      const id = Number(idParam);
+      const { author, text } = body;
 
       if (!text?.trim()) {
         return res.status(400).json({ message: 'Tekst is verplicht' });
       }
 
-      const entry = await prismaService.japGppEntry.findUnique({
+      const entry = await this.prismaService.japGppEntry.findUnique({
         where: { id },
       });
 
@@ -491,7 +473,7 @@ export default function createGppRouter(
         return res.status(404).json({ message: 'Entry niet gevonden' });
       }
 
-      const comment = await prismaService.japComment.create({
+      const comment = await this.prismaService.japComment.create({
         data: {
           entryId: id,
           author: author?.trim() || 'Onbekend',
@@ -500,13 +482,13 @@ export default function createGppRouter(
       });
 
       try {
-        const users = await prismaService.user.findMany({
+        const users = await this.prismaService.user.findMany({
           where: { OR: [{ isAdmin: true }, { japGppAccess: true }] },
           select: { id: true },
         });
-        const recipientIds = users.map((u: any) => u.id);
+        const recipientIds = users.map((user: any) => user.id);
         if (recipientIds.length > 0) {
-          await notificationsService.notifyUsers({
+          await this.notificationsService.notifyUsers({
             recipientUserIds: recipientIds,
             type: NotificationType.JAP_COMMENT,
             title: 'Nieuwe opmerking op GPP',
@@ -518,7 +500,7 @@ export default function createGppRouter(
         console.warn('Failed to notify users for GPP comment', notifyError);
       }
 
-      res.status(201).json({
+      return res.status(201).json({
         comment: {
           id: comment.id,
           author: comment.author,
@@ -528,11 +510,12 @@ export default function createGppRouter(
       });
     } catch (error) {
       console.error('Error creating comment:', error);
-      res.status(500).json({ message: 'Fout bij aanmaken commentaar' });
+      return res.status(500).json({ message: 'Fout bij aanmaken commentaar' });
     }
-  });
+  }
 
-  router.post('/', async (req: Request, res: Response) => {
+  @Post()
+  async createEntry(@Body() body: any, @Res() res: Response) {
     try {
       const {
         startJaar,
@@ -547,28 +530,26 @@ export default function createGppRouter(
         startdatum,
         einddatum,
         opmerking,
-      } = req.body;
+      } = body;
 
       const [startYear, endYear] = normaliseYearRange(
         Number(startJaar) || new Date().getFullYear(),
         Number(eindJaar) || new Date().getFullYear(),
       );
 
-      // Find or create domain
       let domainId = null;
       if (domein) {
-        let domain = await prismaService.domain.findUnique({
+        let domain = await this.prismaService.domain.findUnique({
           where: { name: domein },
         });
         if (!domain) {
-          domain = await prismaService.domain.create({
+          domain = await this.prismaService.domain.create({
             data: { name: domein },
           });
         }
         domainId = domain.id;
       }
 
-      // Determine startDate/endDate as real Date objects. Prefer explicit date input; fall back to year boundaries.
       const parsedStartIso = parseExcelDate(startdatum);
       const parsedEndIso = parseExcelDate(einddatum);
       const finalStartDate = parsedStartIso && /^\d{4}-\d{2}-\d{2}$/.test(parsedStartIso)
@@ -578,7 +559,7 @@ export default function createGppRouter(
         ? new Date(parsedEndIso)
         : new Date(endYear, 11, 31);
 
-      const gppEntry = await prismaService.japGppEntry.create({
+      const gppEntry = await this.prismaService.japGppEntry.create({
         data: {
           source: 'GPP',
           startYear,
@@ -600,22 +581,19 @@ export default function createGppRouter(
         },
       });
 
-      await ensureExecutor(prismaService, uitvoerder);
+      await ensureExecutor(this.prismaService, uitvoerder);
 
-      // Do not generate per-year JAP entries when creating a GPP — only the GPP row is created
-
-      // Notify
       try {
-        const users = await prismaService.user.findMany({
+        const users = await this.prismaService.user.findMany({
           where: { OR: [{ isAdmin: true }, { japGppAccess: true }] },
           select: { id: true },
         });
-        const recipientIds = users.map((u: any) => u.id);
+        const recipientIds = users.map((user: any) => user.id);
         if (recipientIds.length > 0) {
-          await notificationsService.notifyUsers({
+          await this.notificationsService.notifyUsers({
             recipientUserIds: recipientIds,
             type: NotificationType.JAP_NEW,
-            title: `Nieuwe GPP entry toegevoegd`,
+            title: 'Nieuwe GPP entry toegevoegd',
             body: `${doelstellingMaatregel ?? 'Nieuwe GPP'}`,
             metadata: { entryId: gppEntry.id, module: 'GPP' },
           });
@@ -624,18 +602,23 @@ export default function createGppRouter(
         console.warn('Failed to notify users for GPP creation', err);
       }
 
-      res.status(201).json({ entry: formatGppEntry(gppEntry) });
+      return res.status(201).json({ entry: formatGppEntry(gppEntry) });
     } catch (error) {
       console.error('Error creating GPP entry:', error);
-      res.status(500).json({ message: 'Fout bij aanmaken GPP entry' });
+      return res.status(500).json({ message: 'Fout bij aanmaken GPP entry' });
     }
-  });
+  }
 
-  router.patch('/:id', async (req: Request, res: Response) => {
+  @Patch(':id')
+  async updateEntry(
+    @Param('id') idParam: string,
+    @Body() body: any,
+    @Res() res: Response,
+  ) {
     try {
-      const id = Number(req.params.id);
+      const id = Number(idParam);
 
-      const previous = await prismaService.japGppEntry.findUnique({
+      const previous = await this.prismaService.japGppEntry.findUnique({
         where: { id },
       });
 
@@ -656,16 +639,16 @@ export default function createGppRouter(
         startdatum,
         einddatum,
         opmerking,
-      } = req.body;
+      } = body;
 
       let domainId = previous.domainId;
       if (domein !== undefined) {
         if (domein) {
-          let domain = await prismaService.domain.findUnique({
+          let domain = await this.prismaService.domain.findUnique({
             where: { name: domein },
           });
           if (!domain) {
-            domain = await prismaService.domain.create({
+            domain = await this.prismaService.domain.create({
               data: { name: domein },
             });
           }
@@ -679,17 +662,16 @@ export default function createGppRouter(
       const endYear = eindJaar !== undefined ? Number(eindJaar) : previous.endYear;
       const [normalizedStart, normalizedEnd] = normaliseYearRange(startYear, endYear);
 
-      // compute updated start/end Date values as Date objects
       const providedStartIso = startdatum !== undefined ? parseExcelDate(startdatum) : null;
       const providedEndIso = einddatum !== undefined ? parseExcelDate(einddatum) : null;
       const startDateValue = startdatum !== undefined
         ? (providedStartIso && /^\d{4}-\d{2}-\d{2}$/.test(providedStartIso) ? new Date(providedStartIso) : null)
-        : undefined; // keep existing
+        : undefined;
       const endDateValue = einddatum !== undefined
         ? (providedEndIso && /^\d{4}-\d{2}-\d{2}$/.test(providedEndIso) ? new Date(providedEndIso) : null)
         : undefined;
 
-      const updated = await prismaService.japGppEntry.update({
+      const updated = await this.prismaService.japGppEntry.update({
         where: { id },
         data: {
           startYear: normalizedStart,
@@ -711,23 +693,20 @@ export default function createGppRouter(
         },
       });
 
-      await ensureExecutor(prismaService, uitvoerder);
+      await ensureExecutor(this.prismaService, uitvoerder);
 
-      // Do not generate/sync per-year JAP entries when updating a GPP — keep only the GPP row
-
-      // Notify if remark was added
       if (opmerking && opmerking.trim() !== '' && (!previous.remark || previous.remark.trim() === '')) {
         try {
-          const users = await prismaService.user.findMany({
+          const users = await this.prismaService.user.findMany({
             where: { OR: [{ isAdmin: true }, { japGppAccess: true }] },
             select: { id: true },
           });
-          const recipientIds = users.map((u: any) => u.id);
+          const recipientIds = users.map((user: any) => user.id);
           if (recipientIds.length > 0) {
-            await notificationsService.notifyUsers({
+            await this.notificationsService.notifyUsers({
               recipientUserIds: recipientIds,
               type: NotificationType.JAP_COMMENT,
-              title: `Nieuwe opmerking op GPP`,
+              title: 'Nieuwe opmerking op GPP',
               body: opmerking.toString().slice(0, 200),
               metadata: { entryId: updated.id, module: 'GPP' },
             });
@@ -737,33 +716,33 @@ export default function createGppRouter(
         }
       }
 
-      res.json({ entry: formatGppEntry(updated) });
+      return res.json({ entry: formatGppEntry(updated) });
     } catch (error) {
       console.error('Error updating GPP entry:', error);
-      res.status(500).json({ message: 'Fout bij bijwerken GPP entry' });
+      return res.status(500).json({ message: 'Fout bij bijwerken GPP entry' });
     }
-  });
+  }
 
-  router.delete('/:id', async (req: Request, res: Response) => {
+  @Delete(':id')
+  async deleteEntry(@Param('id') idParam: string, @Res() res: Response) {
     try {
-      const id = Number(req.params.id);
-      // Delete generated JAP entries
-      await prismaService.japGppEntry.deleteMany({
+      const id = Number(idParam);
+
+      await this.prismaService.japGppEntry.deleteMany({
         where: { generatedFromGppId: id },
       });
-      // Delete GPP entry
-      await prismaService.japGppEntry.delete({
+
+      await this.prismaService.japGppEntry.delete({
         where: { id },
       });
-      res.status(204).send();
+
+      return res.status(204).send();
     } catch (error: any) {
       if (error.code === 'P2025') {
         return res.status(404).json({ message: 'Entry niet gevonden' });
       }
       console.error('Error deleting GPP entry:', error);
-      res.status(500).json({ message: 'Fout bij verwijderen GPP entry' });
+      return res.status(500).json({ message: 'Fout bij verwijderen GPP entry' });
     }
-  });
-
-  return router;
+  }
 }

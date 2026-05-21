@@ -9,9 +9,9 @@ import {
   ParseIntPipe,
   UseGuards,
 } from '@nestjs/common';
-import { AdminGuard } from 'src/accounts/admin.guard';
+import { AdminGuard } from '../accounts/admin.guard';
 import { BranchesService } from './branches.service';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateBranchDto } from './dto/create_branches.dto';
 
 @UseGuards(JwtAuthGuard, AdminGuard)

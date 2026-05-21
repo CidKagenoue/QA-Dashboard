@@ -42,7 +42,7 @@ class JapExportService {
   /// Returns the saved file path or null on failure.
   static Future<String?> exportJapForYear(int year, List<JapEntry> entries) async {
     try {
-      final pdf = _generateYearPdf(year, entries);
+      final pdf = await _generateYearPdf(year, entries);
       final pdfBytes = await pdf.save();
 
       final fileName = 'vlotter_jap_$year.pdf';
@@ -73,7 +73,7 @@ class JapExportService {
     // Create PDF for each year and add to archive
     for (final year in entriesByYear.keys.toList()..sort()) {
       final yearEntries = entriesByYear[year]!;
-      final pdf = _generateYearPdf(year, yearEntries);
+      final pdf = await _generateYearPdf(year, yearEntries);
       final pdfBytes = await pdf.save();
       
       // Add PDF to zip with folder structure: JAP_2024/JAP_2024.pdf, JAP_2025/JAP_2025.pdf, etc.
@@ -112,13 +112,20 @@ class JapExportService {
     }
   }
 
-  static pw.Document _generateYearPdf(int year, List<JapEntry> entries) {
+  static Future<pw.Document> _generateYearPdf(int year, List<JapEntry> entries) async {
+    final regularFont = await PdfGoogleFonts.notoSansRegular();
+    final boldFont = await PdfGoogleFonts.notoSansBold();
+    final pdfTheme = pw.ThemeData.withFont(
+      base: regularFont,
+      bold: boldFont,
+    );
     final pdf = pw.Document();
 
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(20),
+        theme: pdfTheme,
         build: (context) {
           return [
             // Header
@@ -150,9 +157,9 @@ class JapExportService {
                 mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
                 children: [
                   _buildStatBox('Totaal Acties', entries.length.toString()),
-                  _buildStatBox('Voltooid', entries.where((e) => e.realisation == 'uitgevoerd').length.toString()),
-                  _buildStatBox('In Uitvoering', entries.where((e) => e.realisation == 'in_uitvoering').length.toString()),
-                  _buildStatBox('Nog niet', entries.where((e) => e.realisation == 'neg_niet_uitgevoerd').length.toString()),
+                  _buildStatBox('Voltooid', entries.where((e) => e.realisation == JapRealisation.completed).length.toString()),
+                  _buildStatBox('In Uitvoering', entries.where((e) => e.realisation == JapRealisation.inProgress).length.toString()),
+                  _buildStatBox('Nog niet', entries.where((e) => e.realisation == JapRealisation.notYetCompleted).length.toString()),
                 ],
               ),
             ),

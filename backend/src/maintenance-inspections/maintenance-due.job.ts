@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { NotificationType } from '@prisma/client';
-import { PrismaService } from 'src/prisma/prisma.service';
-import { NotificationService } from 'src/notifications/notifications.service';
+import { PrismaService } from '../prisma/prisma.service';
+import { NotificationService } from '../notifications/notifications.service';
 
 @Injectable()
 export class MaintenanceDeadlineJob {

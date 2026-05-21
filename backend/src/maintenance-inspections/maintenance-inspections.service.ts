@@ -4,8 +4,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { NotificationType } from '@prisma/client';
-import { PrismaService } from 'src/prisma/prisma.service';
-import { NotificationService } from 'src/notifications/notifications.service';
+import { PrismaService } from '../prisma/prisma.service';
+import { NotificationService } from '../notifications/notifications.service';
 import {
   CreateMaintenanceInspectionDto,
   UpdateMaintenanceInspectionDto,
@@ -162,13 +162,9 @@ export class MaintenanceInspectionsService {
     const inspectionInstitution = dto.inspectionInstitution?.trim() ?? '';
     const frequency = dto.frequency?.trim() ?? '';
     const dueDate = this.parseDate(dto.dueDate, 'dueDate');
-    // If the user didn't provide a dueDate, compute a sensible default:
-    // - Prefer deriving from lastInspectionDate + frequency (years parsed from frequency)
-    // - Otherwise use now + parsed frequency (default 1 year)
     let dueDateComputed: Date | null = dueDate;
     if (!dueDateComputed) {
       const last = this.parseDate(dto.lastInspectionDate, 'lastInspectionDate');
-      // extract integer from frequency (e.g. "Elke 5 Jaar" -> 5)
       const numMatch = (frequency.match(/(\d+)/) || [null])[0];
       const yearsToAdd = numMatch ? Math.max(1, parseInt(numMatch, 10)) : 1;
       const base = last ?? new Date();

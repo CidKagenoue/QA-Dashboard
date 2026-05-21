@@ -13,4 +13,4 @@ RUN npm run build
 
 EXPOSE 3001
 
-CMD ["sh", "-c", "if [ \"$AUTO_RESET_DB\" = \"true\" ]; then ./node_modules/.bin/prisma migrate reset --force --skip-seed; else ./node_modules/.bin/prisma migrate deploy; fi && node dist/src/main"]
+CMD ["sh", "-c", "if [ \"$AUTO_RESET_DB\" = \"true\" ]; then ./node_modules/.bin/prisma migrate reset --force --skip-seed; else ./node_modules/.bin/prisma migrate deploy; fi && node dist/main"]

@@ -239,8 +239,12 @@ class _JapGppScreenState extends State<JapGppScreen> {
 
   List<String> _distinctDomains() {
     final set = <String>{};
-    for (final e in _japEntries) set.add(e.domain);
-    for (final e in _gppEntries) set.add(e.domain);
+    for (final e in _japEntries) {
+      set.add(e.domain);
+    }
+    for (final e in _gppEntries) {
+      set.add(e.domain);
+    }
     return set.toList()..sort();
   }
 
@@ -309,10 +313,11 @@ class _JapGppScreenState extends State<JapGppScreen> {
               label: Text(y.toString()),
               selected: sel,
               onSelected: (_) => setDialogState(() {
-                if (sel)
+                if (sel) {
                   selectedYears.remove(y);
-                else
+                } else {
                   selectedYears.add(y);
+                }
               }),
             );
           }
@@ -323,10 +328,11 @@ class _JapGppScreenState extends State<JapGppScreen> {
               label: Text(label),
               selected: sel,
               onSelected: (_) => setDialogState(() {
-                if (sel)
+                if (sel) {
                   selectedPriorities.remove(val);
-                else
+                } else {
                   selectedPriorities.add(val);
+                }
               }),
             );
           }
@@ -382,7 +388,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String?>(
                     isExpanded: true,
-                    value: selectedExecutor,
+                    initialValue: selectedExecutor,
                     decoration: const InputDecoration(isDense: true),
                     hint: const Text('Alle uitvoerders'),
                     items: [null, ...executors].map((e) => DropdownMenuItem<String?>(value: e, child: Text(e ?? 'Alle uitvoerders'))).toList(),
@@ -556,7 +562,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
                                     previewEntries = _entriesForExportYear(y);
                                   }),
                                   backgroundColor: Colors.white,
-                                  selectedColor: const Color(0xFF8BC34A).withOpacity(0.18),
+                                  selectedColor: const Color(0xFF8BC34A).withValues(alpha: 0.18),
                                 );
                               }).toList(),
                             ),
@@ -589,14 +595,14 @@ class _JapGppScreenState extends State<JapGppScreen> {
                                     ? Center(child: Text('Kies een jaar om het voorbeeld te laden.', style: TextStyle(color: Colors.grey[700])))
                                     : ListView.separated(
                                         itemCount: previewEntries.length,
-                                        separatorBuilder: (_, __) => const Divider(height: 8),
+                                        separatorBuilder: (_, _) => const Divider(height: 8),
                                         itemBuilder: (context, idx) {
                                           final e = previewEntries[idx];
                                           return ListTile(
                                             contentPadding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
                                             leading: CircleAvatar(
                                               radius: 14,
-                                              backgroundColor: const Color(0xFF8BC34A).withOpacity(0.12),
+                                              backgroundColor: const Color(0xFF8BC34A).withValues(alpha: 0.12),
                                               child: Text('${idx + 1}', style: const TextStyle(fontSize: 11, color: Color(0xFF4A7A1E), fontWeight: FontWeight.w700)),
                                             ),
                                             title: Text(e.goalMeasure, maxLines: 2, overflow: TextOverflow.ellipsis),
@@ -1665,9 +1671,8 @@ class _JapTextCell extends StatelessWidget {
   const _JapTextCell(
     this.value, {
     this.color,
-    this.weight = FontWeight.w400,
     this.maxLines = 2,
-  });
+  }) : weight = FontWeight.w400;
 
   final String value;
   final Color? color;

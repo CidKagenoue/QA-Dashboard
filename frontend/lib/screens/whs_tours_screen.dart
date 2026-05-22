@@ -103,7 +103,7 @@ class _WhsToursScreenState extends State<WhsToursScreen> {
 
             return ListView.separated(
               itemCount: tours.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 final t = tours[index];
                 final title = t.vestigingAddress ?? 'Onbekende locatie';

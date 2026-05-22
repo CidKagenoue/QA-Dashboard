@@ -17,7 +17,7 @@ class ManageDropdownField extends StatelessWidget {
   final String noneLabel;
 
   const ManageDropdownField({
-    Key? key,
+    super.key,
     required this.items,
     required this.value,
     required this.hint,
@@ -29,7 +29,7 @@ class ManageDropdownField extends StatelessWidget {
     required this.onDeleteItem,
     required this.onItemsChanged,
     this.noneLabel = '(geen)',
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +38,7 @@ class ManageDropdownField extends StatelessWidget {
       children: [
         Expanded(
           child: DropdownButtonFormField<String>(
-            value: displayValue,
+            initialValue: displayValue,
             isExpanded: true,
             decoration: InputDecoration(
               hintText: hint,
@@ -76,7 +76,7 @@ class ManageDropdownField extends StatelessWidget {
               final result = await showDialog<ManageValuesResult>(
                 context: context,
                 barrierDismissible: true,
-                barrierColor: Colors.black.withOpacity(0.28),
+                barrierColor: Colors.black.withValues(alpha: 0.28),
                 builder: (_) => Dialog(
                   backgroundColor: Colors.transparent,
                   insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),

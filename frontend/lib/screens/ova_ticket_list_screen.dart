@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:qa_dashboard/screens/ova_ticket_detail_screen.dart';
 import 'package:qa_dashboard/widgets/app_bars/main_app_bar.dart';
-
+import '../models/ova_sort_option.dart';
 import '../models/ova_ticket.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
@@ -54,6 +54,11 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
   String? _selectedReason;
   bool _filtersExpanded = false;
 
+  OvaSortOption _sortOption = const OvaSortOption(
+    field: OvaSortField.date,
+    direction: OvaSortDirection.descending,
+  );
+
   @override
   void initState() {
     super.initState();
@@ -98,6 +103,43 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
     }
   }
 
+  void _setSortOption(OvaSortOption option) {
+    setState(() {
+      _sortOption = option;
+    });
+  }
+
+  List<OvaTicket> _sortTickets(Iterable<OvaTicket> tickets) {
+    final sorted = tickets.toList();
+    sorted.sort((l, r) {
+      int comparison;
+      switch (_sortOption.field) {
+        case OvaSortField.date:
+          final ld = l.findingDate ?? l.updatedAt;
+          final rd = r.findingDate ?? r.updatedAt;
+          comparison = ld.compareTo(rd);
+          break;
+        case OvaSortField.status:
+          comparison = l.statusLabel.compareTo(r.statusLabel);
+          break;
+        case OvaSortField.type:
+          final lType = l.ovaType?.trim() ?? '';
+          final rType = r.ovaType?.trim() ?? '';
+          comparison = lType.compareTo(rType);
+          break;
+      }
+
+      if (comparison == 0) {
+        comparison = l.id.compareTo(r.id);
+      }
+
+      return _sortOption.direction == OvaSortDirection.ascending
+          ? comparison
+          : -comparison;
+    });
+    return sorted;
+  }
+
   Future<void> _openTicket({int? ticketId}) async {
     final resultingSection = await Navigator.of(context).push<String?>(
       MaterialPageRoute(
@@ -129,7 +171,6 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
       ),
     );
 
-    // Reload als er wijzigingen waren
     if (result == true && mounted) {
       await _loadTickets();
     }
@@ -196,17 +237,6 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
   }
 
   bool _isOpenTicket(OvaTicket ticket) => !ticket.isClosed;
-
-  List<OvaTicket> _sortTickets(Iterable<OvaTicket> tickets) {
-    final sorted = tickets.toList();
-    sorted.sort((l, r) {
-      final ld = l.findingDate ?? l.updatedAt;
-      final rd = r.findingDate ?? r.updatedAt;
-      final byDate = ld.compareTo(rd);
-      return byDate != 0 ? byDate : l.id.compareTo(r.id);
-    });
-    return sorted;
-  }
 
   List<OvaTicket> get _openTickets =>
       _sortTickets(_tickets.where(_isOpenTicket));
@@ -328,15 +358,6 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
     return 'Open';
   }
 
-  String _actionProgressLabel(OvaTicket ticket) {
-    if (ticket.actions.isEmpty) {
-      return '-';
-    }
-
-    final done = ticket.actions.where((a) => a.isOk).length;
-    return '$done/${ticket.actions.length}';
-  }
-
   String _ticketTypeLabel(OvaTicket ticket) {
     final type = ticket.ovaType?.trim();
     return (type == null || type.isEmpty) ? '-' : type;
@@ -354,53 +375,6 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
     }
 
     return labels.join(', ');
-  }
-
-  String _causeAnalysisLabel(OvaTicket ticket) {
-    final method = ticket.causeAnalysisMethod?.trim();
-    final notes = ticket.causeAnalysisNotes?.trim();
-
-    if (method != null && method.isNotEmpty) {
-      return method;
-    }
-
-    if (notes != null && notes.isNotEmpty) {
-      return 'Notities ingevuld';
-    }
-
-    return '-';
-  }
-
-  String _effectivenessLabel(OvaTicket ticket) {
-    final effectivenessDate = ticket.effectivenessDate;
-    if (effectivenessDate != null) {
-      return formatOvaDate(effectivenessDate);
-    }
-
-    final notes = ticket.effectivenessNotes?.trim();
-    if (notes != null && notes.isNotEmpty) {
-      return 'Notities ingevuld';
-    }
-
-    return '-';
-  }
-
-  String _closedInfoLabel(OvaTicket ticket) {
-    if (!ticket.isClosed) {
-      return '-';
-    }
-
-    final date = formatOvaDate(ticket.closedAt ?? ticket.updatedAt);
-    final user = ticket.closedBy?.displayName;
-    if (user == null || user.trim().isEmpty) {
-      return date;
-    }
-
-    return '$date door $user';
-  }
-
-  String _lastEditedLabel(OvaTicket ticket) {
-    return '${formatOvaDate(ticket.updatedAt)} door ${ticket.lastEditedBy.displayName}';
   }
 
   String _normalizeValue(String? value) {
@@ -474,10 +448,6 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Build — geen Scaffold/AppBar
-  // ---------------------------------------------------------------------------
-
   @override
   Widget build(BuildContext context) {
     final authService = context.watch<AuthService>();
@@ -532,14 +502,12 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
                       ),
                       const SizedBox(height: 12),
                     ],
-                    // Breadcrumb
                     const Text(
                       'Dashboard > OVA > Tickets',
                       style: TextStyle(fontSize: 11, color: Color(0xFF7B8077)),
                     ),
                     const SizedBox(height: 18),
 
-                    // Titel + knop
                     LayoutBuilder(
                       builder: (context, c) {
                         final compact = c.maxWidth < 840;
@@ -597,7 +565,6 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
                     ),
                     const SizedBox(height: 28),
 
-                    // Sectie tabs
                     _SectionTabs(
                       selectedSection: _selectedSection,
                       counts: {
@@ -614,7 +581,6 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
                     _TicketStatusGuide(section: _selectedSection),
                     const SizedBox(height: 24),
 
-                    // Content
                     if (_isLoading)
                       const SizedBox(
                         height: 260,
@@ -650,6 +616,8 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
                         onReasonChanged: _setReason,
                         onClearFilters: _clearFilters,
                         visibleCount: _filteredTickets.length,
+                        selectedSort: _sortOption,
+                        onSortChanged: _setSortOption,
                       ),
                       const SizedBox(height: 18),
                       if (_filteredTickets.isEmpty)
@@ -734,6 +702,7 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
     );
   }
 }
+
 // ---------------------------------------------------------------------------
 // Sectie tabs
 // ---------------------------------------------------------------------------
@@ -892,6 +861,10 @@ class _StatusGuideCard extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Toolbar (met sorteerknop)
+// ---------------------------------------------------------------------------
+
 class _TicketToolbar extends StatelessWidget {
   const _TicketToolbar({
     required this.searchController,
@@ -915,6 +888,8 @@ class _TicketToolbar extends StatelessWidget {
     required this.onReasonChanged,
     required this.onClearFilters,
     required this.visibleCount,
+    required this.selectedSort,
+    required this.onSortChanged,
   });
 
   final TextEditingController searchController;
@@ -938,6 +913,8 @@ class _TicketToolbar extends StatelessWidget {
   final ValueChanged<String?> onReasonChanged;
   final VoidCallback onClearFilters;
   final int visibleCount;
+  final OvaSortOption selectedSort;
+  final ValueChanged<OvaSortOption> onSortChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -981,9 +958,8 @@ class _TicketToolbar extends StatelessWidget {
         foregroundColor: filtersExpanded || activeFilterCount > 0
             ? const Color(0xFF4E721C)
             : const Color(0xFF3F473B),
-        backgroundColor: filtersExpanded
-            ? const Color(0xFFEAF4D9)
-            : Colors.white,
+        backgroundColor:
+            filtersExpanded ? const Color(0xFFEAF4D9) : Colors.white,
         side: BorderSide(
           color: filtersExpanded || activeFilterCount > 0
               ? const Color(0xFF98C74D)
@@ -991,6 +967,108 @@ class _TicketToolbar extends StatelessWidget {
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      ),
+    );
+
+    final sortButton = PopupMenuButton<OvaSortOption>(
+      tooltip: 'Sorteren',
+      onSelected: onSortChanged,
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: OvaSortOption(
+            field: OvaSortField.date,
+            direction: selectedSort.field == OvaSortField.date
+                ? selectedSort.direction
+                : OvaSortDirection.descending,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                selectedSort.field == OvaSortField.date
+                    ? Icons.check_rounded
+                    : Icons.calendar_today_rounded,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              const Text('Datum'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: OvaSortOption(
+            field: OvaSortField.status,
+            direction: selectedSort.field == OvaSortField.status
+                ? selectedSort.direction
+                : OvaSortDirection.ascending,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                selectedSort.field == OvaSortField.status
+                    ? Icons.check_rounded
+                    : Icons.info_outline_rounded,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              const Text('Status'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: OvaSortOption(
+            field: OvaSortField.type,
+            direction: selectedSort.field == OvaSortField.type
+                ? selectedSort.direction
+                : OvaSortDirection.ascending,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                selectedSort.field == OvaSortField.type
+                    ? Icons.check_rounded
+                    : Icons.category_outlined,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              const Text('Type'),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          value: selectedSort.toggle(),
+          child: Row(
+            children: [
+              Icon(
+                selectedSort.direction == OvaSortDirection.ascending
+                    ? Icons.arrow_downward_rounded
+                    : Icons.arrow_upward_rounded,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                selectedSort.direction == OvaSortDirection.ascending
+                    ? 'Aflopend'
+                    : 'Oplopend',
+              ),
+            ],
+          ),
+        ),
+      ],
+      style: OutlinedButton.styleFrom(
+        foregroundColor: const Color(0xFF3F473B),
+        backgroundColor: Colors.white,
+        side: const BorderSide(color: Color(0xFFD9DDD1)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.sort_rounded, size: 18),
+          const SizedBox(width: 6),
+          Text(selectedSort.label),
+        ],
       ),
     );
 
@@ -1011,7 +1089,14 @@ class _TicketToolbar extends StatelessWidget {
                 children: [
                   searchField,
                   const SizedBox(height: 10),
-                  Align(alignment: Alignment.centerLeft, child: filterButton),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      filterButton,
+                      sortButton,
+                    ],
+                  ),
                 ],
               )
             : Row(
@@ -1020,6 +1105,8 @@ class _TicketToolbar extends StatelessWidget {
                   searchField,
                   const SizedBox(width: 10),
                   filterButton,
+                  const SizedBox(width: 8),
+                  sortButton,
                 ],
               );
 
@@ -1493,8 +1580,7 @@ class _TableColumnData {
   const _TableColumnData({
     required this.label,
     required this.flex,
-    this.alignment = Alignment.centerLeft,
-  });
+  }) : alignment = Alignment.centerLeft;
   final String label;
   final int flex;
   final Alignment alignment;
@@ -1504,8 +1590,7 @@ class _TableCellData {
   const _TableCellData({
     required this.flex,
     required this.child,
-    this.alignment = Alignment.centerLeft,
-  });
+  }) : alignment = Alignment.centerLeft;
   final int flex;
   final Widget child;
   final Alignment alignment;

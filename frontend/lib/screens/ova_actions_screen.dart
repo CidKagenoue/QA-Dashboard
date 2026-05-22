@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:qa_dashboard/widgets/app_bars/main_app_bar.dart';
-
+import '../models/ova_sort_option.dart';
 import '../models/ova_assigned_action.dart';
 import '../models/ova_ticket.dart';
 import '../services/api_service.dart';
@@ -58,6 +58,93 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
     _searchController.removeListener(_handleSearchChanged);
     _searchController.dispose();
     super.dispose();
+  }
+  
+  OvaSortOption _sortOption = const OvaSortOption(
+    field: OvaSortField.date,
+    direction: OvaSortDirection.descending,
+  );
+
+  void _setSortOption(OvaSortOption option) {
+    setState(() {
+      _sortOption = option;
+    });
+  }
+
+  List<OvaAssignedAction> get _filteredActions {
+    final query = _normalizeValue(_searchController.text);
+    Iterable<OvaAssignedAction> actions = _actions;
+
+    if (query.isNotEmpty) {
+      actions = actions.where((item) => _matchesSearch(item, query));
+    }
+
+    switch (_selectedStatusFilter) {
+      case _ActionStatusFilter.nok:
+        actions = actions.where((item) => !item.action.isOk);
+        break;
+      case _ActionStatusFilter.ok:
+        actions = actions.where((item) => item.action.isOk);
+        break;
+      case _ActionStatusFilter.all:
+        break;
+    }
+
+    switch (_selectedDeadlineFilter) {
+      case _ActionDeadlineFilter.overdue:
+        actions = actions.where(_isOverdue);
+        break;
+      case _ActionDeadlineFilter.thisWeek:
+        actions = actions.where(_isDueThisWeek);
+        break;
+      case _ActionDeadlineFilter.later:
+        actions = actions.where(_isDueLater);
+        break;
+      case _ActionDeadlineFilter.all:
+        break;
+    }
+
+    switch (_selectedTypeFilter) {
+      case _ActionTypeFilter.corrective:
+        actions = actions.where((item) => item.action.isCorrective);
+        break;
+      case _ActionTypeFilter.preventive:
+        actions = actions.where((item) => !item.action.isCorrective);
+        break;
+      case _ActionTypeFilter.all:
+        break;
+    }
+
+    if (_selectedScope == _ActionScope.all &&
+        _selectedAssignee != null &&
+        _selectedAssignee!.trim().isNotEmpty) {
+      actions = actions.where(
+        (item) => item.action.assigneeLabel == _selectedAssignee,
+      );
+    }
+
+    // NIEUWE SORTEERLOGICA
+    final sorted = actions.toList();
+    sorted.sort((a, b) {
+      int comparison;
+      switch (_sortOption.field) {
+        case OvaSortField.date:
+          comparison = a.action.dueDate.compareTo(b.action.dueDate);
+          break;
+        case OvaSortField.status:
+          comparison = (a.action.isOk ? 1 : 0).compareTo(b.action.isOk ? 1 : 0);
+          break;
+        case OvaSortField.type:
+          comparison = a.action.typeLabel.compareTo(b.action.typeLabel);
+          break;
+      }
+      
+      return _sortOption.direction == OvaSortDirection.ascending
+          ? comparison
+          : -comparison;
+    });
+
+    return sorted;
   }
 
   void _handleSearchChanged() {
@@ -261,61 +348,6 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
     }
   }
 
-  List<OvaAssignedAction> get _filteredActions {
-    final query = _normalizeValue(_searchController.text);
-    Iterable<OvaAssignedAction> actions = _actions;
-
-    if (query.isNotEmpty) {
-      actions = actions.where((item) => _matchesSearch(item, query));
-    }
-
-    switch (_selectedStatusFilter) {
-      case _ActionStatusFilter.nok:
-        actions = actions.where((item) => !item.action.isOk);
-        break;
-      case _ActionStatusFilter.ok:
-        actions = actions.where((item) => item.action.isOk);
-        break;
-      case _ActionStatusFilter.all:
-        break;
-    }
-
-    switch (_selectedDeadlineFilter) {
-      case _ActionDeadlineFilter.overdue:
-        actions = actions.where(_isOverdue);
-        break;
-      case _ActionDeadlineFilter.thisWeek:
-        actions = actions.where(_isDueThisWeek);
-        break;
-      case _ActionDeadlineFilter.later:
-        actions = actions.where(_isDueLater);
-        break;
-      case _ActionDeadlineFilter.all:
-        break;
-    }
-
-    switch (_selectedTypeFilter) {
-      case _ActionTypeFilter.corrective:
-        actions = actions.where((item) => item.action.isCorrective);
-        break;
-      case _ActionTypeFilter.preventive:
-        actions = actions.where((item) => !item.action.isCorrective);
-        break;
-      case _ActionTypeFilter.all:
-        break;
-    }
-
-    if (_selectedScope == _ActionScope.all &&
-        _selectedAssignee != null &&
-        _selectedAssignee!.trim().isNotEmpty) {
-      actions = actions.where(
-        (item) => item.action.assigneeLabel == _selectedAssignee,
-      );
-    }
-
-    return actions.toList();
-  }
-
   bool get _hasActiveFilters =>
       _searchController.text.trim().isNotEmpty ||
       _selectedStatusFilter != _ActionStatusFilter.all ||
@@ -468,6 +500,9 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
                   selectedAssignee: _selectedAssignee,
                   onAssigneeSelected: _setAssignee,
                   onClearFilters: _clearFilters,
+                  // NIEUW: voeg deze toe
+                  selectedSort: _sortOption,
+                  onSortChanged: _setSortOption,
                 ),
                 const SizedBox(height: 28),
                 if (_isLoading)
@@ -631,6 +666,9 @@ class _ActionFilters extends StatelessWidget {
     required this.selectedAssignee,
     required this.onAssigneeSelected,
     required this.onClearFilters,
+    // NIEUW: voeg deze toe
+    required this.selectedSort,
+    required this.onSortChanged,
   });
 
   final TextEditingController searchController;
@@ -650,6 +688,9 @@ class _ActionFilters extends StatelessWidget {
   final String? selectedAssignee;
   final ValueChanged<String?> onAssigneeSelected;
   final VoidCallback onClearFilters;
+  // NIEUW: voeg deze toe
+  final OvaSortOption selectedSort;
+  final ValueChanged<OvaSortOption> onSortChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -706,6 +747,109 @@ class _ActionFilters extends StatelessWidget {
       ),
     );
 
+    // NIEUW: sortButton toevoegen HIER
+    final sortButton = PopupMenuButton<OvaSortOption>(
+      tooltip: 'Sorteren',
+      onSelected: onSortChanged,
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: OvaSortOption(
+            field: OvaSortField.date,
+            direction: selectedSort.field == OvaSortField.date
+                ? selectedSort.direction
+                : OvaSortDirection.descending,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                selectedSort.field == OvaSortField.date
+                    ? Icons.check_rounded
+                    : Icons.calendar_today_rounded,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              const Text('Deadline'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: OvaSortOption(
+            field: OvaSortField.status,
+            direction: selectedSort.field == OvaSortField.status
+                ? selectedSort.direction
+                : OvaSortDirection.ascending,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                selectedSort.field == OvaSortField.status
+                    ? Icons.check_rounded
+                    : Icons.info_outline_rounded,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              const Text('Status'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: OvaSortOption(
+            field: OvaSortField.type,
+            direction: selectedSort.field == OvaSortField.type
+                ? selectedSort.direction
+                : OvaSortDirection.ascending,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                selectedSort.field == OvaSortField.type
+                    ? Icons.check_rounded
+                    : Icons.category_outlined,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              const Text('Type'),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          value: selectedSort.toggle(),
+          child: Row(
+            children: [
+              Icon(
+                selectedSort.direction == OvaSortDirection.ascending
+                    ? Icons.arrow_downward_rounded
+                    : Icons.arrow_upward_rounded,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                selectedSort.direction == OvaSortDirection.ascending
+                    ? 'Aflopend'
+                    : 'Oplopend',
+              ),
+            ],
+          ),
+        ),
+      ],
+      style: OutlinedButton.styleFrom(
+        foregroundColor: const Color(0xFF3F473B),
+        backgroundColor: Colors.white,
+        side: const BorderSide(color: Color(0xFFD9DDD1)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.sort_rounded, size: 18),
+          const SizedBox(width: 6),
+          Text(selectedSort.label),
+        ],
+      ),
+    );
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 900;
@@ -717,13 +861,22 @@ class _ActionFilters extends StatelessWidget {
             color: Color(0xFF7A8078),
           ),
         );
+        
+        // AANGEPAST: voeg sortButton toe aan actions
         final actions = compact
             ? Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   searchField,
                   const SizedBox(height: 10),
-                  Align(alignment: Alignment.centerLeft, child: filterButton),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      filterButton,
+                      sortButton,
+                    ],
+                  ),
                 ],
               )
             : Row(
@@ -732,6 +885,8 @@ class _ActionFilters extends StatelessWidget {
                   searchField,
                   const SizedBox(width: 10),
                   filterButton,
+                  const SizedBox(width: 8),  // NIEUW: spacing
+                  sortButton,                 // NIEUW: sortButton
                 ],
               );
 
@@ -776,7 +931,6 @@ class _ActionFilters extends StatelessWidget {
       },
     );
   }
-
   Widget _buildActiveFilters() {
     return Wrap(
       spacing: 8,

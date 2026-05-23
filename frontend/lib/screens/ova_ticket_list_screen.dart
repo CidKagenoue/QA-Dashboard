@@ -321,8 +321,8 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
       _ticketDescription(ticket),
       _reasonsLabel(ticket),
       ticket.ovaType ?? '',
-      ticket.department?.name ?? '',
-      ticket.branch?.name ?? '',
+      ticket.departmentLabel ?? '',
+      ticket.branchLabel ?? '',
       ticket.statusLabel,
       ticket.createdBy.displayName,
       ticket.lastEditedBy.displayName,
@@ -958,8 +958,9 @@ class _TicketToolbar extends StatelessWidget {
         foregroundColor: filtersExpanded || activeFilterCount > 0
             ? const Color(0xFF4E721C)
             : const Color(0xFF3F473B),
-        backgroundColor:
-            filtersExpanded ? const Color(0xFFEAF4D9) : Colors.white,
+        backgroundColor: filtersExpanded
+            ? const Color(0xFFEAF4D9)
+            : Colors.white,
         side: BorderSide(
           color: filtersExpanded || activeFilterCount > 0
               ? const Color(0xFF98C74D)
@@ -1092,10 +1093,7 @@ class _TicketToolbar extends StatelessWidget {
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: [
-                      filterButton,
-                      sortButton,
-                    ],
+                    children: [filterButton, sortButton],
                   ),
                 ],
               )
@@ -1577,20 +1575,16 @@ List<Widget> _withTableColumnGaps(List<Widget> children) {
 }
 
 class _TableColumnData {
-  const _TableColumnData({
-    required this.label,
-    required this.flex,
-  }) : alignment = Alignment.centerLeft;
+  const _TableColumnData({required this.label, required this.flex})
+    : alignment = Alignment.centerLeft;
   final String label;
   final int flex;
   final Alignment alignment;
 }
 
 class _TableCellData {
-  const _TableCellData({
-    required this.flex,
-    required this.child,
-  }) : alignment = Alignment.centerLeft;
+  const _TableCellData({required this.flex, required this.child})
+    : alignment = Alignment.centerLeft;
   final int flex;
   final Widget child;
   final Alignment alignment;

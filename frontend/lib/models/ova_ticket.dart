@@ -24,15 +24,28 @@ class OvaTicketUser {
 }
 
 class OvaTicketOption {
-  const OvaTicketOption({required this.id, required this.name});
+  const OvaTicketOption({
+    required this.id,
+    required this.name,
+    this.departmentIds = const [],
+  });
 
   final int id;
   final String name;
+  final List<int> departmentIds;
 
   factory OvaTicketOption.fromJson(Map<String, dynamic> json) {
+    final departmentIdsJson = json['departmentIds'];
     return OvaTicketOption(
       id: (json['id'] as num?)?.toInt() ?? 0,
       name: json['name'] as String? ?? '',
+      departmentIds: departmentIdsJson is List
+          ? departmentIdsJson
+                .whereType<num>()
+                .map((id) => id.toInt())
+                .where((id) => id > 0)
+                .toList()
+          : const [],
     );
   }
 }
@@ -198,6 +211,8 @@ class OvaTicket {
     this.ovaType,
     this.departmentId,
     this.branchId,
+    this.departmentFallback,
+    this.branchFallback,
     this.department,
     this.branch,
     this.otherReason,
@@ -220,6 +235,8 @@ class OvaTicket {
   final String? ovaType;
   final int? departmentId;
   final int? branchId;
+  final String? departmentFallback;
+  final String? branchFallback;
   final OvaTicketOption? department;
   final OvaTicketOption? branch;
   final List<String> reasons;
@@ -247,6 +264,11 @@ class OvaTicket {
   bool get isOpen => status.trim().toLowerCase() == 'open';
 
   bool get hasOpenActions => actions.any((action) => !action.isOk);
+
+  String? get branchLabel => branch?.name ?? _fallbackLabel(branchFallback);
+
+  String? get departmentLabel =>
+      department?.name ?? _fallbackLabel(departmentFallback);
 
   String get statusLabel {
     switch (status.trim().toLowerCase()) {
@@ -278,6 +300,8 @@ class OvaTicket {
       ovaType: json['ovaType'] as String?,
       departmentId: (json['departmentId'] as num?)?.toInt(),
       branchId: (json['branchId'] as num?)?.toInt(),
+      departmentFallback: json['departmentFallback'] as String?,
+      branchFallback: json['branchFallback'] as String?,
       department: departmentJson is Map
           ? OvaTicketOption.fromJson(Map<String, dynamic>.from(departmentJson))
           : null,
@@ -324,6 +348,17 @@ class OvaTicket {
           ? OvaTicketUser.fromJson(Map<String, dynamic>.from(closedByJson))
           : null,
     );
+  }
+}
+
+String? _fallbackLabel(String? value) {
+  switch (value?.trim().toLowerCase()) {
+    case 'unknown':
+      return 'Onbekend';
+    case 'not_applicable':
+      return 'Niet van toepassing';
+    default:
+      return null;
   }
 }
 

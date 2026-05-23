@@ -20,6 +20,12 @@ export class DepartmentsService {
 
   findAll() {
     return this.prisma.department.findMany({
+      where: {
+        name: {
+          not: 'Ander',
+          mode: 'insensitive',
+        },
+      },
       orderBy: { name: 'asc' },
       include: INCLUDE,
     });
@@ -50,7 +56,9 @@ export class DepartmentsService {
     await this.findOne(id); // gooit 404 als niet bestaat
 
     // Verwijder alle bestaande koppelingen en maak nieuwe aan
-    await this.prisma.departmentLeader.deleteMany({ where: { departmentId: id } });
+    await this.prisma.departmentLeader.deleteMany({
+      where: { departmentId: id },
+    });
 
     return this.prisma.department.update({
       where: { id },
@@ -67,7 +75,9 @@ export class DepartmentsService {
   async remove(id: number) {
     await this.findOne(id);
     // Cascade via Prisma schema; anders eerst leaders verwijderen
-    await this.prisma.departmentLeader.deleteMany({ where: { departmentId: id } });
+    await this.prisma.departmentLeader.deleteMany({
+      where: { departmentId: id },
+    });
     return this.prisma.department.delete({ where: { id } });
   }
 }

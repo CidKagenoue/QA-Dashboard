@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:frontend/main.dart' as whs;
+import 'package:frontend/providers/session_provider.dart' as whs_session;
 import '../widgets/app_bars/main_app_bar.dart';
 import '../models/ova_assigned_action.dart';
 import '../models/ova_ticket.dart';
@@ -11,8 +13,6 @@ import 'ova_dashboard_screen.dart';
 import 'maintenance_inspections_screen.dart';
 import '../services/jap_gpp_api_service.dart';
 import '../services/maintenance_api_service.dart';
-import '../services/whs_api_service.dart';
-import 'whs_tours_screen.dart';
 
 enum _HomeSection { dashboard, whsTours, ova, onderhoud, japGpp }
 
@@ -42,6 +42,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late _HomeSection _selected;
+  bool _sidebarCollapsed = false;
   int? _initialOvaTicketId;
   OvaDashboardInitialPage _initialOvaPage = OvaDashboardInitialPage.overview;
   bool _initialOvaTicketConsumed = false;
@@ -87,37 +88,48 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // De WHS-Tours pagina wordt binnen de normale dashboard-layout weergegeven
+    // (sidebar blijft zichtbaar). De embedded WHS-app wordt ingeladen in de
+    // rechterzijde van de layout via _buildSectionContent.
+
     return Scaffold(
-      appBar: const MainAppBar(title: 'Vlotter'),
+      appBar: MainAppBar(
+        title: 'Vlotter',
+        onToggleSidebar: () => setState(() => _sidebarCollapsed = !_sidebarCollapsed),
+      ),
       body: Row(
         children: [
-          Container(
-            width: 200,
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 240),
+            curve: Curves.easeInOut,
+            clipBehavior: Clip.hardEdge,
+            width: _sidebarCollapsed ? 64 : 200,
             color: HomeScreen._sidebarGreen,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const SizedBox(height: 32),
                 _SidebarItem(
                   icon: Icons.dashboard,
                   label: 'Dashboard',
                   selected: _selected == _HomeSection.dashboard,
-                  onTap: () =>
-                      setState(() => _selected = _HomeSection.dashboard),
+                  collapsed: _sidebarCollapsed,
+                  onTap: () => setState(() => _selected = _HomeSection.dashboard),
                 ),
                 const SizedBox(height: 12),
                 _SidebarItem(
                   icon: Icons.apartment_outlined,
                   label: 'WHS-Tours',
                   selected: _selected == _HomeSection.whsTours,
-                  onTap: () =>
-                      setState(() => _selected = _HomeSection.whsTours),
+                  collapsed: _sidebarCollapsed,
+                  onTap: () => setState(() => _selected = _HomeSection.whsTours),
                 ),
                 const SizedBox(height: 12),
                 _SidebarItem(
                   icon: Icons.info_outline_rounded,
                   label: 'OVA',
                   selected: _selected == _HomeSection.ova,
+                  collapsed: _sidebarCollapsed,
                   onTap: () => setState(() {
                     _initialOvaPage = OvaDashboardInitialPage.overview;
                     _selected = _HomeSection.ova;
@@ -128,6 +140,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: Icons.build,
                   label: 'Onderhoud\nKeuringen',
                   selected: _selected == _HomeSection.onderhoud,
+                  collapsed: _sidebarCollapsed,
                   onTap: () =>
                       setState(() => _selected = _HomeSection.onderhoud),
                 ),
@@ -136,6 +149,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: Icons.assignment,
                   label: 'JAP & GPP',
                   selected: _selected == _HomeSection.japGpp,
+                  collapsed: _sidebarCollapsed,
                   onTap: () => setState(() => _selected = _HomeSection.japGpp),
                 ),
                 const Spacer(),
@@ -169,7 +183,12 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         );
       case _HomeSection.whsTours:
-        return WhsToursScreen(token: token ?? '');
+        return ChangeNotifierProvider<whs_session.SessionProvider>(
+          create: (_) => whs_session.SessionProvider(),
+          child: whs.MyApp.embedded(
+            onExit: () => setState(() => _selected = _HomeSection.dashboard),
+          ),
+        );
       case _HomeSection.ova:
         final ovaTicketId = _initialOvaTicketConsumed
             ? null
@@ -225,39 +244,83 @@ class _SidebarItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool selected;
+  final bool collapsed;
   final VoidCallback? onTap;
 
   const _SidebarItem({
     required this.icon,
     required this.label,
     required this.selected,
+    this.collapsed = false,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        decoration: BoxDecoration(
-          color: selected ? HomeScreen._sidebarSelected : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-        child: Row(
-          children: [
-            Icon(icon, color: HomeScreen._sidebarText, size: 22),
-            const SizedBox(width: 14),
-            Text(
-              label,
-              style: const TextStyle(
-                color: HomeScreen._sidebarText,
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        hoverColor: Colors.black12.withOpacity(0.03),
+          child: Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(minHeight: 56),
+          decoration: BoxDecoration(
+            color: selected ? HomeScreen._sidebarSelected : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          padding: EdgeInsets.symmetric(
+            horizontal: collapsed ? 0 : 14,
+            vertical: 12,
+          ),
+          child: Row(
+            mainAxisAlignment: collapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
+            mainAxisSize: MainAxisSize.max,
+            children: [
+              // Show tooltip when collapsed so user still sees labels
+              if (collapsed)
+                Tooltip(message: label, child: Icon(icon, color: HomeScreen._sidebarText, size: 24))
+              else
+                Icon(icon, color: HomeScreen._sidebarText, size: 24),
+              // Smoothly animate label: fade + size (horizontal) to avoid jitter
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 240),
+                transitionBuilder: (child, animation) {
+                  final fade = FadeTransition(opacity: animation, child: child);
+                  return SizeTransition(
+                    sizeFactor: animation,
+                    axis: Axis.horizontal,
+                    axisAlignment: -1.0,
+                    child: fade,
+                  );
+                },
+                child: collapsed
+                    ? const SizedBox.shrink(key: ValueKey('empty'))
+                    : Padding(
+                        key: const ValueKey('label'),
+                        padding: const EdgeInsets.only(left: 14),
+                        child: Text(
+                          label,
+                          style: const TextStyle(
+                            color: HomeScreen._sidebarText,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -286,7 +349,6 @@ class _DashboardBodyState extends State<_DashboardBody> {
   List<OvaAssignedAction> _actions = const [];
   List<JapGppComment> _recentJapGpp = [];
   List<MaintenanceItem> _upcomingMaintenance = [];
-  List<Map<String, dynamic>> _whsRecent = [];
   @override
   void initState() {
     super.initState();
@@ -308,7 +370,6 @@ class _DashboardBodyState extends State<_DashboardBody> {
         JapApiService.fetchJapEntries(token: token).catchError((_) => <JapEntry>[]),
         JapApiService.fetchGppEntries(token: token).catchError((_) => <GppEntry>[]),
         MaintenanceApiService.fetchUpcomingInspections(token: token).catchError((_) => <Map<String, dynamic>>[]),
-        WhsApiService.fetchRecentReports(token: token).catchError((_) => <Map<String, dynamic>>[]),
       ]);
 
       if (!mounted) return;
@@ -367,10 +428,6 @@ class _DashboardBodyState extends State<_DashboardBody> {
             date: formatted,
           );
         }).toList();
-        _whsRecent = (results.length > 5 ? (results[5] as List<Map<String, dynamic>>) : <Map<String, dynamic>>[])
-            .take(3)
-            .map((r) => Map<String, dynamic>.from(r))
-            .toList();
       });
     } catch (e) {
       if (!mounted) return;
@@ -480,10 +537,7 @@ class _DashboardBodyState extends State<_DashboardBody> {
                     items: _upcomingMaintenance,
                     onTap: () => widget.onNavigate(_HomeSection.onderhoud),
                   ),
-                  _WhsToursOverviewCard(
-                    items: _whsRecent,
-                    onTap: () => widget.onNavigate(_HomeSection.whsTours),
-                  ),
+                  _WhsToursOverviewCard(onTap: () => widget.onNavigate(_HomeSection.whsTours)),
                 ];
 
                 return wide
@@ -1063,9 +1117,8 @@ class _UpcomingMaintenanceCard extends StatelessWidget {
 }
 
 class _WhsToursOverviewCard extends StatelessWidget {
-  const _WhsToursOverviewCard({required this.items, required this.onTap});
+  const _WhsToursOverviewCard({required this.onTap});
 
-  final List<Map<String, dynamic>> items;
   final VoidCallback onTap;
 
   @override
@@ -1086,55 +1139,10 @@ class _WhsToursOverviewCard extends StatelessWidget {
           const SizedBox(height: 6),
           const Divider(color: Color(0xFFE8EBE3), height: 1),
           const SizedBox(height: 14),
-          if (items.isEmpty)
-            const Text(
-              'Nog geen WHS tours beschikbaar.',
-              style: TextStyle(fontSize: 13, color: Color(0xFF4A4F45)),
-            ),
-          ...items.map((item) {
-            final location = item['vestiging'] is Map ? (item['vestiging']['address'] ?? item['vestiging']['name']) : (item['vestiging']?.toString() ?? 'Onbekend');
-            final rawDate = item['datum'] ?? item['date'];
-            String dateLabel = '';
-            if (rawDate != null) {
-              final parsed = DateTime.tryParse(rawDate.toString());
-              if (parsed != null) {
-                dateLabel = '${parsed.day.toString().padLeft(2,'0')}/${parsed.month.toString().padLeft(2,'0')}/${parsed.year}';
-              } else {
-                dateLabel = rawDate.toString();
-              }
-            }
-
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                children: [
-                  const Icon(Icons.place, size: 20, color: Color(0xFF8CC63F)),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          location.toString(),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                            color: Color(0xFF2B3424),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        if (dateLabel.isNotEmpty)
-                          Text(
-                            dateLabel,
-                            style: const TextStyle(fontSize: 12, color: Color(0xFF6B7A62)),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
+          const Text(
+            'Open de bestaande WHS Tours app binnen dit dashboard.',
+            style: TextStyle(fontSize: 13, color: Color(0xFF4A4F45)),
+          ),
         ],
       ),
     );

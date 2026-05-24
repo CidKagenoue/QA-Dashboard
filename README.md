@@ -212,6 +212,18 @@ The API base URL is configured in `frontend/lib/services/api_service.dart`:
 - **Android Emulator**: `http://10.0.2.2:3001` (use this instead of localhost)
 - **Physical device**: Use your machine's local IP address (e.g., `http://192.168.x.x:3001`)
 
+### WHS Tours In Dashboard
+
+The WHS Tours section now renders the existing WHS Tours Flutter app inside the QA Dashboard shell, starting on the WHS login flow.
+
+This means:
+
+- No separate URL is shown from QA Dashboard.
+- WHS Tours keeps its own login/session flow.
+- The WHS Tours screens and login are the existing ones from the WHS app.
+
+The QA Dashboard frontend depends on the WHS frontend package through a local path dependency, so run `flutter pub get` in `QA-Dashboard/frontend` after syncing changes.
+
 ## Common Commands
 
 From `backend` directory:

@@ -10,13 +10,21 @@ import '../vlotter_logo.dart';
 
 class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
-  const MainAppBar({super.key, required this.title});
+  final VoidCallback? onToggleSidebar;
+
+  const MainAppBar({super.key, required this.title, this.onToggleSidebar});
 
   @override
   Widget build(BuildContext context) {
     final isSettingsRoute = ModalRoute.of(context)?.settings.name == '/settings';
 
     return AppBar(
+      leading: onToggleSidebar != null
+          ? IconButton(
+              icon: const Icon(Icons.menu, color: Colors.white),
+              onPressed: onToggleSidebar,
+            )
+          : null,
       backgroundColor: const Color(0xFF8BC34A),
       foregroundColor: Colors.white,
       title: title.trim().toLowerCase() == 'vlotter'

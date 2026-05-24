@@ -9,11 +9,13 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  frontend:
+    path: ../../WHS-tours/frontend
   http: ^1.1.0
   shared_preferences: ^2.2.2
   provider: ^6.1.1
   url_launcher: ^6.3.0
-  file_picker: ^6.1.1
+  file_picker: ^10.0.0
   pdf: ^3.10.0
   printing: ^5.10.0
   archive: ^3.4.0
@@ -31,3 +33,6 @@ flutter:
     - assets/images/vlotter_logo.png
     - assets/images/vlotter_logo_white.png
     - assets/images/menu.png
+    - ../../WHS-tours/frontend/assets/vlotter-logo.png
+    - ../../WHS-tours/frontend/assets/images/warehouse_background.png
+    - ../../WHS-tours/frontend/assets/images/main_background.png

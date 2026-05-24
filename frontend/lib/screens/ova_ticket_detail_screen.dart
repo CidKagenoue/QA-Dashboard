@@ -392,7 +392,7 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
         widget: _buildSummaryMetric(
           icon: Icons.business_outlined,
           label: 'Vestiging',
-          value: _display(ticket.branch?.name),
+          value: _display(ticket.branchLabel),
         ),
       ),
       (
@@ -400,7 +400,7 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
         widget: _buildSummaryMetric(
           icon: Icons.account_tree_outlined,
           label: 'Afdeling',
-          value: _display(ticket.department?.name),
+          value: _display(ticket.departmentLabel),
         ),
       ),
       (

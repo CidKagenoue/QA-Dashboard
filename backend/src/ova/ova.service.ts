@@ -18,6 +18,11 @@ import {
   UpdateOvaTicketDto,
 } from './dto/ova-ticket.dto';
 
+const OVA_FALLBACK_UNKNOWN_ID = -1;
+const OVA_FALLBACK_NOT_APPLICABLE_ID = -2;
+const OVA_FALLBACK_UNKNOWN = 'unknown';
+const OVA_FALLBACK_NOT_APPLICABLE = 'not_applicable';
+
 const ovaUserSelect = {
   id: true,
   email: true,
@@ -56,6 +61,8 @@ const ovaTicketSelect = {
   ovaType: true,
   departmentId: true,
   branchId: true,
+  departmentFallback: true,
+  branchFallback: true,
   department: {
     select: {
       id: true,
@@ -112,6 +119,8 @@ const assignedActionSelect = {
       currentStep: true,
       findingDate: true,
       ovaType: true,
+      departmentFallback: true,
+      branchFallback: true,
       department: {
         select: {
           id: true,
@@ -272,16 +281,43 @@ export class OvaService {
 
     const [departments, branches] = await Promise.all([
       this.prisma.department.findMany({
+        where: {
+          name: {
+            not: 'Ander',
+            mode: Prisma.QueryMode.insensitive,
+          },
+        },
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
         select: { id: true, name: true },
       }),
       this.prisma.branch.findMany({
+        where: {
+          name: {
+            not: 'Ander',
+            mode: Prisma.QueryMode.insensitive,
+          },
+        },
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
-        select: { id: true, name: true },
+        select: {
+          id: true,
+          name: true,
+          departments: {
+            select: {
+              departmentId: true,
+            },
+          },
+        },
       }),
     ]);
 
-    return { departments, branches };
+    return {
+      departments,
+      branches: branches.map((branch) => ({
+        id: branch.id,
+        name: branch.name,
+        departmentIds: branch.departments.map((link) => link.departmentId),
+      })),
+    };
   }
 
   async createTicket(actorId: number, dto: CreateOvaTicketDto) {
@@ -416,6 +452,10 @@ export class OvaService {
       select: {
         id: true,
         status: true,
+        departmentId: true,
+        branchId: true,
+        departmentFallback: true,
+        branchFallback: true,
         actions: {
           select: {
             id: true,
@@ -431,8 +471,14 @@ export class OvaService {
 
     const mutation = this.normalizeUpdateInput(dto, actorId);
     await this.assertOvaRelationsExist(
-      mutation.ticketData.departmentId,
-      mutation.ticketData.branchId,
+      this.resolveMutationId(
+        mutation.ticketData.departmentId,
+        existingTicket.departmentId,
+      ),
+      this.resolveMutationId(
+        mutation.ticketData.branchId,
+        existingTicket.branchId,
+      ),
     );
 
     const beforeAssignments: InternalAssignmentSnapshot[] =
@@ -765,39 +811,109 @@ export class OvaService {
     const branchId =
       typeof branchIdValue === 'number' ? branchIdValue : undefined;
 
-    const checks: Promise<unknown>[] = [];
-    if (departmentId !== undefined) {
-      checks.push(
-        this.prisma.department.findUnique({
-          where: { id: departmentId },
-          select: { id: true },
-        }),
-      );
-    }
-    if (branchId !== undefined) {
-      checks.push(
-        this.prisma.branch.findUnique({
-          where: { id: branchId },
-          select: { id: true },
-        }),
-      );
-    }
-
-    if (checks.length === 0) {
+    if (departmentId === undefined && branchId === undefined) {
       return;
     }
 
-    const [department, branch] = await Promise.all(checks);
+    const [department, branch] = await Promise.all([
+      departmentId === undefined
+        ? Promise.resolve(null)
+        : this.prisma.department.findUnique({
+            where: { id: departmentId },
+            select: { id: true, name: true },
+          }),
+      branchId === undefined
+        ? Promise.resolve(null)
+        : this.prisma.branch.findUnique({
+            where: { id: branchId },
+            select: { id: true, name: true },
+          }),
+    ]);
 
     if (departmentId !== undefined && !department) {
       throw new BadRequestException('Onbekende afdeling geselecteerd');
     }
-    if (branchId !== undefined) {
-      const branchResult = departmentId !== undefined ? branch : department;
-      if (!branchResult) {
-        throw new BadRequestException('Onbekende vestiging geselecteerd');
-      }
+    if (branchId !== undefined && !branch) {
+      throw new BadRequestException('Onbekende vestiging geselecteerd');
     }
+
+    if (departmentId === undefined || branchId === undefined) {
+      return;
+    }
+
+    const link = await this.prisma.branchDepartment.findUnique({
+      where: {
+        branchId_departmentId: {
+          branchId,
+          departmentId,
+        },
+      },
+      select: {
+        branchId: true,
+      },
+    });
+
+    if (!link) {
+      throw new BadRequestException(
+        'Deze afdeling hoort niet bij de geselecteerde vestiging',
+      );
+    }
+  }
+
+  private resolveMutationId(value: unknown, fallback: number | null) {
+    if (typeof value === 'number') {
+      return value;
+    }
+    if (value === null) {
+      return undefined;
+    }
+
+    return fallback ?? undefined;
+  }
+
+  private assignDepartmentSelection(
+    data:
+      | Prisma.OvaTicketUncheckedCreateInput
+      | Prisma.OvaTicketUncheckedUpdateInput,
+    value: number | null | undefined,
+  ) {
+    const selection = this.normalizeOvaSelection(
+      value,
+      'Selecteer een afdeling',
+    );
+    data.departmentId = selection.id;
+    data.departmentFallback = selection.fallback;
+  }
+
+  private assignBranchSelection(
+    data:
+      | Prisma.OvaTicketUncheckedCreateInput
+      | Prisma.OvaTicketUncheckedUpdateInput,
+    value: number | null | undefined,
+  ) {
+    const selection = this.normalizeOvaSelection(
+      value,
+      'Selecteer een vestiging',
+    );
+    data.branchId = selection.id;
+    data.branchFallback = selection.fallback;
+  }
+
+  private normalizeOvaSelection(
+    value: number | null | undefined,
+    fieldName: string,
+  ) {
+    if (value === OVA_FALLBACK_UNKNOWN_ID) {
+      return { id: null, fallback: OVA_FALLBACK_UNKNOWN };
+    }
+    if (value === OVA_FALLBACK_NOT_APPLICABLE_ID) {
+      return { id: null, fallback: OVA_FALLBACK_NOT_APPLICABLE };
+    }
+
+    return {
+      id: this.normalizeRequiredId(value, fieldName),
+      fallback: null,
+    };
   }
 
   private normalizeCreateInput(
@@ -810,14 +926,8 @@ export class OvaService {
     };
 
     this.assignTicketFields(ticketData, dto);
-    ticketData.departmentId = this.normalizeRequiredId(
-      dto.departmentId,
-      'Selecteer een afdeling',
-    );
-    ticketData.branchId = this.normalizeRequiredId(
-      dto.branchId,
-      'Selecteer een vestiging',
-    );
+    this.assignDepartmentSelection(ticketData, dto.departmentId);
+    this.assignBranchSelection(ticketData, dto.branchId);
 
     return {
       ticketData,
@@ -858,16 +968,10 @@ export class OvaService {
       data.ovaType = this.normalizeOptionalText(dto.ovaType);
     }
     if (Object.prototype.hasOwnProperty.call(dto, 'departmentId')) {
-      data.departmentId = this.normalizeRequiredId(
-        dto.departmentId,
-        'Selecteer een afdeling',
-      );
+      this.assignDepartmentSelection(data, dto.departmentId);
     }
     if (Object.prototype.hasOwnProperty.call(dto, 'branchId')) {
-      data.branchId = this.normalizeRequiredId(
-        dto.branchId,
-        'Selecteer een vestiging',
-      );
+      this.assignBranchSelection(data, dto.branchId);
     }
     if (Object.prototype.hasOwnProperty.call(dto, 'reasons')) {
       data.reasons = this.normalizeReasons(dto.reasons);
@@ -1430,6 +1534,8 @@ export class OvaService {
       ovaType: ticket.ovaType,
       departmentId: ticket.departmentId,
       branchId: ticket.branchId,
+      departmentFallback: ticket.departmentFallback,
+      branchFallback: ticket.branchFallback,
       department: ticket.department,
       branch: ticket.branch,
       reasons: ticket.reasons,
@@ -1477,6 +1583,8 @@ export class OvaService {
         currentStep: action.ticket.currentStep,
         findingDate: action.ticket.findingDate?.toISOString() ?? null,
         ovaType: action.ticket.ovaType,
+        departmentFallback: action.ticket.departmentFallback,
+        branchFallback: action.ticket.branchFallback,
         department: action.ticket.department,
         branch: action.ticket.branch,
       },

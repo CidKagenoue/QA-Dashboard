@@ -30,6 +30,13 @@ const List<String> _kReasonOptions = [
 
 const List<String> _kCauseMethodOptions = ['5 Why', 'Fishbone', 'Andere'];
 
+const int _kUnknownOptionId = -1;
+const int _kNotApplicableOptionId = -2;
+const List<OvaTicketOption> _kFallbackOptions = [
+  OvaTicketOption(id: _kUnknownOptionId, name: 'Onbekend'),
+  OvaTicketOption(id: _kNotApplicableOptionId, name: 'Niet van toepassing'),
+];
+
 final ButtonStyle _wizardOutlineButtonStyle = OutlinedButton.styleFrom(
   foregroundColor: const Color(0xFF7DBA32),
   side: const BorderSide(color: Color(0xFFBFD9A6)),
@@ -198,6 +205,12 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
       setState(() {
         _departments = formData.departments;
         _branches = formData.branches;
+        if (!_isDepartmentAllowedForBranch(
+          _selectedDepartmentId,
+          _selectedBranchId,
+        )) {
+          _selectedDepartmentId = null;
+        }
       });
     } catch (error) {
       if (!mounted) {
@@ -221,8 +234,14 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
     _findingDate = ticket.findingDate ?? _findingDate;
     _effectivenessDate = ticket.effectivenessDate ?? _effectivenessDate;
     _ovaType = ticket.ovaType;
-    _selectedDepartmentId = ticket.departmentId ?? ticket.department?.id;
-    _selectedBranchId = ticket.branchId ?? ticket.branch?.id;
+    _selectedDepartmentId =
+        ticket.departmentId ??
+        ticket.department?.id ??
+        _fallbackId(ticket.departmentFallback);
+    _selectedBranchId =
+        ticket.branchId ??
+        ticket.branch?.id ??
+        _fallbackId(ticket.branchFallback);
     _selectedReasons = ticket.reasons.toSet();
     _otherReasonController.text = ticket.otherReason ?? '';
     _incidentController.text = ticket.incidentDescription ?? '';
@@ -569,6 +588,113 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
 
   bool get _hasDepartmentAndBranchSelection {
     return _selectedDepartmentId != null && _selectedBranchId != null;
+  }
+
+  OvaTicketOption? get _selectedBranch {
+    final branchId = _selectedBranchId;
+    if (branchId == null || _isFallbackId(branchId)) {
+      return null;
+    }
+
+    for (final branch in _branches) {
+      if (branch.id == branchId) {
+        return branch;
+      }
+    }
+
+    return null;
+  }
+
+  List<OvaTicketOption> get _departmentsForSelectedBranch {
+    final branch = _selectedBranch;
+
+    if (_isFallbackId(_selectedBranchId)) {
+      return _kFallbackOptions;
+    }
+
+    if (branch == null) {
+      return _withFallbackOptions(_withoutAnder(_departments));
+    }
+
+    final linkedDepartmentIds = branch.departmentIds.toSet();
+    final linkedDepartments = linkedDepartmentIds.isEmpty
+        ? <OvaTicketOption>[]
+        : _withoutAnder(_departments)
+              .where(
+                (department) => linkedDepartmentIds.contains(department.id),
+              )
+              .toList();
+
+    return _withFallbackOptions(linkedDepartments);
+  }
+
+  bool get _selectedBranchHasLinkedDepartments {
+    final branch = _selectedBranch;
+    if (branch == null) {
+      return true;
+    }
+
+    final linkedDepartmentIds = branch.departmentIds.toSet();
+    return _withoutAnder(
+      _departments,
+    ).any((department) => linkedDepartmentIds.contains(department.id));
+  }
+
+  List<OvaTicketOption> _withFallbackOptions(List<OvaTicketOption> options) => [
+    ...options,
+    ..._kFallbackOptions,
+  ];
+
+  List<OvaTicketOption> _withoutAnder(List<OvaTicketOption> options) {
+    return options
+        .where((option) => option.name.trim().toLowerCase() != 'ander')
+        .toList();
+  }
+
+  bool _isDepartmentAllowedForBranch(int? departmentId, int? branchId) {
+    if (departmentId == null) {
+      return true;
+    }
+    if (_isFallbackId(departmentId) || _isFallbackId(branchId)) {
+      return true;
+    }
+
+    final department = _departments
+        .where((option) => option.id == departmentId)
+        .cast<OvaTicketOption?>()
+        .firstWhere((option) => option != null, orElse: () => null);
+    if (department != null && department.name.trim().toLowerCase() == 'ander') {
+      return true;
+    }
+
+    if (branchId == null) {
+      return true;
+    }
+
+    final branch = _branches
+        .where((option) => option.id == branchId)
+        .cast<OvaTicketOption?>()
+        .firstWhere((option) => option != null, orElse: () => null);
+    if (branch == null || branch.name.trim().toLowerCase() == 'ander') {
+      return true;
+    }
+
+    return branch.departmentIds.contains(departmentId);
+  }
+
+  bool _isFallbackId(int? id) {
+    return id == _kUnknownOptionId || id == _kNotApplicableOptionId;
+  }
+
+  int? _fallbackId(String? value) {
+    switch (value?.trim().toLowerCase()) {
+      case 'unknown':
+        return _kUnknownOptionId;
+      case 'not_applicable':
+        return _kNotApplicableOptionId;
+      default:
+        return null;
+    }
   }
 
   void _showValidationMessage(String message) {
@@ -1057,6 +1183,13 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
   }
 
   Widget _buildBasicInformationStep() {
+    final availableBranches = _withFallbackOptions(_withoutAnder(_branches));
+    final availableDepartments = _departmentsForSelectedBranch;
+    final hasOnlyFallbackDepartment =
+        _selectedBranch != null &&
+        !_selectedBranchHasLinkedDepartments &&
+        availableDepartments.any((option) => _isFallbackId(option.id));
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1113,12 +1246,16 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
         _SectionCard(
           title: _requiredLabel('Vestiging'),
           subtitle:
-              'Kies een bestaande vestiging. Vrij typen is uitgeschakeld om rapportage schoon te houden.',
+              'Kies een vestiging. Gebruik Onbekend wanneer de juiste vestiging nog ontbreekt, of Niet van toepassing wanneer er geen vestiging bij hoort.',
           child: DropdownButtonFormField<int?>(
-            initialValue: _selectedOptionValue(_selectedBranchId, _branches),
+            key: const ValueKey('ova-branch-dropdown'),
+            initialValue: _selectedOptionValue(
+              _selectedBranchId,
+              availableBranches,
+            ),
             decoration: const InputDecoration(labelText: 'Vestiging'),
             hint: const Text('Selecteer vestiging'),
-            items: _branches
+            items: availableBranches
                 .map(
                   (branch) => DropdownMenuItem<int?>(
                     value: branch.id,
@@ -1126,11 +1263,17 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
                   ),
                 )
                 .toList(),
-            onChanged: _branches.isEmpty
+            onChanged: availableBranches.isEmpty
                 ? null
                 : (value) {
                     setState(() {
                       _selectedBranchId = value;
+                      if (!_isDepartmentAllowedForBranch(
+                        _selectedDepartmentId,
+                        value,
+                      )) {
+                        _selectedDepartmentId = null;
+                      }
                     });
                   },
           ),
@@ -1138,30 +1281,46 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
         const SizedBox(height: 18),
         _SectionCard(
           title: _requiredLabel('Afdeling'),
-          subtitle:
-              'Kies een bestaande afdeling zodat tickets correct gefilterd en gerapporteerd kunnen worden.',
-          child: DropdownButtonFormField<int?>(
-            initialValue: _selectedOptionValue(
-              _selectedDepartmentId,
-              _departments,
-            ),
-            decoration: const InputDecoration(labelText: 'Afdeling'),
-            hint: const Text('Selecteer afdeling'),
-            items: _departments
-                .map(
-                  (department) => DropdownMenuItem<int?>(
-                    value: department.id,
-                    child: Text(department.name),
-                  ),
-                )
-                .toList(),
-            onChanged: _departments.isEmpty
-                ? null
-                : (value) {
-                    setState(() {
-                      _selectedDepartmentId = value;
-                    });
-                  },
+          subtitle: hasOnlyFallbackDepartment
+              ? 'Voor deze vestiging zijn nog geen afdelingen gekoppeld. Kies Onbekend of Niet van toepassing, of laat een admin de koppeling aanvullen.'
+              : 'Kies een afdeling die bij de geselecteerde vestiging hoort. Gebruik Onbekend wanneer de juiste afdeling nog ontbreekt, of Niet van toepassing wanneer er geen afdeling bij hoort.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              DropdownButtonFormField<int?>(
+                key: ValueKey(
+                  'ova-department-dropdown-${_selectedBranchId ?? 'none'}',
+                ),
+                initialValue: _selectedOptionValue(
+                  _selectedDepartmentId,
+                  availableDepartments,
+                ),
+                decoration: const InputDecoration(labelText: 'Afdeling'),
+                hint: const Text('Selecteer afdeling'),
+                items: availableDepartments
+                    .map(
+                      (department) => DropdownMenuItem<int?>(
+                        value: department.id,
+                        child: Text(department.name),
+                      ),
+                    )
+                    .toList(),
+                onChanged: availableDepartments.isEmpty
+                    ? null
+                    : (value) {
+                        setState(() {
+                          _selectedDepartmentId = value;
+                        });
+                      },
+              ),
+              if (hasOnlyFallbackDepartment) ...[
+                const SizedBox(height: 10),
+                const Text(
+                  'Alleen Onbekend en Niet van toepassing zijn beschikbaar zolang er geen bijhorende afdelingen zijn ingesteld.',
+                  style: TextStyle(fontSize: 12, color: Color(0xFF8A6D1F)),
+                ),
+              ],
+            ],
           ),
         ),
       ],

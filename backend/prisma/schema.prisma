@@ -1,11 +1,11 @@
 generator client {
   provider = "prisma-client-js"
-  version  = "6"
+  version  = "7"
 }
 
 datasource db {
   provider = "postgresql"
-    url      = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -65,6 +65,7 @@ model Department {
   leaders    DepartmentLeader[]
   members    UserDepartment[]
   ovaTickets OvaTicket[]
+  branches   BranchDepartment[]
 }
 
 model DepartmentLeader {
@@ -105,6 +106,8 @@ model OvaTicket {
   ovaType             String?             @map("ova_type")
   departmentId        Int?                @map("department_id")
   branchId            Int?                @map("branch_id")
+  departmentFallback  String?             @map("department_fallback")
+  branchFallback      String?             @map("branch_fallback")
   reasons             String[]            @default([])
   otherReason         String?             @map("other_reason")
   incidentDescription String?             @map("incident_description")
@@ -172,11 +175,22 @@ model OvaFollowUpAction {
 }
 
 model Branch {
-  id         Int         @id @default(autoincrement())
-  name       String
-  createdAt  DateTime    @default(now())
-  locations  Location[]
-  ovaTickets OvaTicket[]
+  id          Int                @id @default(autoincrement())
+  name        String
+  createdAt   DateTime           @default(now())
+  locations   Location[]
+  ovaTickets  OvaTicket[]
+  departments BranchDepartment[]
+}
+
+model BranchDepartment {
+  branchId     Int
+  departmentId Int
+  branch       Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@id([branchId, departmentId])
+  @@index([departmentId], map: "BranchDepartment_departmentId_idx")
 }
 
 model Location {

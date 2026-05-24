@@ -421,52 +421,6 @@ class _DashboardBodyState extends State<_DashboardBody> {
             _WelcomeHeader(user: user),
             const SizedBox(height: 24),
 
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final wide = constraints.maxWidth > 760;
-                final cards = <Widget>[
-                  _JapGppOverviewCard(
-                    items: _recentJapGpp,
-                    onTap: () => widget.onNavigate(_HomeSection.japGpp),
-                  ),
-                  _UpcomingMaintenanceCard(
-                    items: _upcomingMaintenance,
-                    onTap: () => widget.onNavigate(_HomeSection.onderhoud),
-                  ),
-                  _WhsToursOverviewCard(
-                    items: _whsRecent,
-                    onTap: () => widget.onNavigate(_HomeSection.whsTours),
-                  ),
-                ];
-
-                return wide
-                    ? Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: cards
-                            .map(
-                              (c) => Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.only(right: 16),
-                                  child: c,
-                                ),
-                              ),
-                            )
-                            .toList(),
-                      )
-                    : Column(
-                        children: cards
-                            .map(
-                              (c) => Padding(
-                                padding: const EdgeInsets.only(bottom: 16),
-                                child: c,
-                              ),
-                            )
-                            .toList(),
-                      );
-              },
-            ),
-            const SizedBox(height: 20),
-
             if (_isLoading)
               const Center(
                 child: Padding(
@@ -514,6 +468,50 @@ class _DashboardBodyState extends State<_DashboardBody> {
               ],
 
             ],
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final wide = constraints.maxWidth > 760;
+                final cards = <Widget>[
+                  _JapGppOverviewCard(
+                    items: _recentJapGpp,
+                    onTap: () => widget.onNavigate(_HomeSection.japGpp),
+                  ),
+                  _UpcomingMaintenanceCard(
+                    items: _upcomingMaintenance,
+                    onTap: () => widget.onNavigate(_HomeSection.onderhoud),
+                  ),
+                  _WhsToursOverviewCard(
+                    items: _whsRecent,
+                    onTap: () => widget.onNavigate(_HomeSection.whsTours),
+                  ),
+                ];
+
+                return wide
+                    ? Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: cards
+                            .map(
+                              (c) => Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(right: 16),
+                                  child: c,
+                                ),
+                              ),
+                            )
+                            .toList(),
+                      )
+                    : Column(
+                        children: cards
+                            .map(
+                              (c) => Padding(
+                                padding: const EdgeInsets.only(bottom: 16),
+                                child: c,
+                              ),
+                            )
+                            .toList(),
+                      );
+              },
+            ),
           ],
         ),
       ),

@@ -262,16 +262,6 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
                       height: 1.1,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _headerSubtitle(ticket),
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF6B7A62),
-                      height: 1.2,
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -363,10 +353,6 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
         ],
       ),
     );
-  }
-
-  String _headerSubtitle(OvaTicket ticket) {
-    return '${_display(ticket.ovaType, fallback: 'Geen type')} - ${_findingDateLabel(ticket)}';
   }
 
   Widget _buildSummaryStrip(OvaTicket ticket) {
@@ -661,9 +647,9 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
         Text(
           label,
           style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF8A9386),
+            fontSize: 12.5,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF6F7A68),
             height: 1.2,
           ),
         ),
@@ -673,7 +659,7 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
           style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w600,
-            color: empty ? const Color(0xFF8A9386) : const Color(0xFF243022),
+            color: empty ? const Color(0xFF6F7A68) : const Color(0xFF243022),
             height: 1.35,
           ),
         ),
@@ -706,9 +692,9 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
               Text(
                 label,
                 style: const TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF8A9386),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF6F7A68),
                   height: 1.1,
                 ),
               ),

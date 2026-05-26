@@ -499,7 +499,10 @@ export class OvaService {
       }
 
       const actionCount =
-        mutation.actions?.length ?? existingTicket.actions.length;
+        mutation.actions === undefined
+          ? existingTicket.actions.length
+          : existingTicket.actions.length +
+            mutation.actions.filter((action) => action.id === undefined).length;
       const requestedStatus = mutation.requestedStatus;
       const isClosing = requestedStatus === 'closed';
 
@@ -701,14 +704,6 @@ export class OvaService {
 
     const where: Prisma.OvaFollowUpActionWhereInput = {
       ...(resolvedScope === 'mine' ? { internalAssigneeId: actor.id } : {}),
-      ticket: {
-        currentStep: {
-          lte: 5,
-        },
-        status: {
-          notIn: ['closed', 'completed'],
-        },
-      },
     };
 
     const actions = (await this.prisma.ovaFollowUpAction.findMany({
@@ -771,6 +766,25 @@ export class OvaService {
     return {
       action: this.serializeAction(action),
     };
+  }
+
+  async deleteAction(actionId: number, actorId: number) {
+    await this.assertCanAccessOva(actorId);
+
+    const existingAction = await this.prisma.ovaFollowUpAction.findUnique({
+      where: { id: actionId },
+      select: { id: true },
+    });
+
+    if (!existingAction) {
+      throw new NotFoundException('Opvolgactie niet gevonden');
+    }
+
+    await this.prisma.ovaFollowUpAction.delete({
+      where: { id: actionId },
+    });
+
+    return { success: true };
   }
 
   private async assertCanAccessOva(actorId: number): Promise<OvaActor> {
@@ -1048,8 +1062,6 @@ export class OvaService {
     });
 
     const existingIds = new Set(existingActions.map((action) => action.id));
-    const seenExistingIds = new Set<number>();
-
     for (const action of actions) {
       const actionData = await this.buildActionWriteData(tx, action);
 
@@ -1060,7 +1072,6 @@ export class OvaService {
           );
         }
 
-        seenExistingIds.add(action.id);
         await tx.ovaFollowUpAction.update({
           where: { id: action.id },
           data: actionData,
@@ -1096,21 +1107,6 @@ export class OvaService {
           },
         });
       }
-    }
-
-    const deleteIds = existingActions
-      .map((action) => action.id)
-      .filter((id) => !seenExistingIds.has(id));
-
-    if (deleteIds.length > 0) {
-      await tx.ovaFollowUpAction.deleteMany({
-        where: {
-          ticketId,
-          id: {
-            in: deleteIds,
-          },
-        },
-      });
     }
   }
 

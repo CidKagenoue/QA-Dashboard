@@ -38,7 +38,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               return TextButton.icon(
                 style: TextButton.styleFrom(
                   foregroundColor: const Color(0xFFD32F2F),
-                  disabledForegroundColor: const Color(0xFFD32F2F).withOpacity(0.38),
+                  disabledForegroundColor: const Color(0xFFD32F2F).withValues(alpha: 0.38),
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   minimumSize: const Size(0, 36),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,

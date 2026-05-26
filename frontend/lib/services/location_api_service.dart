@@ -30,25 +30,33 @@ class LocationApiService {
     required String token,
     int? id,
     required String name,
+    List<int>? departmentIds,
   }) async {
-    final body = jsonEncode({'name': name});
+    final body = jsonEncode({
+      'name': name,
+      ...?(departmentIds == null ? null : {'departmentIds': departmentIds}),
+    });
     final uri = id == null
         ? Uri.parse('$baseUrl/branches')
         : Uri.parse('$baseUrl/branches/$id');
 
     final response = await (id == null
-        ? http.post(uri,
+        ? http.post(
+            uri,
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $token',
             },
-            body: body)
-        : http.put(uri,
+            body: body,
+          )
+        : http.put(
+            uri,
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $token',
             },
-            body: body));
+            body: body,
+          ));
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       return Branch.fromJson(jsonDecode(response.body));
@@ -87,18 +95,22 @@ class LocationApiService {
         : Uri.parse('$baseUrl/locations/$id');
 
     final response = await (id == null
-        ? http.post(uri,
+        ? http.post(
+            uri,
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $token',
             },
-            body: body)
-        : http.put(uri,
+            body: body,
+          )
+        : http.put(
+            uri,
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $token',
             },
-            body: body));
+            body: body,
+          ));
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       return Location.fromJson(jsonDecode(response.body));

@@ -25,6 +25,8 @@ export class CreateOvaTicketDto {
   ovaType?: string | null;
   departmentId?: number | null;
   branchId?: number | null;
+  departmentFallback?: string | null;
+  branchFallback?: string | null;
   reasons?: string[];
   otherReason?: string | null;
   incidentDescription?: string | null;

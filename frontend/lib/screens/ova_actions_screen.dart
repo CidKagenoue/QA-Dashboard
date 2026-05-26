@@ -6,7 +6,8 @@ import '../models/ova_assigned_action.dart';
 import '../models/ova_ticket.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
-import 'ova_ticket_wizard_screen.dart';
+import 'ova_action_detail_screen.dart';
+import 'ova_ticket_wizard_screen.dart' show formatOvaDate;
 
 enum _ActionScope { mine, all }
 
@@ -37,7 +38,7 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
   String? _error;
   List<OvaAssignedAction> _actions = const [];
   _ActionScope _selectedScope = _ActionScope.mine;
-  _ActionStatusFilter _selectedStatusFilter = _ActionStatusFilter.nok;
+  _ActionStatusFilter _selectedStatusFilter = _ActionStatusFilter.all;
   _ActionDeadlineFilter _selectedDeadlineFilter = _ActionDeadlineFilter.all;
   _ActionTypeFilter _selectedTypeFilter = _ActionTypeFilter.all;
   String? _selectedAssignee;
@@ -59,7 +60,7 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
     _searchController.dispose();
     super.dispose();
   }
-  
+
   OvaSortOption _sortOption = const OvaSortOption(
     field: OvaSortField.date,
     direction: OvaSortDirection.descending,
@@ -138,7 +139,7 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
           comparison = a.action.typeLabel.compareTo(b.action.typeLabel);
           break;
       }
-      
+
       return _sortOption.direction == OvaSortDirection.ascending
           ? comparison
           : -comparison;
@@ -277,7 +278,7 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
 
     _searchController.clear();
     setState(() {
-      _selectedStatusFilter = _ActionStatusFilter.nok;
+      _selectedStatusFilter = _ActionStatusFilter.all;
       _selectedDeadlineFilter = _ActionDeadlineFilter.all;
       _selectedTypeFilter = _ActionTypeFilter.all;
       _selectedAssignee = null;
@@ -333,17 +334,14 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
     }
   }
 
-  Future<void> _openTicket(int ticketId) async {
-    final result = await Navigator.of(context).push<String?>(
+  Future<void> _openActionDetail(OvaAssignedAction item) async {
+    final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => OvaTicketWizardScreen(
-          ticketId: ticketId,
-          embedded: widget.embedded,
-        ),
+        builder: (_) => OvaActionDetailScreen(initialAction: item),
       ),
     );
 
-    if (result != null && mounted) {
+    if (result == true && mounted) {
       await _loadActions();
     }
   }
@@ -519,7 +517,7 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
                   _ActionsOverview(
                     actions: _filteredActions,
                     savingActionIds: _savingActionIds,
-                    onOpenTicket: (item) => _openTicket(item.ticket.id),
+                    onOpenAction: _openActionDetail,
                     onStatusChanged: _updateActionStatus,
                   ),
               ],
@@ -545,13 +543,13 @@ class _ActionsOverview extends StatelessWidget {
   const _ActionsOverview({
     required this.actions,
     required this.savingActionIds,
-    required this.onOpenTicket,
+    required this.onOpenAction,
     required this.onStatusChanged,
   });
 
   final List<OvaAssignedAction> actions;
   final Set<int> savingActionIds;
-  final ValueChanged<OvaAssignedAction> onOpenTicket;
+  final ValueChanged<OvaAssignedAction> onOpenAction;
   final Future<void> Function(OvaAssignedAction, bool) onStatusChanged;
 
   @override
@@ -562,7 +560,7 @@ class _ActionsOverview extends StatelessWidget {
           return _ActionsTable(
             actions: actions,
             savingActionIds: savingActionIds,
-            onOpenTicket: onOpenTicket,
+            onOpenAction: onOpenAction,
             onStatusChanged: onStatusChanged,
           );
         }
@@ -577,7 +575,7 @@ class _ActionsOverview extends StatelessWidget {
               child: _ActionMobileTile(
                 item: item,
                 isSaving: savingActionIds.contains(item.action.id),
-                onOpenTicket: () => onOpenTicket(item),
+                onOpenAction: () => onOpenAction(item),
                 onStatusChanged: (isOk) => onStatusChanged(item, isOk),
               ),
             );
@@ -861,7 +859,7 @@ class _ActionFilters extends StatelessWidget {
             color: Color(0xFF7A8078),
           ),
         );
-        
+
         // AANGEPAST: voeg sortButton toe aan actions
         final actions = compact
             ? Column(
@@ -872,10 +870,7 @@ class _ActionFilters extends StatelessWidget {
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: [
-                      filterButton,
-                      sortButton,
-                    ],
+                    children: [filterButton, sortButton],
                   ),
                 ],
               )
@@ -885,8 +880,8 @@ class _ActionFilters extends StatelessWidget {
                   searchField,
                   const SizedBox(width: 10),
                   filterButton,
-                  const SizedBox(width: 8),  // NIEUW: spacing
-                  sortButton,                 // NIEUW: sortButton
+                  const SizedBox(width: 8), // NIEUW: spacing
+                  sortButton, // NIEUW: sortButton
                 ],
               );
 
@@ -931,6 +926,7 @@ class _ActionFilters extends StatelessWidget {
       },
     );
   }
+
   Widget _buildActiveFilters() {
     return Wrap(
       spacing: 8,
@@ -1269,13 +1265,13 @@ class _ActionsTable extends StatelessWidget {
   const _ActionsTable({
     required this.actions,
     required this.savingActionIds,
-    required this.onOpenTicket,
+    required this.onOpenAction,
     required this.onStatusChanged,
   });
 
   final List<OvaAssignedAction> actions;
   final Set<int> savingActionIds;
-  final ValueChanged<OvaAssignedAction> onOpenTicket;
+  final ValueChanged<OvaAssignedAction> onOpenAction;
   final Future<void> Function(OvaAssignedAction, bool) onStatusChanged;
 
   @override
@@ -1322,10 +1318,25 @@ class _ActionsTable extends StatelessWidget {
                 item: item,
                 striped: index.isOdd,
                 isSaving: savingActionIds.contains(item.action.id),
-                onOpenTicket: () => onOpenTicket(item),
+                onOpenAction: () => onOpenAction(item),
                 onStatusChanged: (isOk) => onStatusChanged(item, isOk),
               );
             }),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              decoration: const BoxDecoration(
+                color: Color(0xFFFBFCF8),
+                border: Border(top: BorderSide(color: Color(0xFFE8ECE3))),
+              ),
+              child: const Text(
+                'Klik op een rij om de actiedetails en het gekoppelde ticket te bekijken.',
+                style: TextStyle(
+                  color: Color(0xFF6B7367),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -1338,14 +1349,14 @@ class _ActionsTableRow extends StatelessWidget {
     required this.item,
     required this.striped,
     required this.isSaving,
-    required this.onOpenTicket,
+    required this.onOpenAction,
     required this.onStatusChanged,
   });
 
   final OvaAssignedAction item;
   final bool striped;
   final bool isSaving;
-  final VoidCallback onOpenTicket;
+  final VoidCallback onOpenAction;
   final ValueChanged<bool> onStatusChanged;
 
   @override
@@ -1353,7 +1364,7 @@ class _ActionsTableRow extends StatelessWidget {
     return Material(
       color: striped ? const Color(0xFFF9FAF6) : Colors.white,
       child: InkWell(
-        onTap: onOpenTicket,
+        onTap: onOpenAction,
         child: Container(
           decoration: const BoxDecoration(
             border: Border(top: BorderSide(color: Color(0xFFE8ECE3))),
@@ -1449,13 +1460,13 @@ class _ActionMobileTile extends StatelessWidget {
   const _ActionMobileTile({
     required this.item,
     required this.isSaving,
-    required this.onOpenTicket,
+    required this.onOpenAction,
     required this.onStatusChanged,
   });
 
   final OvaAssignedAction item;
   final bool isSaving;
-  final VoidCallback onOpenTicket;
+  final VoidCallback onOpenAction;
   final ValueChanged<bool> onStatusChanged;
 
   @override
@@ -1464,7 +1475,7 @@ class _ActionMobileTile extends StatelessWidget {
       color: Colors.white,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
-        onTap: onOpenTicket,
+        onTap: onOpenAction,
         borderRadius: BorderRadius.circular(8),
         child: Container(
           padding: const EdgeInsets.all(16),
@@ -1499,6 +1510,26 @@ class _ActionMobileTile extends StatelessWidget {
                     isOk: item.action.isOk,
                     isSaving: isSaving,
                     onChanged: onStatusChanged,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    'Details bekijken',
+                    style: TextStyle(
+                      color: Color(0xFF5F8424),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  SizedBox(width: 4),
+                  Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 16,
+                    color: Color(0xFF5F8424),
                   ),
                 ],
               ),

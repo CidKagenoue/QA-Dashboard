@@ -7,6 +7,10 @@ class OvaActionTicketSummary {
     required this.currentStep,
     this.findingDate,
     this.ovaType,
+    this.departmentFallback,
+    this.branchFallback,
+    this.department,
+    this.branch,
   });
 
   final int id;
@@ -14,6 +18,15 @@ class OvaActionTicketSummary {
   final int currentStep;
   final DateTime? findingDate;
   final String? ovaType;
+  final String? departmentFallback;
+  final String? branchFallback;
+  final OvaTicketOption? department;
+  final OvaTicketOption? branch;
+
+  String? get branchLabel => branch?.name ?? _fallbackLabel(branchFallback);
+
+  String? get departmentLabel =>
+      department?.name ?? _fallbackLabel(departmentFallback);
 
   String get statusLabel {
     switch (status.trim().toLowerCase()) {
@@ -30,12 +43,23 @@ class OvaActionTicketSummary {
   }
 
   factory OvaActionTicketSummary.fromJson(Map<String, dynamic> json) {
+    final departmentJson = json['department'];
+    final branchJson = json['branch'];
+
     return OvaActionTicketSummary(
       id: (json['id'] as num?)?.toInt() ?? 0,
       status: json['status'] as String? ?? 'incomplete',
       currentStep: (json['currentStep'] as num?)?.toInt() ?? 1,
       findingDate: _readDateValue(json['findingDate']),
       ovaType: json['ovaType'] as String?,
+      departmentFallback: json['departmentFallback'] as String?,
+      branchFallback: json['branchFallback'] as String?,
+      department: departmentJson is Map
+          ? OvaTicketOption.fromJson(Map<String, dynamic>.from(departmentJson))
+          : null,
+      branch: branchJson is Map
+          ? OvaTicketOption.fromJson(Map<String, dynamic>.from(branchJson))
+          : null,
     );
   }
 }
@@ -66,4 +90,15 @@ DateTime? _readDateValue(Object? value) {
   }
 
   return DateTime.tryParse(value)?.toLocal();
+}
+
+String? _fallbackLabel(String? value) {
+  switch (value?.trim().toLowerCase()) {
+    case 'unknown':
+      return 'Onbekend';
+    case 'not_applicable':
+      return 'Niet van toepassing';
+    default:
+      return null;
+  }
 }

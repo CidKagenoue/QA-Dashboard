@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/ova_ticket.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../theme/app_theme.dart';
 import 'ova_ticket_wizard_screen.dart';
 
 class OvaTicketDetailScreen extends StatefulWidget {
@@ -110,7 +111,7 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFD32F2F),
+              backgroundColor: kDanger,
               foregroundColor: Colors.white,
             ),
             child: const Text('Verwijderen'),
@@ -157,7 +158,7 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F6F3),
+      backgroundColor: kBackground,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -165,34 +166,18 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null && _ticket == null
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _error!,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.red[700]),
+                    ? _ErrorView(message: _error!, onRetry: _loadTicket)
+                    : _ticket == null
+                        ? const Center(
+                            child: Text('Ticket niet beschikbaar'),
+                          )
+                        : Padding(
+                            padding:
+                                const EdgeInsets.fromLTRB(24, 20, 24, 24),
+                            child: SizedBox.expand(
+                              child: _buildMainCard(context, _ticket!),
+                            ),
                           ),
-                          const SizedBox(height: 12),
-                          ElevatedButton(
-                            onPressed: _loadTicket,
-                            child: const Text('Opnieuw proberen'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                : _ticket == null
-                ? const Center(child: Text('Ticket niet beschikbaar'))
-                : Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
-                    child: SizedBox.expand(
-                      child: _buildMainCard(context, _ticket!),
-                    ),
-                  ),
           ),
         ],
       ),
@@ -204,27 +189,18 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE4E9DD)),
+        color: kSurface,
+        borderRadius: BorderRadius.circular(kRadius2xl),
+        border: Border.all(color: kBorder),
       ),
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.fromLTRB(28, 24, 28, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Dashboard > OVA > Tickets',
-            style: TextStyle(
-              fontSize: 12,
-              color: Color(0xFF9CA39A),
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 10),
-
-          _buildHeader(ticket: ticket, isAdmin: isAdmin),
+          const _Breadcrumb(segments: ['Dashboard', 'OVA', 'Tickets']),
           const SizedBox(height: 16),
-
+          _buildHeader(ticket: ticket, isAdmin: isAdmin),
+          const SizedBox(height: 20),
           Expanded(child: SingleChildScrollView(child: _buildContent(ticket))),
         ],
       ),
@@ -236,30 +212,42 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = constraints.maxWidth < 720;
+        final compact = constraints.maxWidth < 760;
         final title = Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            IconButton(
-              onPressed: widget.onClose,
-              icon: const Icon(Icons.arrow_back, color: Color(0xFF243022)),
-              tooltip: 'Terug',
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              visualDensity: VisualDensity.compact,
-            ),
-            const SizedBox(width: 8),
+            _BackButton(onTap: widget.onClose),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        'OVA Ticket',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: kTextTertiary,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildStatusBadge(ticket),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
                   Text(
-                    'OVA Ticket #${ticket.id.toString().padLeft(4, '0')}',
+                    '#${ticket.id.toString().padLeft(4, '0')}',
                     style: const TextStyle(
                       fontSize: 30,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF243022),
+                      color: kTextPrimary,
                       height: 1.1,
+                      letterSpacing: -0.5,
                     ),
                   ),
                 ],
@@ -274,7 +262,7 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
             children: [
               title,
               if (actions.isNotEmpty) ...[
-                const SizedBox(height: 14),
+                const SizedBox(height: 16),
                 Wrap(spacing: 8, runSpacing: 8, children: actions),
               ],
             ],
@@ -290,6 +278,7 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
               spacing: 8,
               runSpacing: 8,
               alignment: WrapAlignment.end,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: actions,
             ),
           ],
@@ -300,171 +289,141 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
 
   List<Widget> _buildHeaderActions(OvaTicket ticket, bool isAdmin) {
     return [
-      if (isAdmin)
-        TextButton.icon(
-          onPressed: _isDeleting ? null : _confirmDelete,
-          icon: const Icon(Icons.delete_outline, size: 18),
-          label: const Text('Verwijderen'),
-          style: TextButton.styleFrom(foregroundColor: const Color(0xFFD32F2F)),
-        ),
       if (!ticket.isClosed)
         ElevatedButton.icon(
           onPressed: _isDeleting ? null : _openTicketWizard,
           icon: const Icon(Icons.edit_outlined, size: 18),
           label: const Text('Bewerken'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF8CC63F),
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(999),
-            ),
+        ),
+      if (isAdmin)
+        OutlinedButton.icon(
+          onPressed: _isDeleting ? null : _confirmDelete,
+          icon: const Icon(Icons.delete_outline_rounded, size: 18),
+          label: const Text('Verwijderen'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: kDanger,
+            side: const BorderSide(color: kDangerBorder),
           ),
         ),
     ];
   }
 
   Widget _buildContent(OvaTicket ticket) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFBFCF8),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE4E9DD)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSummaryStrip(ticket),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSummaryStrip(ticket),
+        const SizedBox(height: 18),
+        _buildResponsiveDetailLayout(ticket),
+        if (_error != null) ...[
           const SizedBox(height: 16),
-          _buildResponsiveDetailLayout(ticket),
-
-          if (_error != null) ...[
-            const SizedBox(height: 16),
-            Text(
-              _error!,
-              style: TextStyle(
-                color: Colors.red.shade700,
-                fontWeight: FontWeight.w600,
-              ),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: kDangerBg,
+              borderRadius: BorderRadius.circular(kRadiusMd),
+              border: Border.all(color: kDangerBorder),
             ),
-          ],
+            child: Row(
+              children: [
+                const Icon(Icons.error_outline_rounded,
+                    color: kDanger, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(
+                      color: kDanger,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
-      ),
+      ],
     );
   }
 
   Widget _buildSummaryStrip(OvaTicket ticket) {
     final metrics = [
-      (
-        flex: 4,
-        widget: _buildSummaryMetric(
-          icon: Icons.category_outlined,
-          label: 'Type',
-          value: _display(ticket.ovaType),
-        ),
+      _MetricData(
+        icon: Icons.category_outlined,
+        label: 'Type',
+        value: _display(ticket.ovaType),
       ),
-      (
-        flex: 6,
-        widget: _buildSummaryMetric(
-          icon: Icons.event_note_outlined,
-          label: 'Datum vaststelling',
-          value: _findingDateLabel(ticket),
-        ),
+      _MetricData(
+        icon: Icons.event_note_outlined,
+        label: 'Datum vaststelling',
+        value: _findingDateLabel(ticket),
       ),
-      (
-        flex: 5,
-        widget: _buildSummaryMetric(
-          icon: Icons.business_outlined,
-          label: 'Vestiging',
-          value: _display(ticket.branchLabel),
-        ),
+      _MetricData(
+        icon: Icons.business_outlined,
+        label: 'Vestiging',
+        value: _display(ticket.branchLabel),
       ),
-      (
-        flex: 5,
-        widget: _buildSummaryMetric(
-          icon: Icons.account_tree_outlined,
-          label: 'Afdeling',
-          value: _display(ticket.departmentLabel),
-        ),
+      _MetricData(
+        icon: Icons.account_tree_outlined,
+        label: 'Afdeling',
+        value: _display(ticket.departmentLabel),
       ),
-      (
-        flex: 5,
-        widget: _buildSummaryMetric(
-          icon: Icons.checklist_rtl_outlined,
-          label: 'Opvolging',
-          value: _actionProgressLabel(ticket),
-        ),
+      _MetricData(
+        icon: Icons.checklist_rtl_outlined,
+        label: 'Opvolging',
+        value: _actionProgressLabel(ticket),
       ),
-      (
-        flex: 6,
-        widget: _buildSummaryMetric(
-          icon: Icons.person_outline,
-          label: 'Aangemaakt door',
-          value: ticket.createdBy.displayName,
-        ),
+      _MetricData(
+        icon: Icons.person_outline,
+        label: 'Aangemaakt door',
+        value: ticket.createdBy.displayName,
       ),
     ];
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE4E9DD)),
+        color: kSurfaceMuted,
+        borderRadius: BorderRadius.circular(kRadiusLg),
+        border: Border.all(color: kBorder),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           if (constraints.maxWidth >= 860) {
+            final widgets = <Widget>[];
+            for (var i = 0; i < metrics.length; i++) {
+              widgets.add(
+                Expanded(child: _SummaryMetric(data: metrics[i])),
+              );
+              if (i != metrics.length - 1) {
+                widgets.add(const SizedBox(
+                  height: 36,
+                  child: VerticalDivider(width: 24, color: kBorderSubtle),
+                ));
+              }
+            }
             return Row(
               crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                SizedBox(
-                  width: 66,
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: _buildStatusBadge(ticket),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                ...List.generate(metrics.length, (index) {
-                  return Expanded(
-                    flex: metrics[index].flex,
-                    child: Padding(
-                      padding: EdgeInsets.only(
-                        left: index == 0 ? 0 : 8,
-                        right: index == metrics.length - 1 ? 0 : 8,
-                      ),
-                      child: metrics[index].widget,
-                    ),
-                  );
-                }),
-              ],
+              children: widgets,
             );
           }
 
           final itemWidth = constraints.maxWidth >= 540
-              ? (constraints.maxWidth - 14) / 2
+              ? (constraints.maxWidth - 16) / 2
               : constraints.maxWidth;
 
           return Wrap(
-            spacing: 14,
-            runSpacing: 12,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              SizedBox(
-                width: itemWidth,
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: _buildStatusBadge(ticket),
-                ),
-              ),
-              ...metrics.map(
-                (metric) => SizedBox(width: itemWidth, child: metric.widget),
-              ),
-            ],
+            spacing: 16,
+            runSpacing: 14,
+            children: metrics
+                .map(
+                  (metric) => SizedBox(
+                    width: itemWidth,
+                    child: _SummaryMetric(data: metric),
+                  ),
+                )
+                .toList(),
           );
         },
       ),
@@ -480,8 +439,8 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(flex: 7, child: _buildPrimaryColumn(ticket)),
-              const SizedBox(width: 16),
-              SizedBox(width: 370, child: _buildSideColumn(ticket)),
+              const SizedBox(width: 18),
+              SizedBox(width: 380, child: _buildSideColumn(ticket)),
             ],
           );
         }
@@ -490,7 +449,7 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildPrimaryColumn(ticket),
-            const SizedBox(height: 16),
+            const SizedBox(height: 18),
             _buildSideColumn(ticket),
           ],
         );
@@ -514,7 +473,7 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
             ),
           ]),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         _buildSectionPanel(
           title: 'Oorzakenanalyse',
           icon: Icons.manage_search_outlined,
@@ -531,7 +490,7 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
             ),
           ]),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         _buildActionsPanel(ticket),
       ],
     );
@@ -542,10 +501,10 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildEffectivenessPanel(ticket),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         _buildMetaPanel(ticket),
         if (ticket.isClosed) ...[
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           _buildClosurePanel(ticket),
         ],
       ],
@@ -580,30 +539,40 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE4E9DD)),
+        color: kSurface,
+        borderRadius: BorderRadius.circular(kRadiusLg),
+        border: Border.all(color: kBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: 18, color: const Color(0xFF6B7A62)),
-              const SizedBox(width: 8),
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: kBrandGreenSubtle,
+                  borderRadius: BorderRadius.circular(kRadiusSm),
+                ),
+                alignment: Alignment.center,
+                child: Icon(icon, size: 18, color: kBrandGreenDeep),
+              ),
+              const SizedBox(width: 12),
               Text(
                 title,
                 style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF2B3424),
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w700,
+                  color: kTextPrimary,
+                  letterSpacing: -0.1,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           child,
         ],
       ),
@@ -616,104 +585,26 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
   }) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        const gap = 18.0;
+        const gap = 20.0;
         final columnCount =
             ((constraints.maxWidth + gap) / (minItemWidth + gap)).floor().clamp(
-              1,
-              3,
-            );
+                  1,
+                  3,
+                );
         final itemWidth =
             (constraints.maxWidth - (gap * (columnCount - 1))) / columnCount;
 
         return Wrap(
           spacing: gap,
-          runSpacing: 14,
+          runSpacing: 16,
           children: fields.map((field) {
             return SizedBox(
               width: field.wide ? constraints.maxWidth : itemWidth,
-              child: _buildInfoItem(field.label, field.value),
+              child: _InfoItem(label: field.label, value: field.value),
             );
           }).toList(),
         );
       },
-    );
-  }
-
-  Widget _buildInfoItem(String label, String value) {
-    final empty = value.trim() == '-';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF6F7A68),
-            height: 1.2,
-          ),
-        ),
-        const SizedBox(height: 5),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: empty ? const Color(0xFF6F7A68) : const Color(0xFF243022),
-            height: 1.35,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSummaryMetric({
-    required IconData icon,
-    required String label,
-    required String value,
-  }) {
-    return Row(
-      children: [
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: const Color(0xFFEAF4D9),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, size: 17, color: const Color(0xFF5F8424)),
-        ),
-        const SizedBox(width: 9),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF6F7A68),
-                  height: 1.1,
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF243022),
-                  height: 1.1,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 
@@ -727,16 +618,31 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
           Text(
             _openActionsLabel(ticket),
             style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF6B7A62),
+              fontSize: 13.5,
+              fontWeight: FontWeight.w600,
+              color: kTextTertiary,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           if (ticket.actions.isEmpty)
-            _buildEmptyText('Geen opvolgacties geregistreerd.')
+            const Text(
+              'Geen opvolgacties geregistreerd.',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: kTextTertiary,
+                height: 1.4,
+              ),
+            )
           else
-            ...ticket.actions.map(_buildActionCard),
+            ...List.generate(ticket.actions.length, (index) {
+              final action = ticket.actions[index];
+              return Padding(
+                padding: EdgeInsets.only(
+                    top: index == 0 ? 0 : 10),
+                child: _ActionCard(action: action),
+              );
+            }),
         ],
       ),
     );
@@ -745,7 +651,7 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
   Widget _buildClosurePanel(OvaTicket ticket) {
     return _buildSectionPanel(
       title: 'Afsluiting',
-      icon: Icons.lock_outline,
+      icon: Icons.lock_outline_rounded,
       child: _buildInfoGrid([
         (
           label: 'Gesloten op',
@@ -770,8 +676,8 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
 
   Widget _buildMetaPanel(OvaTicket ticket) {
     return _buildSectionPanel(
-      title: 'Meta',
-      icon: Icons.history_outlined,
+      title: 'Historiek',
+      icon: Icons.history_rounded,
       child: _buildInfoGrid([
         (
           label: 'Aangemaakt door',
@@ -794,18 +700,6 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
           wide: false,
         ),
       ], minItemWidth: 160),
-    );
-  }
-
-  Widget _buildEmptyText(String text) {
-    return Text(
-      text,
-      style: const TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w600,
-        color: Color(0xFF7D8678),
-        height: 1.35,
-      ),
     );
   }
 
@@ -861,347 +755,376 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
   }
 
   Widget _buildStatusBadge(OvaTicket ticket) {
-    final Color bgColor;
-    final Color textColor;
+    final Color bg;
+    final Color fg;
+    final Color border;
 
     if (ticket.isClosed) {
-      bgColor = const Color(0xFFEAF4D9);
-      textColor = const Color(0xFF6F972D);
+      bg = kSuccessBg;
+      fg = kSuccess;
+      border = kSuccessBorder;
     } else if (ticket.status.trim().toLowerCase() == 'open') {
-      bgColor = const Color(0xFFFFF3D8);
-      textColor = const Color(0xFF9A6400);
+      bg = kWarningBg;
+      fg = kWarning;
+      border = kWarningBorder;
     } else {
-      bgColor = const Color(0xFFFFE1DD);
-      textColor = const Color(0xFFC43C33);
+      bg = kDangerBg;
+      fg = kDanger;
+      border = kDangerBorder;
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: textColor.withValues(alpha: 0.24)),
+        color: bg,
+        borderRadius: BorderRadius.circular(kRadiusPill),
+        border: Border.all(color: border),
       ),
       child: Text(
         ticket.statusLabel,
         style: TextStyle(
           fontSize: 11.5,
           fontWeight: FontWeight.w700,
-          color: textColor,
+          color: fg,
+          letterSpacing: 0.2,
         ),
       ),
     );
   }
+}
 
-  // ignore: unused_element
-  Widget _buildFieldsGrid(OvaTicket ticket) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+// ─────────────────────────────────────────────
+// Sub-widgets
+// ─────────────────────────────────────────────
+
+class _SummaryMetric extends StatelessWidget {
+  const _SummaryMetric({required this.data});
+
+  final _MetricData data;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // ── Algemeen ──────────────────────────────────────────
-        _buildSectionTitle('Algemeen'),
-        const SizedBox(height: 12),
-        _buildField('Type OVA', _buildReadOnlyText(ticket.ovaType ?? '-')),
-        const SizedBox(height: 16),
-        _buildField(
-          'Datum vaststelling',
-          _buildReadOnlyText(
-            ticket.findingDate != null
-                ? formatOvaDateTime(ticket.findingDate!)
-                : formatOvaDateTime(ticket.createdAt),
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: kBrandGreenSoft,
+            borderRadius: BorderRadius.circular(kRadiusSm),
           ),
+          alignment: Alignment.center,
+          child: Icon(data.icon, size: 18, color: kBrandGreenDeep),
         ),
-        const SizedBox(height: 16),
-        _buildField(
-          'Redenen',
-          _buildReadOnlyText(
-            ticket.reasons.isEmpty ? '-' : ticket.reasons.join(', '),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                data.label,
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: kTextTertiary,
+                  height: 1.2,
+                  letterSpacing: 0.2,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                data.value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w700,
+                  color: kTextPrimary,
+                  height: 1.2,
+                ),
+              ),
+            ],
           ),
-        ),
-        if (ticket.otherReason?.trim().isNotEmpty == true) ...[
-          const SizedBox(height: 16),
-          _buildField(
-            'Andere reden',
-            _buildReadOnlyText(ticket.otherReason!.trim()),
-          ),
-        ],
-        const SizedBox(height: 16),
-        _buildField(
-          'Omschrijving incident',
-          _buildReadOnlyText(
-            ticket.incidentDescription?.trim().isNotEmpty == true
-                ? ticket.incidentDescription!.trim()
-                : '-',
-          ),
-        ),
-
-        const SizedBox(height: 28),
-        const Divider(color: Color(0xFFE4E9DD)),
-        const SizedBox(height: 20),
-
-        // ── Oorzakenanalyse ───────────────────────────────────
-        _buildSectionTitle('Oorzakenanalyse'),
-        const SizedBox(height: 12),
-        _buildField(
-          'Methode',
-          _buildReadOnlyText(ticket.causeAnalysisMethod ?? '-'),
-        ),
-        const SizedBox(height: 16),
-        _buildField(
-          'Notities',
-          _buildReadOnlyText(
-            ticket.causeAnalysisNotes?.trim().isNotEmpty == true
-                ? ticket.causeAnalysisNotes!.trim()
-                : '-',
-          ),
-        ),
-
-        const SizedBox(height: 28),
-        const Divider(color: Color(0xFFE4E9DD)),
-        const SizedBox(height: 20),
-
-        // ── Opvolgacties ──────────────────────────────────────
-        _buildSectionTitle('Opvolgacties'),
-        const SizedBox(height: 12),
-        if (ticket.actions.isEmpty)
-          _buildReadOnlyText('-')
-        else
-          ...ticket.actions.map((action) => _buildActionCard(action)),
-
-        const SizedBox(height: 28),
-        const Divider(color: Color(0xFFE4E9DD)),
-        const SizedBox(height: 20),
-
-        // ── Effectiviteit ─────────────────────────────────────
-        _buildSectionTitle('Effectiviteit'),
-        const SizedBox(height: 12),
-        _buildField(
-          'Datum effectiviteit',
-          _buildReadOnlyText(
-            ticket.effectivenessDate != null
-                ? formatOvaDateTime(ticket.effectivenessDate!)
-                : '-',
-          ),
-        ),
-        const SizedBox(height: 16),
-        _buildField(
-          'Notities effectiviteit',
-          _buildReadOnlyText(
-            ticket.effectivenessNotes?.trim().isNotEmpty == true
-                ? ticket.effectivenessNotes!.trim()
-                : '-',
-          ),
-        ),
-
-        if (ticket.isClosed) ...[
-          const SizedBox(height: 28),
-          const Divider(color: Color(0xFFE4E9DD)),
-          const SizedBox(height: 20),
-
-          // ── Afsluiting ────────────────────────────────────
-          _buildSectionTitle('Afsluiting'),
-          const SizedBox(height: 12),
-          _buildField(
-            'Gesloten op',
-            _buildReadOnlyText(
-              ticket.closedAt != null
-                  ? formatOvaDateTime(ticket.closedAt!)
-                  : '-',
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildField(
-            'Gesloten door',
-            _buildReadOnlyText(ticket.closedBy?.displayName ?? '-'),
-          ),
-          const SizedBox(height: 16),
-          _buildField(
-            'Sluitingsnotities',
-            _buildReadOnlyText(
-              ticket.closureNotes?.trim().isEmpty == true
-                  ? '-'
-                  : ticket.closureNotes ?? '-',
-            ),
-          ),
-        ],
-
-        const SizedBox(height: 28),
-        const Divider(color: Color(0xFFE4E9DD)),
-        const SizedBox(height: 20),
-
-        // ── Meta ──────────────────────────────────────────────
-        _buildSectionTitle('Meta'),
-        const SizedBox(height: 12),
-        _buildField(
-          'Aangemaakt door',
-          _buildReadOnlyText(ticket.createdBy.displayName),
-        ),
-        const SizedBox(height: 16),
-        _buildField(
-          'Aangemaakt op',
-          _buildReadOnlyText(formatOvaDateTime(ticket.createdAt)),
-        ),
-        const SizedBox(height: 16),
-        _buildField(
-          'Laatst bewerkt door',
-          _buildReadOnlyText(ticket.lastEditedBy.displayName),
-        ),
-        const SizedBox(height: 16),
-        _buildField(
-          'Laatst bewerkt op',
-          _buildReadOnlyText(formatOvaDateTime(ticket.updatedAt)),
         ),
       ],
     );
   }
+}
 
-  Widget _buildField(String label, Widget child) {
+class _MetricData {
+  const _MetricData({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+}
+
+class _InfoItem extends StatelessWidget {
+  const _InfoItem({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final isEmpty = value.trim() == '-';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
           style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF9CA39A),
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+            color: kTextTertiary,
+            letterSpacing: 0.2,
+            height: 1.2,
           ),
         ),
         const SizedBox(height: 6),
-        child,
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 15.5,
+            fontWeight: FontWeight.w600,
+            color: isEmpty ? kTextMuted : kTextPrimary,
+            height: 1.5,
+          ),
+        ),
       ],
     );
   }
+}
 
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w700,
-        color: Color(0xFF6B7A62),
-        letterSpacing: 0.4,
-      ),
-    );
+class _ActionCard extends StatelessWidget {
+  const _ActionCard({required this.action});
+
+  final OvaFollowUpAction action;
+
+  String _display(String? value) {
+    final normalized = value?.replaceAll(RegExp(r'\s+'), ' ').trim();
+    return (normalized == null || normalized.isEmpty) ? '-' : normalized;
   }
 
-  Widget _buildActionCard(OvaFollowUpAction action) {
+  @override
+  Widget build(BuildContext context) {
     final isOk = action.isOk;
-    final statusColor = isOk
-        ? const Color(0xFF5F8424)
-        : const Color(0xFFC43C33);
-    final statusBg = isOk ? const Color(0xFFEAF4D9) : const Color(0xFFFFE1DD);
+    final statusFg = isOk ? kSuccess : kDanger;
+    final statusBg = isOk ? kSuccessBg : kDangerBg;
+    final statusBorder = isOk ? kSuccessBorder : kDangerBorder;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFBFCF8),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE4E9DD)),
+        color: kSurfaceMuted,
+        borderRadius: BorderRadius.circular(kRadiusMd),
+        border: Border.all(color: kBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEFF3EA),
-                  borderRadius: BorderRadius.circular(999),
+                  color: kSurface,
+                  borderRadius: BorderRadius.circular(kRadiusPill),
+                  border: Border.all(color: kBorder),
                 ),
                 child: Text(
                   action.typeLabel,
                   style: const TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF536348),
-                    height: 1.1,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: kTextSecondary,
                   ),
                 ),
               ),
+              const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: statusBg,
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(
-                    color: statusColor.withValues(alpha: 0.22),
-                  ),
+                  borderRadius: BorderRadius.circular(kRadiusPill),
+                  border: Border.all(color: statusBorder),
                 ),
                 child: Text(
                   isOk ? 'OK' : 'NOK',
                   style: TextStyle(
-                    fontSize: 11.5,
+                    fontSize: 12,
                     fontWeight: FontWeight.w800,
-                    color: statusColor,
-                    height: 1.1,
+                    color: statusFg,
+                    letterSpacing: 0.3,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Text(
             _display(action.description),
             style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF243022),
-              height: 1.3,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: kTextPrimary,
+              height: 1.45,
             ),
           ),
           const SizedBox(height: 10),
-          _buildActionMeta(
-            icon: Icons.person_outline,
-            label: action.assigneeLabel,
-          ),
-          const SizedBox(height: 5),
-          _buildActionMeta(
-            icon: Icons.event_outlined,
-            label: 'Deadline ${formatOvaDate(action.dueDate)}',
+          Wrap(
+            spacing: 16,
+            runSpacing: 6,
+            children: [
+              _ActionMeta(
+                icon: Icons.person_outline,
+                label: action.assigneeLabel,
+              ),
+              _ActionMeta(
+                icon: Icons.event_rounded,
+                label: 'Deadline ${formatOvaDate(action.dueDate)}',
+              ),
+            ],
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildActionMeta({required IconData icon, required String label}) {
+class _ActionMeta extends StatelessWidget {
+  const _ActionMeta({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 15, color: const Color(0xFF7D8678)),
+        Icon(icon, size: 15, color: kTextTertiary),
         const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF586154),
-              height: 1.25,
-            ),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: kTextSecondary,
+            height: 1.3,
           ),
         ),
       ],
     );
   }
+}
 
-  Widget _buildReadOnlyText(String text) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.w500,
-          color: Color(0xFF243022),
-          height: 1.3,
+class _Breadcrumb extends StatelessWidget {
+  const _Breadcrumb({required this.segments});
+  final List<String> segments;
+
+  @override
+  Widget build(BuildContext context) {
+    final children = <Widget>[];
+    for (var i = 0; i < segments.length; i++) {
+      final isLast = i == segments.length - 1;
+      children.add(
+        Text(
+          segments[i],
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: isLast ? FontWeight.w700 : FontWeight.w500,
+            color: isLast ? kTextSecondary : kTextTertiary,
+            letterSpacing: 0.1,
+          ),
+        ),
+      );
+      if (!isLast) {
+        children.add(const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 8),
+          child: Icon(Icons.chevron_right_rounded,
+              size: 16, color: kTextMuted),
+        ));
+      }
+    }
+
+    return Row(mainAxisSize: MainAxisSize.min, children: children);
+  }
+}
+
+class _BackButton extends StatelessWidget {
+  const _BackButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Terug',
+      child: Material(
+        color: kSurface,
+        borderRadius: BorderRadius.circular(kRadiusMd),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(kRadiusMd),
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: kSurfaceMuted,
+              borderRadius: BorderRadius.circular(kRadiusMd),
+              border: Border.all(color: kBorder),
+            ),
+            alignment: Alignment.center,
+            child: const Icon(Icons.arrow_back_rounded,
+                color: kTextPrimary, size: 20),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorView extends StatelessWidget {
+  const _ErrorView({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline_rounded,
+                color: kDanger, size: 36),
+            const SizedBox(height: 14),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 14.5,
+                fontWeight: FontWeight.w600,
+                color: kTextPrimary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: onRetry,
+              child: const Text('Opnieuw proberen'),
+            ),
+          ],
         ),
       ),
     );

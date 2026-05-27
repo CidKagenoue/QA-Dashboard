@@ -305,9 +305,9 @@ class _OvaTileCardState extends State<_OvaTileCard> {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 160),
               width: 240,
-              height: 200,
+              height: 224,
               padding: const EdgeInsets.symmetric(
-                  horizontal: 24, vertical: 26),
+                  horizontal: 24, vertical: 24),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(kRadiusXl),
                 border: Border.all(
@@ -332,6 +332,8 @@ class _OvaTileCardState extends State<_OvaTileCard> {
                   Text(
                     widget.data.title,
                     textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
@@ -343,6 +345,8 @@ class _OvaTileCardState extends State<_OvaTileCard> {
                   Text(
                     widget.data.subtitle,
                     textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,

@@ -3,14 +3,10 @@ import 'package:provider/provider.dart';
 
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
+import '../theme/app_theme.dart';
 import '../widgets/vlotter_logo.dart';
 import 'forgot_password_screen.dart';
 import 'home_screen.dart';
-
-const Color _brandGreen = Color(0xFF7DBB3F);
-const Color _brandGreenDark = Color(0xFF6FAC35);
-const Color _loginBackground = Color(0xFFF6FAF3);
-const Color _fieldBorder = Color(0xFFD8E0D2);
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -59,7 +55,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Inloggen mislukt: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: kDanger,
           ),
         );
       }
@@ -70,9 +66,10 @@ class _LoginScreenState extends State<LoginScreen> {
     return Text(
       label,
       style: const TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w700,
-        color: Color(0xFF273421),
+        fontSize: 13.5,
+        fontWeight: FontWeight.w600,
+        color: kTextSecondary,
+        letterSpacing: 0.1,
       ),
     );
   }
@@ -84,55 +81,50 @@ class _LoginScreenState extends State<LoginScreen> {
   }) {
     OutlineInputBorder border(Color color, [double width = 1]) {
       return OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(kRadiusMd),
         borderSide: BorderSide(color: color, width: width),
       );
     }
 
     return InputDecoration(
       hintText: hintText,
-      hintStyle: const TextStyle(color: Color(0xFF9AA494)),
-      prefixIcon: Icon(icon, color: const Color(0xFF7B8773), size: 20),
+      hintStyle: const TextStyle(color: kTextMuted, fontSize: 14.5),
+      prefixIcon: Icon(icon, color: kTextTertiary, size: 20),
       suffixIcon: suffixIcon,
       filled: true,
-      fillColor: Colors.white,
-      border: border(_fieldBorder),
-      enabledBorder: border(_fieldBorder),
-      focusedBorder: border(_brandGreen, 1.4),
-      errorBorder: border(const Color(0xFFD32F2F)),
-      focusedErrorBorder: border(const Color(0xFFD32F2F), 1.4),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 17),
+      fillColor: kSurface,
+      border: border(kBorder),
+      enabledBorder: border(kBorder),
+      focusedBorder: border(kBrandGreen, 1.6),
+      errorBorder: border(kDanger),
+      focusedErrorBorder: border(kDanger, 1.6),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _loginBackground,
+      backgroundColor: kBackground,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 430),
+              constraints: const BoxConstraints(maxWidth: 440),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const VlotterLogo(height: 54),
-                  const SizedBox(height: 28),
+                  const VlotterLogo(height: 48),
+                  const SizedBox(height: 32),
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.fromLTRB(36, 34, 36, 28),
+                    padding: const EdgeInsets.fromLTRB(36, 36, 36, 32),
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x14000000),
-                          blurRadius: 30,
-                          offset: Offset(0, 12),
-                        ),
-                      ],
+                      color: kSurface,
+                      borderRadius: BorderRadius.circular(kRadius2xl),
+                      border: Border.all(color: kBorder),
+                      boxShadow: kShadowCard,
                     ),
                     child: Form(
                       key: _formKey,
@@ -143,20 +135,21 @@ class _LoginScreenState extends State<LoginScreen> {
                             'Welkom terug',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: 28,
+                              fontSize: 26,
                               fontWeight: FontWeight.w800,
-                              color: Color(0xFF243022),
+                              color: kTextPrimary,
                               height: 1.15,
+                              letterSpacing: -0.4,
                             ),
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 8),
                           const Text(
-                            'Log in om verder te gaan naar het QA Dashboard',
+                            'Log in om verder te gaan naar het QA Dashboard.',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: 14,
-                              color: Color(0xFF64705E),
-                              height: 1.4,
+                              fontSize: 14.5,
+                              color: kTextTertiary,
+                              height: 1.5,
                             ),
                           ),
                           const SizedBox(height: 32),
@@ -167,6 +160,11 @@ class _LoginScreenState extends State<LoginScreen> {
                             keyboardType: TextInputType.emailAddress,
                             textInputAction: TextInputAction.next,
                             autofillHints: const [AutofillHints.username],
+                            style: const TextStyle(
+                              fontSize: 14.5,
+                              color: kTextPrimary,
+                              fontWeight: FontWeight.w500,
+                            ),
                             decoration: _inputDecoration(
                               hintText: 'admin',
                               icon: Icons.person_outline_rounded,
@@ -178,7 +176,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               return null;
                             },
                           ),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 18),
                           _buildFieldLabel('Wachtwoord'),
                           const SizedBox(height: 8),
                           TextFormField(
@@ -187,15 +185,21 @@ class _LoginScreenState extends State<LoginScreen> {
                             textInputAction: TextInputAction.done,
                             autofillHints: const [AutofillHints.password],
                             onFieldSubmitted: (_) => _handleLogin(),
+                            style: const TextStyle(
+                              fontSize: 14.5,
+                              color: kTextPrimary,
+                              fontWeight: FontWeight.w500,
+                            ),
                             decoration: _inputDecoration(
-                              hintText: '********',
+                              hintText: '••••••••',
                               icon: Icons.lock_outline_rounded,
                               suffixIcon: IconButton(
                                 icon: Icon(
                                   _isPasswordVisible
-                                      ? Icons.visibility_rounded
-                                      : Icons.visibility_off_rounded,
-                                  color: const Color(0xFF7B8773),
+                                      ? Icons.visibility_off_rounded
+                                      : Icons.visibility_rounded,
+                                  color: kTextTertiary,
+                                  size: 20,
                                 ),
                                 onPressed: () {
                                   setState(() {
@@ -214,7 +218,33 @@ class _LoginScreenState extends State<LoginScreen> {
                               return null;
                             },
                           ),
-                          const SizedBox(height: 30),
+                          const SizedBox(height: 8),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const ForgotPasswordScreen(),
+                                  ),
+                                );
+                              },
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                minimumSize: const Size(0, 32),
+                              ),
+                              child: const Text(
+                                'Wachtwoord vergeten?',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 18),
                           Consumer<AuthService>(
                             builder: (context, authService, child) {
                               return SizedBox(
@@ -223,36 +253,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                   onPressed: authService.isLoading
                                       ? null
                                       : _handleLogin,
-                                  style:
-                                      ElevatedButton.styleFrom(
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            14,
-                                          ),
-                                        ),
-                                        elevation: 0,
-                                      ).copyWith(
-                                        overlayColor: WidgetStateProperty.all(
-                                          const Color(0x14FFFFFF),
-                                        ),
-                                        backgroundColor:
-                                            WidgetStateProperty.resolveWith((
-                                              states,
-                                            ) {
-                                              if (states.contains(
-                                                WidgetState.disabled,
-                                              )) {
-                                                return const Color(0x8C7DBB3F);
-                                              }
-                                              if (states.contains(
-                                                WidgetState.hovered,
-                                              )) {
-                                                return _brandGreenDark;
-                                              }
-                                              return _brandGreen;
-                                            }),
-                                      ),
+                                  style: ElevatedButton.styleFrom(
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(kRadiusMd),
+                                    ),
+                                  ),
                                   child: authService.isLoading
                                       ? const SizedBox(
                                           width: 20,
@@ -265,36 +271,26 @@ class _LoginScreenState extends State<LoginScreen> {
                                       : const Text(
                                           'Inloggen',
                                           style: TextStyle(
-                                            fontSize: 16,
+                                            fontSize: 15.5,
                                             fontWeight: FontWeight.w700,
+                                            letterSpacing: 0.1,
                                           ),
                                         ),
                                 ),
                               );
                             },
                           ),
-                          const SizedBox(height: 18),
-                          Center(
-                            child: TextButton(
-                              onPressed: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        const ForgotPasswordScreen(),
-                                  ),
-                                );
-                              },
-                              style: TextButton.styleFrom(
-                                foregroundColor: _brandGreen,
-                              ),
-                              child: const Text(
-                                'Wachtwoord vergeten?',
-                                style: TextStyle(fontWeight: FontWeight.w600),
-                              ),
-                            ),
-                          ),
                         ],
                       ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  const Text(
+                    'Vlotter QA Dashboard · 2026',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: kTextMuted,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],

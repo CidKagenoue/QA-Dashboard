@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/jap_gpp_entry.dart';
 import '../services/jap_gpp_api_service.dart';
+import '../widgets/design/design_system.dart';
 import '../widgets/manage_dropdown_field.dart';
 
 class JapGppDetailPane extends StatefulWidget {
@@ -330,7 +331,7 @@ class _JapGppDetailPaneState extends State<JapGppDetailPane> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFF8BC34A)),
+          borderSide: BorderSide(color: kBrandGreen),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       ),
@@ -356,7 +357,7 @@ class _JapGppDetailPaneState extends State<JapGppDetailPane> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFF8BC34A)),
+          borderSide: BorderSide(color: kBrandGreen),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       ),
@@ -380,11 +381,12 @@ class _JapGppDetailPaneState extends State<JapGppDetailPane> {
       if (d.trim().isEmpty) continue;
       if (!uniqueDomains.contains(d)) uniqueDomains.add(d);
     }
-    final safeInitialDomain = uniqueDomains.contains(_selectedDomain) ? _selectedDomain : null;
+    final safeInitialDomain =
+        uniqueDomains.contains(_selectedDomain) ? _selectedDomain : '';
 
     return ManageDropdownField(
       items: uniqueDomains,
-      value: _selectedDomain,
+      value: safeInitialDomain,
       hint: '',
       title: 'Domeinen beheren',
       addLabel: 'Nieuw domein',
@@ -460,45 +462,26 @@ class _JapGppDetailPaneState extends State<JapGppDetailPane> {
     final periodText = _isJap ? 'Jaar ${_jap.year}' : '${_gpp.startYear} - ${_gpp.endYear}';
 
     return Container(
-      color: const Color(0xFFF6F6F3),
-      padding: const EdgeInsets.all(20),
+      color: kBackground,
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x12000000),
-              blurRadius: 12,
-              offset: Offset(0, 4),
-            ),
-          ],
+          color: kSurface,
+          borderRadius: BorderRadius.circular(kRadius2xl),
+          border: Border.all(color: kBorder),
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
+          padding: const EdgeInsets.fromLTRB(28, 24, 28, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Dashboard > JAP & GPP',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: const Color(0xFF9CA39A),
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-              const SizedBox(height: 10),
+              const AppBreadcrumb(segments: ['Dashboard', 'JAP & GPP']),
+              const SizedBox(height: 16),
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  IconButton(
-                    onPressed: widget.onClose,
-                    icon: const Icon(Icons.arrow_back, color: Color(0xFF243022)),
-                    tooltip: 'Terug',
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  const SizedBox(width: 8),
+                  AppBackButton(onTap: widget.onClose),
+                  const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -561,12 +544,13 @@ class _JapGppDetailPaneState extends State<JapGppDetailPane> {
                           onPressed: _saving ? null : () => setState(() => _editing = false),
                           child: const Text('Annuleren'),
                         ),
-                      TextButton.icon(
+                      OutlinedButton.icon(
                         onPressed: _saving ? null : _delete,
-                        icon: const Icon(Icons.delete_outline, size: 18),
+                        icon: const Icon(Icons.delete_outline_rounded, size: 18),
                         label: const Text('Verwijderen'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: const Color(0xFFD32F2F),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: kDanger,
+                          side: const BorderSide(color: kDangerBorder),
                         ),
                       ),
                       ElevatedButton.icon(
@@ -577,14 +561,8 @@ class _JapGppDetailPaneState extends State<JapGppDetailPane> {
                                 height: 18,
                                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                               )
-                            : Icon(_editing ? Icons.save_outlined : Icons.edit_outlined, size: 18),
+                            : Icon(_editing ? Icons.save_rounded : Icons.edit_outlined, size: 18),
                         label: Text(_editing ? 'Opslaan' : 'Bewerken'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF8BC34A),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-                        ),
                       ),
                     ],
                   ),

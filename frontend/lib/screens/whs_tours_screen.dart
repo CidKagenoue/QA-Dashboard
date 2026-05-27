@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 import '../models/whs_tour.dart';
-import '../services/auth_service.dart';
 import '../services/whs_api_service.dart';
+import '../theme/app_theme.dart';
 
 class WhsToursScreen extends StatefulWidget {
   const WhsToursScreen({super.key, required this.token});
@@ -55,7 +54,7 @@ class _WhsToursScreenState extends State<WhsToursScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('WHS-Tours'),
-        backgroundColor: const Color(0xFF8CC63F),
+        backgroundColor: kBrandGreen,
       ),
       body: RefreshIndicator(
         onRefresh: _loadTours,
@@ -63,7 +62,7 @@ class _WhsToursScreenState extends State<WhsToursScreen> {
           padding: const EdgeInsets.all(16.0),
           child: Builder(builder: (context) {
             if (isLoading) {
-              return const Center(child: CircularProgressIndicator(color: Color(0xFF8CC63F)));
+              return const Center(child: CircularProgressIndicator(color: kBrandGreen));
             }
 
             if (loadError != null) {
@@ -81,7 +80,7 @@ class _WhsToursScreenState extends State<WhsToursScreen> {
                           const SizedBox(height: 12),
                           ElevatedButton(
                             onPressed: _loadTours,
-                            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8CC63F)),
+                            style: ElevatedButton.styleFrom(backgroundColor: kBrandGreen),
                             child: const Text('Opnieuw proberen'),
                           )
                         ],
@@ -120,7 +119,7 @@ class _WhsToursScreenState extends State<WhsToursScreen> {
                         if (subtitle.isNotEmpty) Text(subtitle, style: const TextStyle(color: Color(0xFF6B7A62))),
                       ],
                     ),
-                    trailing: const Icon(Icons.chevron_right_rounded, color: Color(0xFF8CC63F)),
+                    trailing: const Icon(Icons.chevron_right_rounded, color: kBrandGreen),
                     onTap: () {
                       // Future: open detail view; for now no-op
                     },

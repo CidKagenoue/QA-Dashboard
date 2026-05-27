@@ -112,6 +112,14 @@ export class OvaController {
     );
   }
 
+  @Delete('actions/:id')
+  async deleteAction(
+    @Param('id', ParseIntPipe) actionId: number,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.ovaService.deleteAction(actionId, this.readActorId(req));
+  }
+
   private readActorId(req: AuthenticatedRequest) {
     if (!req.user || typeof req.user === 'string') {
       throw new UnauthorizedException('Invalid token payload');

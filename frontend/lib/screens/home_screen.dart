@@ -6,6 +6,7 @@ import '../models/ova_ticket.dart';
 import '../models/jap_gpp_entry.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../widgets/design/design_system.dart';
 import 'jap_gpp_screen.dart';
 import 'ova_dashboard_screen.dart';
 import 'maintenance_inspections_screen.dart';
@@ -31,10 +32,6 @@ class HomeScreen extends StatefulWidget {
   final String? initialJapGppModule;
   final int? initialJapGppEntryId;
   final int? initialMaintenanceInspectionId;
-
-  static const _sidebarGreen = Color(0xFF8BC34A);
-  static const _sidebarText = Color(0xFFFFFFFF);
-  static const _sidebarSelected = Color(0xFF7CB342);
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -91,56 +88,16 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: const MainAppBar(title: 'Vlotter'),
       body: Row(
         children: [
-          Container(
-            width: 200,
-            color: HomeScreen._sidebarGreen,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 32),
-                _SidebarItem(
-                  icon: Icons.dashboard,
-                  label: 'Dashboard',
-                  selected: _selected == _HomeSection.dashboard,
-                  onTap: () =>
-                      setState(() => _selected = _HomeSection.dashboard),
-                ),
-                const SizedBox(height: 12),
-                _SidebarItem(
-                  icon: Icons.apartment_outlined,
-                  label: 'WHS-Tours',
-                  selected: _selected == _HomeSection.whsTours,
-                  onTap: () =>
-                      setState(() => _selected = _HomeSection.whsTours),
-                ),
-                const SizedBox(height: 12),
-                _SidebarItem(
-                  icon: Icons.info_outline_rounded,
-                  label: 'OVA',
-                  selected: _selected == _HomeSection.ova,
-                  onTap: () => setState(() {
-                    _initialOvaPage = OvaDashboardInitialPage.overview;
-                    _selected = _HomeSection.ova;
-                  }),
-                ),
-                const SizedBox(height: 12),
-                _SidebarItem(
-                  icon: Icons.build,
-                  label: 'Onderhoud\nKeuringen',
-                  selected: _selected == _HomeSection.onderhoud,
-                  onTap: () =>
-                      setState(() => _selected = _HomeSection.onderhoud),
-                ),
-                const SizedBox(height: 12),
-                _SidebarItem(
-                  icon: Icons.assignment,
-                  label: 'JAP & GPP',
-                  selected: _selected == _HomeSection.japGpp,
-                  onTap: () => setState(() => _selected = _HomeSection.japGpp),
-                ),
-                const Spacer(),
-              ],
-            ),
+          _Sidebar(
+            selected: _selected,
+            onSelect: (section) {
+              setState(() {
+                if (section == _HomeSection.ova) {
+                  _initialOvaPage = OvaDashboardInitialPage.overview;
+                }
+                _selected = section;
+              });
+            },
           ),
           Expanded(child: _buildSectionContent(_selected)),
         ],
@@ -221,6 +178,89 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  Sidebar — neutral surface with a pill-style active indicator.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _Sidebar extends StatelessWidget {
+  const _Sidebar({required this.selected, required this.onSelect});
+
+  final _HomeSection selected;
+  final ValueChanged<_HomeSection> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 232,
+      decoration: const BoxDecoration(
+        color: kSurface,
+        border: Border(right: BorderSide(color: kBorder, width: 1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 24),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 22),
+            child: Text(
+              'NAVIGATIE',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: kTextMuted,
+                letterSpacing: 0.8,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _SidebarItem(
+            icon: Icons.dashboard_rounded,
+            label: 'Dashboard',
+            selected: selected == _HomeSection.dashboard,
+            onTap: () => onSelect(_HomeSection.dashboard),
+          ),
+          _SidebarItem(
+            icon: Icons.apartment_rounded,
+            label: 'WHS-Tours',
+            selected: selected == _HomeSection.whsTours,
+            onTap: () => onSelect(_HomeSection.whsTours),
+          ),
+          _SidebarItem(
+            icon: Icons.report_problem_outlined,
+            label: 'OVA',
+            selected: selected == _HomeSection.ova,
+            onTap: () => onSelect(_HomeSection.ova),
+          ),
+          _SidebarItem(
+            icon: Icons.build_rounded,
+            label: 'Onderhoud & Keuringen',
+            selected: selected == _HomeSection.onderhoud,
+            onTap: () => onSelect(_HomeSection.onderhoud),
+          ),
+          _SidebarItem(
+            icon: Icons.assignment_rounded,
+            label: 'JAP & GPP',
+            selected: selected == _HomeSection.japGpp,
+            onTap: () => onSelect(_HomeSection.japGpp),
+          ),
+          const Spacer(),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(22, 0, 22, 18),
+            child: Text(
+              'Vlotter QA Dashboard',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: kTextMuted,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SidebarItem extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -236,33 +276,65 @@ class _SidebarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        decoration: BoxDecoration(
-          color: selected ? HomeScreen._sidebarSelected : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-        child: Row(
-          children: [
-            Icon(icon, color: HomeScreen._sidebarText, size: 22),
-            const SizedBox(width: 14),
-            Text(
-              label,
-              style: const TextStyle(
-                color: HomeScreen._sidebarText,
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
-              ),
+    final fg = selected ? kBrandGreenDeep : kTextSecondary;
+    final bg = selected ? kBrandGreenSoft : Colors.transparent;
+    final borderColor = selected ? kBrandGreenSoft : Colors.transparent;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 2, 12, 2),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(kRadiusMd),
+          hoverColor: selected ? kBrandGreenSubtle : kSurfaceHover,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            decoration: BoxDecoration(
+              color: bg,
+              border: Border.all(color: borderColor),
+              borderRadius: BorderRadius.circular(kRadiusMd),
             ),
-          ],
+            child: Row(
+              children: [
+                Icon(icon, color: fg, size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: fg,
+                      fontWeight:
+                          selected ? FontWeight.w700 : FontWeight.w500,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                if (selected)
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: kBrandGreenDeep,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Dashboard body
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _DashboardBody extends StatefulWidget {
   const _DashboardBody({
@@ -399,11 +471,10 @@ class _DashboardBodyState extends State<_DashboardBody> {
   Widget build(BuildContext context) {
     final user = widget.authService.user;
     if (user == null) {
-      // Auth state not yet initialized or user not available — show loader
       return const Center(
         child: Padding(
           padding: EdgeInsets.symmetric(vertical: 60),
-          child: CircularProgressIndicator(color: Color(0xFF8CC63F)),
+          child: CircularProgressIndicator(color: kBrandGreen),
         ),
       );
     }
@@ -412,26 +483,20 @@ class _DashboardBodyState extends State<_DashboardBody> {
 
     return RefreshIndicator(
       onRefresh: _loadData,
+      color: kBrandGreenDark,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(32, 28, 32, 32),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _WelcomeHeader(user: user),
-            const SizedBox(height: 24),
-
+            const SizedBox(height: 28),
             if (_isLoading)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 60),
-                  child: CircularProgressIndicator(color: Color(0xFF8CC63F)),
-                ),
-              )
+              _DashboardSkeleton(showStats: hasOvaAccess)
             else if (_error != null)
               _ErrorCard(message: _error!, onRetry: _loadData)
             else ...[
-              // ── KPI kaarten rij ──
               if (hasOvaAccess) ...[
                 _StatCardRow(
                   children: [
@@ -443,10 +508,10 @@ class _DashboardBodyState extends State<_DashboardBody> {
                       ),
                     ),
                     _StatCard(
-                      title: 'Mijn OVA Acties',
+                      title: 'Mijn OVA-acties',
                       value: _nokActionsCount.toString(),
-                      subtitle: 'NOK',
-                      accentColor: const Color(0xFF8CC63F),
+                      subtitle: 'open op NOK',
+                      accentColor: kBrandGreen,
                       icon: Icons.format_list_bulleted_rounded,
                       onTap: () => widget.onNavigateToOva(
                         OvaDashboardInitialPage.actions,
@@ -456,7 +521,7 @@ class _DashboardBodyState extends State<_DashboardBody> {
                       title: 'OVA Incidenten',
                       value: _openTickets.length.toString(),
                       subtitle: 'open deze maand',
-                      accentColor: const Color(0xFFF5A623),
+                      accentColor: const Color(0xFFE08423),
                       icon: Icons.warning_amber_rounded,
                       onTap: () => widget.onNavigateToOva(
                         OvaDashboardInitialPage.tickets,
@@ -464,13 +529,12 @@ class _DashboardBodyState extends State<_DashboardBody> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
               ],
-
             ],
             LayoutBuilder(
               builder: (context, constraints) {
-                final wide = constraints.maxWidth > 760;
+                final wide = constraints.maxWidth > 880;
                 final cards = <Widget>[
                   _JapGppOverviewCard(
                     items: _recentJapGpp,
@@ -523,6 +587,115 @@ class _DashboardBodyState extends State<_DashboardBody> {
 //  Welcome header
 // ─────────────────────────────────────────────
 
+class _DashboardSkeleton extends StatelessWidget {
+  const _DashboardSkeleton({required this.showStats});
+
+  final bool showStats;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (showStats) ...[
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 720;
+              if (compact) {
+                return const Column(
+                  children: [
+                    AppMetricCardSkeleton(),
+                    SizedBox(height: 14),
+                    AppMetricCardSkeleton(),
+                    SizedBox(height: 14),
+                    AppMetricCardSkeleton(),
+                  ],
+                );
+              }
+              return const Row(
+                children: [
+                  Expanded(child: AppMetricCardSkeleton()),
+                  SizedBox(width: 16),
+                  Expanded(child: AppMetricCardSkeleton()),
+                  SizedBox(width: 16),
+                  Expanded(child: AppMetricCardSkeleton()),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 24),
+        ],
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final wide = constraints.maxWidth > 880;
+            final cards = List.generate(3, (_) => const _OverviewCardSkeleton());
+            return wide
+                ? Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: cards
+                        .map(
+                          (c) => Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.only(right: 16),
+                              child: c,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  )
+                : Column(
+                    children: cards
+                        .map(
+                          (c) => Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: c,
+                          ),
+                        )
+                        .toList(),
+                  );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _OverviewCardSkeleton extends StatelessWidget {
+  const _OverviewCardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: kSurface,
+        borderRadius: BorderRadius.circular(kRadiusLg),
+        border: Border.all(color: kBorder),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              AppSkeleton.circle(size: 36),
+              SizedBox(width: 12),
+              AppSkeleton(height: 14, width: 120),
+            ],
+          ),
+          SizedBox(height: 20),
+          AppSkeleton(height: 12, width: 240),
+          SizedBox(height: 8),
+          AppSkeleton(height: 12, width: 180),
+          SizedBox(height: 16),
+          AppSkeleton(height: 12, width: 220),
+          SizedBox(height: 8),
+          AppSkeleton(height: 12, width: 160),
+        ],
+      ),
+    );
+  }
+}
+
 class _WelcomeHeader extends StatelessWidget {
   const _WelcomeHeader({required this.user});
   final dynamic user;
@@ -530,37 +703,54 @@ class _WelcomeHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        CircleAvatar(
-          radius: 22,
-          backgroundColor: const Color(0xFF8CC63F),
+        Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            color: kBrandGreenSoft,
+            borderRadius: BorderRadius.circular(kRadiusLg),
+            border: Border.all(color: kBrandGreenSoft),
+          ),
+          alignment: Alignment.center,
           child: Text(
             (user.displayName.isNotEmpty ? user.displayName[0] : '?')
                 .toUpperCase(),
             style: const TextStyle(
-              color: Colors.white,
+              color: kBrandGreenDeep,
               fontWeight: FontWeight.w800,
-              fontSize: 18,
+              fontSize: 22,
             ),
           ),
         ),
-        const SizedBox(width: 14),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Welkom, ${user.displayName}',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF1E2A18),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Welkom, ${user.displayName}',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: kTextPrimary,
+                  height: 1.2,
+                ),
               ),
-            ),
-            Text(
-              user.isAdmin ? 'Administrator' : 'Gebruiker',
-              style: const TextStyle(fontSize: 13, color: Color(0xFF6B7A62)),
-            ),
-          ],
+              const SizedBox(height: 4),
+              Text(
+                user.isAdmin
+                    ? 'Administrator · Volledige toegang'
+                    : 'Gebruiker · Overzicht van jouw werkstroom',
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  color: kTextTertiary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -575,7 +765,7 @@ class _StatCardRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth < 600) {
+        if (constraints.maxWidth < 720) {
           return Column(
             children: children
                 .map(
@@ -594,7 +784,7 @@ class _StatCardRow extends StatelessWidget {
                 .map(
                   (c) => Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.only(right: 14),
+                      padding: const EdgeInsets.only(right: 16),
                       child: c,
                     ),
                   ),
@@ -608,7 +798,7 @@ class _StatCardRow extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────
-//  OVA Tickets KPI kaart
+//  OVA Tickets KPI card
 // ─────────────────────────────────────────────
 
 class _OvaTicketsCard extends StatelessWidget {
@@ -622,29 +812,16 @@ class _OvaTicketsCard extends StatelessWidget {
   final Map<String, int> ticketsByType;
   final VoidCallback onTap;
 
-  Color _badgeColor(String type) {
+  ({Color bg, Color fg}) _badgeColors(String type) {
     switch (type.trim().toLowerCase()) {
       case 'ova 3':
-        return const Color(0xFFFFD4CF);
+        return (bg: const Color(0xFFFDEAE6), fg: const Color(0xFFB83828));
       case 'ova 2':
-        return const Color(0xFFFFE2B3);
+        return (bg: const Color(0xFFFDEDD2), fg: const Color(0xFF9D5C0F));
       case 'ova 1':
-        return const Color(0xFFFFF0C7);
+        return (bg: const Color(0xFFFCF3D1), fg: const Color(0xFF8A6905));
       default:
-        return const Color(0xFFDDDDDD);
-    }
-  }
-
-  Color _badgeTextColor(String type) {
-    switch (type.trim().toLowerCase()) {
-      case 'ova 3':
-        return const Color(0xFFC43C33);
-      case 'ova 2':
-        return const Color(0xFFB55A00);
-      case 'ova 1':
-        return const Color(0xFFAF7A00);
-      default:
-        return const Color(0xFF555555);
+        return (bg: kSurfaceMuted, fg: kTextTertiary);
     }
   }
 
@@ -655,71 +832,68 @@ class _OvaTicketsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Open OVA Tickets',
-            style: TextStyle(
-              fontSize: 13,
-              color: Color(0xFF6B7A62),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Divider(color: Color(0xFFE8EBE3), height: 1),
-          const SizedBox(height: 14),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${openTickets.length} Open',
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF2B3424),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: ticketsByType.entries.map((e) {
-                        final type = e.key;
-                        final count = e.value;
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _badgeColor(type),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '$type: $count',
-                            style: TextStyle(
-                              color: _badgeTextColor(type),
-                              fontWeight: FontWeight.w700,
-                              fontSize: 12,
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ],
+              const Expanded(
+                child: Text(
+                  'Open OVA Tickets',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: kTextTertiary,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.1,
+                  ),
                 ),
               ),
-              IconButton(
-                onPressed: onTap,
-                icon: const Icon(
-                  Icons.chevron_right_rounded,
-                  color: Color(0xFF8CC63F),
-                ),
-              ),
+              const Icon(Icons.arrow_forward_rounded,
+                  color: kBrandGreenDark, size: 18),
             ],
           ),
+          const SizedBox(height: 12),
+          Text(
+            openTickets.length.toString(),
+            style: const TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.w800,
+              color: kTextPrimary,
+              height: 1.05,
+              letterSpacing: -0.6,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'open dossiers',
+            style: TextStyle(fontSize: 12.5, color: kTextTertiary),
+          ),
+          const SizedBox(height: 16),
+          if (ticketsByType.isNotEmpty)
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: ticketsByType.entries.map((e) {
+                final type = e.key;
+                final count = e.value;
+                final c = _badgeColors(type);
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: c.bg,
+                    borderRadius: BorderRadius.circular(kRadiusPill),
+                  ),
+                  child: Text(
+                    '$type · $count',
+                    style: TextStyle(
+                      color: c.fg,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 11.5,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
         ],
       ),
     );
@@ -749,52 +923,55 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Use withAlpha to avoid deprecated color component access
     final bgColor = accentColor.withAlpha((0.12 * 255).round());
 
     return _BaseCard(
       onTap: onTap,
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: bgColor,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: accentColor, size: 22),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: bgColor,
+                  borderRadius: BorderRadius.circular(kRadiusSm),
+                ),
+                child: Icon(icon, color: accentColor, size: 20),
+              ),
+              const Spacer(),
+              const Icon(Icons.arrow_forward_rounded,
+                  color: kBrandGreenDark, size: 18),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF6B7A62),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF2B3424),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF6B7A62),
-                  ),
-                ),
-              ],
+          const SizedBox(height: 14),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 13,
+              color: kTextTertiary,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.1,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.w800,
+              color: kTextPrimary,
+              height: 1.05,
+              letterSpacing: -0.6,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              fontSize: 12.5,
+              color: kTextTertiary,
             ),
           ),
         ],
@@ -814,30 +991,40 @@ class _ErrorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _BaseCard(
-      onTap: onRetry,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: kDangerBg,
+        borderRadius: BorderRadius.circular(kRadiusLg),
+        border: Border.all(color: kDangerBorder),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Fout bij laden',
-            style: TextStyle(
-              fontSize: 13,
-              color: Color(0xFF6B7A62),
-              fontWeight: FontWeight.w600,
-            ),
+          const Row(
+            children: [
+              Icon(Icons.error_outline_rounded,
+                  color: kDanger, size: 22),
+              SizedBox(width: 10),
+              Text(
+                'Fout bij laden',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: kDanger,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           Text(
             message,
-            style: const TextStyle(fontSize: 14, color: Color(0xFF2B3424)),
+            style: const TextStyle(fontSize: 14, color: kTextPrimary),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           ElevatedButton(
             onPressed: onRetry,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF8CC63F),
-            ),
             child: const Text('Opnieuw proberen'),
           ),
         ],
@@ -857,31 +1044,28 @@ class _BaseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Ink(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE8EBE3)),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x0A000000),
-              blurRadius: 12,
-              offset: Offset(0, 6),
-            ),
-          ],
+    return Material(
+      color: kSurface,
+      borderRadius: BorderRadius.circular(kRadiusLg),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(kRadiusLg),
+        hoverColor: kSurfaceHover,
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(kRadiusLg),
+            border: Border.all(color: kBorder),
+          ),
+          child: child,
         ),
-        child: child,
       ),
     );
   }
 }
 
 // ─────────────────────────────────────────────
-//  JAP & GPP dashboard kaart + model
+//  JAP & GPP dashboard card + model
 // ─────────────────────────────────────────────
 
 class JapGppComment {
@@ -909,69 +1093,24 @@ class _JapGppOverviewCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'JAP & GPP',
-            style: TextStyle(
-              fontSize: 13,
-              color: Color(0xFF6B7A62),
-              fontWeight: FontWeight.w600,
+          _OverviewCardHeader(
+            icon: Icons.assignment_outlined,
+            title: 'JAP & GPP',
+          ),
+          const SizedBox(height: 4),
+          if (items.isEmpty)
+            const _EmptyHint(text: 'Nog geen JAP of GPP items beschikbaar.'),
+          ...items.map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(top: 14),
+              child: _OverviewRow(
+                icon: Icons.flag_outlined,
+                title: item.title,
+                subtitle: item.author,
+                trailing: item.comment,
+              ),
             ),
           ),
-          const SizedBox(height: 6),
-          const Divider(color: Color(0xFFE8EBE3), height: 1),
-          const SizedBox(height: 14),
-          if (items.isEmpty)
-            const Text(
-              'Nog geen JAP of GPP items beschikbaar.',
-              style: TextStyle(fontSize: 13, color: Color(0xFF4A4F45)),
-            ),
-          ...items.map((item) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(
-                    Icons.assignment_rounded,
-                    size: 20,
-                    color: Color(0xFF8CC63F),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.title,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                            color: Color(0xFF2B3424),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          item.author,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF6B7A62),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          item.comment,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: Color(0xFF4A4F45),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
         ],
       ),
     );
@@ -979,7 +1118,7 @@ class _JapGppOverviewCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────
-//  NEW: Upcoming maintenance kaart + model
+//  Maintenance overview card
 // ─────────────────────────────────────────────
 
 class MaintenanceItem {
@@ -1002,60 +1141,24 @@ class _UpcomingMaintenanceCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Onderhoud & Keuringen',
-            style: TextStyle(
-              fontSize: 13,
-              color: Color(0xFF6B7A62),
-              fontWeight: FontWeight.w600,
+          _OverviewCardHeader(
+            icon: Icons.event_available_outlined,
+            title: 'Onderhoud & Keuringen',
+          ),
+          const SizedBox(height: 4),
+          if (items.isEmpty)
+            const _EmptyHint(
+                text: 'Nog geen onderhouds- of keuringsitems beschikbaar.'),
+          ...items.map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(top: 14),
+              child: _OverviewRow(
+                icon: Icons.calendar_today_rounded,
+                title: item.title,
+                subtitle: item.date,
+              ),
             ),
           ),
-          const SizedBox(height: 6),
-          const Divider(color: Color(0xFFE8EBE3), height: 1),
-          const SizedBox(height: 14),
-          if (items.isEmpty)
-            const Text(
-              'Nog geen onderhouds- of keuringsitems beschikbaar.',
-              style: TextStyle(fontSize: 13, color: Color(0xFF4A4F45)),
-            ),
-          ...items.map((item) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.event_available_rounded,
-                    size: 20,
-                    color: Color(0xFF8CC63F),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.title,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                            color: Color(0xFF2B3424),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          item.date,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF6B7A62),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
         ],
       ),
     );
@@ -1075,67 +1178,155 @@ class _WhsToursOverviewCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'WHS-Tours',
-            style: TextStyle(
-              fontSize: 13,
-              color: Color(0xFF6B7A62),
-              fontWeight: FontWeight.w600,
-            ),
+          _OverviewCardHeader(
+            icon: Icons.tour_outlined,
+            title: 'WHS-Tours',
           ),
-          const SizedBox(height: 6),
-          const Divider(color: Color(0xFFE8EBE3), height: 1),
-          const SizedBox(height: 14),
+          const SizedBox(height: 4),
           if (items.isEmpty)
-            const Text(
-              'Nog geen WHS tours beschikbaar.',
-              style: TextStyle(fontSize: 13, color: Color(0xFF4A4F45)),
-            ),
+            const _EmptyHint(text: 'Nog geen WHS tours beschikbaar.'),
           ...items.map((item) {
-            final location = item['vestiging'] is Map ? (item['vestiging']['address'] ?? item['vestiging']['name']) : (item['vestiging']?.toString() ?? 'Onbekend');
+            final location = item['vestiging'] is Map
+                ? (item['vestiging']['address'] ?? item['vestiging']['name'])
+                : (item['vestiging']?.toString() ?? 'Onbekend');
             final rawDate = item['datum'] ?? item['date'];
             String dateLabel = '';
             if (rawDate != null) {
               final parsed = DateTime.tryParse(rawDate.toString());
               if (parsed != null) {
-                dateLabel = '${parsed.day.toString().padLeft(2,'0')}/${parsed.month.toString().padLeft(2,'0')}/${parsed.year}';
+                dateLabel =
+                    '${parsed.day.toString().padLeft(2, '0')}/${parsed.month.toString().padLeft(2, '0')}/${parsed.year}';
               } else {
                 dateLabel = rawDate.toString();
               }
             }
 
             return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                children: [
-                  const Icon(Icons.place, size: 20, color: Color(0xFF8CC63F)),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          location.toString(),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                            color: Color(0xFF2B3424),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        if (dateLabel.isNotEmpty)
-                          Text(
-                            dateLabel,
-                            style: const TextStyle(fontSize: 12, color: Color(0xFF6B7A62)),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
+              padding: const EdgeInsets.only(top: 14),
+              child: _OverviewRow(
+                icon: Icons.place_outlined,
+                title: location.toString(),
+                subtitle: dateLabel,
               ),
             );
           }),
         ],
+      ),
+    );
+  }
+}
+
+class _OverviewCardHeader extends StatelessWidget {
+  const _OverviewCardHeader({required this.icon, required this.title});
+
+  final IconData icon;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: kBrandGreenSoft,
+            borderRadius: BorderRadius.circular(kRadiusSm),
+          ),
+          alignment: Alignment.center,
+          child: Icon(icon, size: 20, color: kBrandGreenDeep),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 15.5,
+              fontWeight: FontWeight.w700,
+              color: kTextPrimary,
+            ),
+          ),
+        ),
+        const Icon(Icons.arrow_forward_rounded,
+            color: kBrandGreenDark, size: 18),
+      ],
+    );
+  }
+}
+
+class _OverviewRow extends StatelessWidget {
+  const _OverviewRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.trailing,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: kBrandGreenDark),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  color: kTextPrimary,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  color: kTextTertiary,
+                ),
+              ),
+              if (trailing != null && trailing!.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  trailing!,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    color: kTextSecondary,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _EmptyHint extends StatelessWidget {
+  const _EmptyHint({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 13,
+          color: kTextTertiary,
+        ),
       ),
     );
   }

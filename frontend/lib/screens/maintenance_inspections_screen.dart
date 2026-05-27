@@ -8,6 +8,7 @@ import '../models/maintenance_inspections.dart';
 import '../services/auth_service.dart';
 import '../services/maintenance_api_service.dart';
 import '../services/notification_service.dart';
+import '../theme/app_theme.dart';
 import 'maintenance_inspection_detail_screen.dart';
 
 class MaintenanceInspectionsScreen extends StatefulWidget {
@@ -550,7 +551,7 @@ class _MaintenanceInspectionsScreenState
                     child: ElevatedButton(
                       onPressed: () => Navigator.pop(context),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF8CC63F),
+                        backgroundColor: kBrandGreen,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
@@ -804,7 +805,7 @@ class _MaintenanceInspectionsScreenState
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(999),
                                 borderSide: const BorderSide(
-                                  color: Color(0xFF8CC63F),
+                                  color: kBrandGreen,
                                   width: 1.5,
                                 ),
                               ),
@@ -830,7 +831,7 @@ class _MaintenanceInspectionsScreenState
                           icon: const Icon(Icons.add, size: 18),
                           label: const Text('Nieuw'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF8CC63F),
+                            backgroundColor: kBrandGreen,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(
                               horizontal: 16,
@@ -935,10 +936,10 @@ class _FilterChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF8CC63F) : Colors.white,
+          color: selected ? kBrandGreen : Colors.white,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: selected ? const Color(0xFF8CC63F) : const Color(0xFFD7DBD2),
+            color: selected ? kBrandGreen : const Color(0xFFD7DBD2),
           ),
         ),
         child: Text(
@@ -1072,7 +1073,7 @@ class _MaintenanceInspectionDialogState
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF8CC63F),
+              backgroundColor: kBrandGreen,
               foregroundColor: Colors.white,
             ),
             child: const Text('Toevoegen'),
@@ -1122,7 +1123,7 @@ class _MaintenanceInspectionDialogState
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF8CC63F),
+              backgroundColor: kBrandGreen,
               foregroundColor: Colors.white,
             ),
             child: const Text('Opslaan'),
@@ -1328,7 +1329,7 @@ class _MaintenanceInspectionDialogState
   Widget build(BuildContext context) {
     return Theme(
       data: Theme.of(context).copyWith(
-        highlightColor: const Color(0xFF8CC63F),
+        highlightColor: kBrandGreen,
         focusColor: const Color(0xFFEAF4D9),
         splashColor: const Color(0x338CC63F),
         hoverColor: const Color(0x228CC63F),
@@ -1753,7 +1754,7 @@ class _MaintenanceInspectionDialogState
                     children: [
                       TextButton(
                         style: TextButton.styleFrom(
-                          foregroundColor: const Color(0xFF8BC34A),
+                          foregroundColor: kBrandGreen,
                           padding: const EdgeInsets.symmetric(
                             horizontal: 20,
                             vertical: 14,
@@ -1765,7 +1766,7 @@ class _MaintenanceInspectionDialogState
                       const SizedBox(width: 12),
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF8BC34A),
+                          backgroundColor: kBrandGreen,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(
                             horizontal: 20,
@@ -1889,7 +1890,7 @@ class _MaintenanceInspectionDialogState
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFF8BC34A)),
+        borderSide: const BorderSide(color: kBrandGreen),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     );
@@ -1906,7 +1907,7 @@ class _MaintenanceInspectionDialogState
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFF8BC34A)),
+        borderSide: const BorderSide(color: kBrandGreen),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     );
@@ -1930,7 +1931,7 @@ class _MaintenanceInspectionDialogState
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFF8BC34A)),
+        borderSide: const BorderSide(color: kBrandGreen),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     );

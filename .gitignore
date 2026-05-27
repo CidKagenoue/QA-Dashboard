@@ -173,6 +173,8 @@ build/traefik/acme/
 /qa-login-backend/
 /.swarm/
 /.agents/
+/.claude/
+/skills-lock.json
 /ruvector.db
 /flutter_*.log
 /package-lock.json

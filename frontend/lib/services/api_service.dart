@@ -483,6 +483,18 @@ class ApiService {
     return Map<String, dynamic>.from(action);
   }
 
+  static Future<void> deleteOvaAction({
+    required String token,
+    required int actionId,
+  }) async {
+    await _requestObject(
+      () => http.delete(
+        Uri.parse('$baseUrl/ova/actions/$actionId'),
+        headers: _headers(token: token),
+      ),
+    );
+  }
+
   static Map<String, String> _headers({String? token}) {
     return {
       'Content-Type': 'application/json',

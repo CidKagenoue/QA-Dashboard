@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:qa_dashboard/models/branch.dart';
 
-
 import '../services/auth_service.dart';
 import '../services/location_api_service.dart';
 import '../models/location.dart';
+import '../widgets/design/design_system.dart';
 
 class LocationsScreen extends StatefulWidget {
   const LocationsScreen({super.key});
@@ -18,8 +18,6 @@ class _LocationsScreenState extends State<LocationsScreen> {
   List<Branch> _branches = [];
   Branch? _selected;
   bool _isLoading = false;
-
-  static const _green = Color(0xFF7CB342);
 
   @override
   void initState() {
@@ -63,7 +61,6 @@ class _LocationsScreenState extends State<LocationsScreen> {
     return auth.user?.isAdmin ?? false;
   }
 
-  // ── Vestiging toevoegen / bewerken ────────────────────────────────────────
   Future<void> _openBranchDialog({Branch? branch}) async {
     final controller = TextEditingController(text: branch?.name ?? '');
     final result = await showDialog<String>(
@@ -75,10 +72,7 @@ class _LocationsScreenState extends State<LocationsScreen> {
         content: TextField(
           controller: controller,
           autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Naam vestiging',
-            border: OutlineInputBorder(),
-          ),
+          decoration: const InputDecoration(labelText: 'Naam vestiging'),
         ),
         actions: [
           TextButton(
@@ -86,12 +80,11 @@ class _LocationsScreenState extends State<LocationsScreen> {
             child: const Text('Annuleren'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: _green),
             onPressed: () {
               final name = controller.text.trim();
               if (name.isNotEmpty) Navigator.of(ctx).pop(name);
             },
-            child: const Text('Opslaan', style: TextStyle(color: Colors.white)),
+            child: const Text('Opslaan'),
           ),
         ],
       ),
@@ -101,7 +94,6 @@ class _LocationsScreenState extends State<LocationsScreen> {
     }
   }
 
-  // ── Vestiging verwijderen ─────────────────────────────────────────────────
   Future<void> _deleteBranch(Branch branch) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -114,12 +106,9 @@ class _LocationsScreenState extends State<LocationsScreen> {
             child: const Text('Annuleren'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: kDanger),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text(
-              'Verwijderen',
-              style: TextStyle(color: Colors.white),
-            ),
+            child: const Text('Verwijderen'),
           ),
         ],
       ),
@@ -171,7 +160,6 @@ class _LocationsScreenState extends State<LocationsScreen> {
     }
   }
 
-  // ── Locatie toevoegen / bewerken ──────────────────────────────────────────
   Future<void> _openLocationDialog({Location? location}) async {
     final controller = TextEditingController(text: location?.name ?? '');
     final result = await showDialog<String>(
@@ -183,10 +171,7 @@ class _LocationsScreenState extends State<LocationsScreen> {
         content: TextField(
           controller: controller,
           autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Naam locatie',
-            border: OutlineInputBorder(),
-          ),
+          decoration: const InputDecoration(labelText: 'Naam locatie'),
         ),
         actions: [
           TextButton(
@@ -194,12 +179,11 @@ class _LocationsScreenState extends State<LocationsScreen> {
             child: const Text('Annuleren'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: _green),
             onPressed: () {
               final name = controller.text.trim();
               if (name.isNotEmpty) Navigator.of(ctx).pop(name);
             },
-            child: const Text('Opslaan', style: TextStyle(color: Colors.white)),
+            child: const Text('Opslaan'),
           ),
         ],
       ),
@@ -213,7 +197,6 @@ class _LocationsScreenState extends State<LocationsScreen> {
     }
   }
 
-  // ── Locatie verwijderen ───────────────────────────────────────────────────
   Future<void> _deleteLocation(Location location) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -226,12 +209,9 @@ class _LocationsScreenState extends State<LocationsScreen> {
             child: const Text('Annuleren'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: kDanger),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text(
-              'Verwijderen',
-              style: TextStyle(color: Colors.white),
-            ),
+            child: const Text('Verwijderen'),
           ),
         ],
       ),
@@ -284,241 +264,276 @@ class _LocationsScreenState extends State<LocationsScreen> {
         context.watch<AuthService>().user?.isAdmin ?? false;
 
     if (!canManageLocations) {
-      return _buildAccessDeniedState(
-        title: 'Locaties beheren is alleen beschikbaar voor admins.',
-        description:
-            'Log in met een admin-account om vestigingen en locaties te bekijken en te wijzigen.',
-      );
-    } else if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    } else {
-      return Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(child: _buildBranchesCard()),
-            const SizedBox(width: 16),
-            Expanded(child: _buildLocationsCard()),
-          ],
+      return Container(
+        color: kBackground,
+        padding: const EdgeInsets.all(32),
+        child: Center(
+          child: AppEmptyState.emphasis(
+            icon: Icons.lock_outline_rounded,
+            title: 'Geen toegang tot Locaties',
+            message:
+                'Locaties beheren is alleen beschikbaar voor admins. Log in met een admin-account om vestigingen en locaties te bekijken en te wijzigen.',
+          ),
         ),
       );
     }
-  }
 
-  Widget _buildBranchesCard() {
-    return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: const [
-                // ✅ FIX: "Branches" → "Vestigingen"
-                Text(
-                  'Vestigingen',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+    return Container(
+      color: kBackground,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(32, 28, 32, 32),
+        child: Container(
+          decoration: BoxDecoration(
+            color: kSurface,
+            borderRadius: BorderRadius.circular(kRadius2xl),
+            border: Border.all(color: kBorder),
+          ),
+          padding: const EdgeInsets.fromLTRB(32, 28, 32, 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const AppBreadcrumb(segments: ['Instellingen', 'Locaties']),
+              const SizedBox(height: 16),
+              const Text(
+                'Locaties',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: kTextPrimary,
+                  letterSpacing: -0.4,
+                  height: 1.15,
                 ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          Expanded(
-            child: ListView.builder(
-              itemCount: _branches.length,
-              itemBuilder: (context, index) {
-                final branch = _branches[index];
-                final isSelected = _selected?.id == branch.id;
-                return Container(
-                  color: isSelected ? const Color(0xFFE8F5E9) : null,
-                  child: ListTile(
-                    dense: true,
-                    title: Text(
-                      branch.name,
-                      style: TextStyle(
-                        fontWeight: isSelected
-                            ? FontWeight.w600
-                            : FontWeight.normal,
-                      ),
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: Icon(
-                            Icons.edit_outlined,
-                            size: 18,
-                            color: isSelected ? Colors.black87 : Colors.black38,
-                          ),
-                          onPressed: () => _openBranchDialog(branch: branch),
-                          tooltip: 'Bewerken',
-                        ),
-                        IconButton(
-                          icon: Icon(
-                            Icons.delete_outline,
-                            size: 18,
-                            color: isSelected ? Colors.black87 : Colors.black38,
-                          ),
-                          onPressed: () => _deleteBranch(branch),
-                          tooltip: 'Verwijderen',
-                        ),
-                      ],
-                    ),
-                    onTap: () => setState(() => _selected = branch),
-                  ),
-                );
-              },
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: FloatingActionButton.small(
-                heroTag: 'add_branch',
-                backgroundColor: _green,
-                onPressed: () => _openBranchDialog(),
-                child: const Icon(Icons.add, color: Colors.white),
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLocationsCard() {
-    return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: const [
-                Text(
-                  'Locaties',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+              const SizedBox(height: 6),
+              const Text(
+                'Beheer vestigingen en de locaties die eronder vallen.',
+                style: TextStyle(
+                  fontSize: 14.5,
+                  color: kTextSecondary,
+                  height: 1.5,
                 ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          Expanded(
-            child: _selected == null
-                ? const Center(
-                    child: Text(
-                      'Selecteer een vestiging',
-                      style: TextStyle(color: Colors.black45),
-                    ),
-                  )
-                : (_selected!.locations.isEmpty)
-                ? const Center(
-                    child: Text(
-                      'Geen locaties',
-                      style: TextStyle(color: Colors.black45),
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: _selected!.locations.length,
-                    itemBuilder: (context, index) {
-                      final location = _selected!.locations[index];
-                      return ListTile(
-                        dense: true,
-                        title: Text(location.name),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(
-                                Icons.edit_outlined,
-                                size: 18,
-                                color: Colors.black38,
-                              ),
-                              tooltip: 'Bewerken',
-                              onPressed: () =>
-                                  _openLocationDialog(location: location),
-                            ),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.delete_outline,
-                                size: 18,
-                                color: Colors.black38,
-                              ),
-                              tooltip: 'Verwijderen',
-                              onPressed: () => _deleteLocation(location),
-                            ),
-                          ],
-                        ),
+              ),
+              const SizedBox(height: 24),
+              if (_isLoading)
+                const SizedBox(
+                  height: 320,
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact = constraints.maxWidth < 880;
+                    if (compact) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildBranchesPanel(),
+                          const SizedBox(height: 16),
+                          _buildLocationsPanel(),
+                        ],
                       );
-                    },
-                  ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: FloatingActionButton.small(
-                heroTag: 'add_location',
-                backgroundColor: _green,
-                onPressed: _branches.isEmpty
-                    ? null
-                    : () {
-                        if (_selected == null && _branches.isNotEmpty) {
-                          setState(() => _selected = _branches.first);
-                        }
-                        _openLocationDialog();
-                      },
-                child: const Icon(Icons.add, color: Colors.white),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAccessDeniedState({
-    required String title,
-    required String description,
-  }) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(28),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.lock_outline_rounded,
-                    size: 48,
-                    color: Color(0xFF7C8A72),
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    description,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                ],
-              ),
-            ),
+                    }
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: _buildBranchesPanel()),
+                        const SizedBox(width: 16),
+                        Expanded(child: _buildLocationsPanel()),
+                      ],
+                    );
+                  },
+                ),
+            ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildBranchesPanel() {
+    return AppSectionPanel(
+      title: 'Vestigingen',
+      icon: Icons.business_outlined,
+      trailing: IconButton(
+        icon: const Icon(Icons.add_rounded, size: 20),
+        tooltip: 'Vestiging toevoegen',
+        color: kBrandGreenDeep,
+        onPressed: () => _openBranchDialog(),
+      ),
+      child: _branches.isEmpty
+          ? const Padding(
+              padding: EdgeInsets.symmetric(vertical: 18),
+              child: Text(
+                'Nog geen vestigingen toegevoegd.',
+                style: TextStyle(fontSize: 13.5, color: kTextTertiary),
+              ),
+            )
+          : Container(
+              decoration: BoxDecoration(
+                color: kSurfaceMuted,
+                borderRadius: BorderRadius.circular(kRadiusMd),
+                border: Border.all(color: kBorder),
+              ),
+              constraints: const BoxConstraints(maxHeight: 360),
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: _branches.length,
+                separatorBuilder: (_, _) =>
+                    const Divider(height: 1, color: kBorderSubtle),
+                itemBuilder: (context, index) {
+                  final branch = _branches[index];
+                  final isSelected = _selected?.id == branch.id;
+                  return Material(
+                    color:
+                        isSelected ? kBrandGreenSubtle : Colors.transparent,
+                    child: InkWell(
+                      onTap: () => setState(() => _selected = branch),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.location_city_rounded,
+                              size: 18,
+                              color: isSelected
+                                  ? kBrandGreenDeep
+                                  : kTextTertiary,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                branch.name,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                  color: isSelected
+                                      ? kBrandGreenDeep
+                                      : kTextPrimary,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              icon:
+                                  const Icon(Icons.edit_outlined, size: 18),
+                              color: kTextTertiary,
+                              onPressed: () =>
+                                  _openBranchDialog(branch: branch),
+                              tooltip: 'Bewerken',
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                  Icons.delete_outline_rounded,
+                                  size: 18),
+                              color: kDanger,
+                              onPressed: () => _deleteBranch(branch),
+                              tooltip: 'Verwijderen',
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+    );
+  }
+
+  Widget _buildLocationsPanel() {
+    final locations = _selected?.locations ?? const <Location>[];
+
+    return AppSectionPanel(
+      title: 'Locaties',
+      icon: Icons.place_outlined,
+      trailing: IconButton(
+        icon: const Icon(Icons.add_rounded, size: 20),
+        tooltip: 'Locatie toevoegen',
+        color: kBrandGreenDeep,
+        onPressed: _branches.isEmpty
+            ? null
+            : () {
+                if (_selected == null && _branches.isNotEmpty) {
+                  setState(() => _selected = _branches.first);
+                }
+                _openLocationDialog();
+              },
+      ),
+      child: _selected == null
+          ? const Padding(
+              padding: EdgeInsets.symmetric(vertical: 18),
+              child: Text(
+                'Selecteer eerst een vestiging om de locaties te zien.',
+                style: TextStyle(fontSize: 13.5, color: kTextTertiary),
+              ),
+            )
+          : locations.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 18),
+                  child: Text(
+                    'Nog geen locaties gekoppeld aan deze vestiging.',
+                    style: TextStyle(fontSize: 13.5, color: kTextTertiary),
+                  ),
+                )
+              : Column(
+                  children: List.generate(locations.length, (index) {
+                    final location = locations[index];
+                    return Container(
+                      margin: EdgeInsets.only(
+                          bottom: index == locations.length - 1 ? 0 : 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: kSurfaceMuted,
+                        borderRadius: BorderRadius.circular(kRadiusMd),
+                        border: Border.all(color: kBorder),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 30,
+                            height: 30,
+                            decoration: BoxDecoration(
+                              color: kBrandGreenSoft,
+                              borderRadius:
+                                  BorderRadius.circular(kRadiusSm),
+                            ),
+                            alignment: Alignment.center,
+                            child: const Icon(Icons.place_outlined,
+                                size: 16, color: kBrandGreenDeep),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              location.name,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: kTextPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.edit_outlined, size: 18),
+                            color: kTextTertiary,
+                            tooltip: 'Bewerken',
+                            onPressed: () =>
+                                _openLocationDialog(location: location),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline_rounded,
+                                size: 18),
+                            color: kDanger,
+                            tooltip: 'Verwijderen',
+                            onPressed: () => _deleteLocation(location),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ),
     );
   }
 }

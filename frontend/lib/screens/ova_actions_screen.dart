@@ -6,7 +6,9 @@ import '../models/ova_assigned_action.dart';
 import '../models/ova_ticket.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
-import 'ova_ticket_wizard_screen.dart';
+import '../widgets/design/design_system.dart';
+import 'ova_action_detail_screen.dart';
+import 'ova_ticket_wizard_screen.dart' show formatOvaDate;
 
 enum _ActionScope { mine, all }
 
@@ -37,7 +39,7 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
   String? _error;
   List<OvaAssignedAction> _actions = const [];
   _ActionScope _selectedScope = _ActionScope.mine;
-  _ActionStatusFilter _selectedStatusFilter = _ActionStatusFilter.nok;
+  _ActionStatusFilter _selectedStatusFilter = _ActionStatusFilter.all;
   _ActionDeadlineFilter _selectedDeadlineFilter = _ActionDeadlineFilter.all;
   _ActionTypeFilter _selectedTypeFilter = _ActionTypeFilter.all;
   String? _selectedAssignee;
@@ -59,7 +61,7 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
     _searchController.dispose();
     super.dispose();
   }
-  
+
   OvaSortOption _sortOption = const OvaSortOption(
     field: OvaSortField.date,
     direction: OvaSortDirection.descending,
@@ -123,7 +125,6 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
       );
     }
 
-    // NIEUWE SORTEERLOGICA
     final sorted = actions.toList();
     sorted.sort((a, b) {
       int comparison;
@@ -138,7 +139,7 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
           comparison = a.action.typeLabel.compareTo(b.action.typeLabel);
           break;
       }
-      
+
       return _sortOption.direction == OvaSortDirection.ascending
           ? comparison
           : -comparison;
@@ -277,7 +278,7 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
 
     _searchController.clear();
     setState(() {
-      _selectedStatusFilter = _ActionStatusFilter.nok;
+      _selectedStatusFilter = _ActionStatusFilter.all;
       _selectedDeadlineFilter = _ActionDeadlineFilter.all;
       _selectedTypeFilter = _ActionTypeFilter.all;
       _selectedAssignee = null;
@@ -333,17 +334,14 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
     }
   }
 
-  Future<void> _openTicket(int ticketId) async {
-    final result = await Navigator.of(context).push<String?>(
+  Future<void> _openActionDetail(OvaAssignedAction item) async {
+    final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => OvaTicketWizardScreen(
-          ticketId: ticketId,
-          embedded: widget.embedded,
-        ),
+        builder: (_) => OvaActionDetailScreen(initialAction: item),
       ),
     );
 
-    if (result != null && mounted) {
+    if (result == true && mounted) {
       await _loadActions();
     }
   }
@@ -437,104 +435,142 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
   Widget build(BuildContext context) {
     final content = RefreshIndicator(
       onRefresh: _loadActions,
-      child: ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x0F000000),
-                  blurRadius: 20,
-                  offset: Offset(0, 6),
+      color: kBrandGreenDark,
+      child: LayoutBuilder(
+        builder: (context, viewportConstraints) {
+          final isNarrowPage = viewportConstraints.maxWidth < 760;
+          final outerPadding = isNarrowPage
+              ? const EdgeInsets.all(16)
+              : const EdgeInsets.fromLTRB(24, 20, 24, 24);
+          final contentPadding = isNarrowPage
+              ? const EdgeInsets.fromLTRB(20, 22, 20, 24)
+              : const EdgeInsets.fromLTRB(32, 28, 32, 32);
+
+          return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: outerPadding,
+            children: [
+              Container(
+                padding: contentPadding,
+                decoration: BoxDecoration(
+                  color: kSurface,
+                  borderRadius:
+                      BorderRadius.circular(isNarrowPage ? kRadiusLg : kRadius2xl),
+                  border: Border.all(color: kBorder),
                 ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (widget.embedded && widget.onNavigateBack != null) ...[
-                  TextButton.icon(
-                    onPressed: widget.onNavigateBack,
-                    icon: const Icon(Icons.arrow_back_rounded),
-                    label: const Text('OVA overzicht'),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-                Text(
-                  _selectedScope == _ActionScope.all
-                      ? 'Alle OVA-acties'
-                      : 'Mijn acties-overzicht',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (widget.embedded && widget.onNavigateBack != null) ...[
+                      _BackLink(
+                        label: 'OVA overzicht',
+                        onTap: widget.onNavigateBack!,
+                      ),
+                      const SizedBox(height: 14),
+                    ],
+                    const _Breadcrumb(
+                        segments: ['Dashboard', 'OVA', 'Acties']),
+                    const SizedBox(height: 16),
+                    LayoutBuilder(
+                      builder: (context, c) {
+                        final compact = c.maxWidth < 840;
+                        final titleBlock = Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _selectedScope == _ActionScope.all
+                                  ? 'Alle OVA-acties'
+                                  : 'Mijn opvolgacties',
+                              style: const TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w800,
+                                color: kTextPrimary,
+                                letterSpacing: -0.4,
+                                height: 1.15,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _summaryText,
+                              style: const TextStyle(
+                                fontSize: 14.5,
+                                color: kTextSecondary,
+                                height: 1.5,
+                              ),
+                            ),
+                          ],
+                        );
+                        return compact
+                            ? titleBlock
+                            : Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [Expanded(child: titleBlock)],
+                              );
+                      },
+                    ),
+                    if (_canViewAllActions) ...[
+                      const SizedBox(height: 20),
+                      _ActionScopeTabs(
+                        selectedScope: _selectedScope,
+                        onSelected: _selectScope,
+                      ),
+                    ],
+                    const SizedBox(height: 20),
+                    _ActionFilters(
+                      searchController: _searchController,
+                      visibleCount: _filteredActions.length,
+                      hasActiveFilters: _hasActiveFilters,
+                      activeFilterCount: _activeFilterCount,
+                      filtersExpanded: _filtersExpanded,
+                      onToggleFilters: _toggleFiltersExpanded,
+                      selectedStatus: _selectedStatusFilter,
+                      onStatusSelected: _setStatusFilter,
+                      selectedDeadline: _selectedDeadlineFilter,
+                      onDeadlineSelected: _setDeadlineFilter,
+                      selectedType: _selectedTypeFilter,
+                      onTypeSelected: _setTypeFilter,
+                      showAssignees: _selectedScope == _ActionScope.all,
+                      assignees: _availableAssignees,
+                      selectedAssignee: _selectedAssignee,
+                      onAssigneeSelected: _setAssignee,
+                      onClearFilters: _clearFilters,
+                      selectedSort: _sortOption,
+                      onSortChanged: _setSortOption,
+                    ),
+                    const SizedBox(height: 24),
+                    if (_isLoading)
+                      const _ActionsLoadingSkeleton()
+                    else if (_error != null)
+                      _ActionErrorState(
+                          message: _error!, onRetry: _loadActions)
+                    else if (_filteredActions.isEmpty)
+                      _ActionEmptyState(
+                        scope: _selectedScope,
+                        filtered: _hasActiveFilters,
+                        onClearFilters: _clearFilters,
+                      )
+                    else
+                      _ActionsOverview(
+                        actions: _filteredActions,
+                        savingActionIds: _savingActionIds,
+                        onOpenAction: _openActionDetail,
+                        onStatusChanged: _updateActionStatus,
+                      ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                Text(_summaryText),
-                if (_canViewAllActions) ...[
-                  const SizedBox(height: 18),
-                  _ActionScopeTabs(
-                    selectedScope: _selectedScope,
-                    onSelected: _selectScope,
-                  ),
-                ],
-                const SizedBox(height: 18),
-                _ActionFilters(
-                  searchController: _searchController,
-                  visibleCount: _filteredActions.length,
-                  hasActiveFilters: _hasActiveFilters,
-                  activeFilterCount: _activeFilterCount,
-                  filtersExpanded: _filtersExpanded,
-                  onToggleFilters: _toggleFiltersExpanded,
-                  selectedStatus: _selectedStatusFilter,
-                  onStatusSelected: _setStatusFilter,
-                  selectedDeadline: _selectedDeadlineFilter,
-                  onDeadlineSelected: _setDeadlineFilter,
-                  selectedType: _selectedTypeFilter,
-                  onTypeSelected: _setTypeFilter,
-                  showAssignees: _selectedScope == _ActionScope.all,
-                  assignees: _availableAssignees,
-                  selectedAssignee: _selectedAssignee,
-                  onAssigneeSelected: _setAssignee,
-                  onClearFilters: _clearFilters,
-                  // NIEUW: voeg deze toe
-                  selectedSort: _sortOption,
-                  onSortChanged: _setSortOption,
-                ),
-                const SizedBox(height: 28),
-                if (_isLoading)
-                  const Center(child: CircularProgressIndicator())
-                else if (_error != null)
-                  _ActionErrorState(message: _error!, onRetry: _loadActions)
-                else if (_filteredActions.isEmpty)
-                  _ActionEmptyState(
-                    scope: _selectedScope,
-                    filtered: _hasActiveFilters,
-                    onClearFilters: _clearFilters,
-                  )
-                else
-                  _ActionsOverview(
-                    actions: _filteredActions,
-                    savingActionIds: _savingActionIds,
-                    onOpenTicket: (item) => _openTicket(item.ticket.id),
-                    onStatusChanged: _updateActionStatus,
-                  ),
-              ],
-            ),
-          ),
-        ],
+              ),
+            ],
+          );
+        },
       ),
     );
 
     if (widget.embedded) {
-      return ColoredBox(color: const Color(0xFFF6F6F3), child: content);
+      return ColoredBox(color: kBackground, child: content);
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F6F3),
+      backgroundColor: kBackground,
       appBar: const MainAppBar(title: 'Mijn OVA-acties'),
       body: content,
     );
@@ -545,13 +581,13 @@ class _ActionsOverview extends StatelessWidget {
   const _ActionsOverview({
     required this.actions,
     required this.savingActionIds,
-    required this.onOpenTicket,
+    required this.onOpenAction,
     required this.onStatusChanged,
   });
 
   final List<OvaAssignedAction> actions;
   final Set<int> savingActionIds;
-  final ValueChanged<OvaAssignedAction> onOpenTicket;
+  final ValueChanged<OvaAssignedAction> onOpenAction;
   final Future<void> Function(OvaAssignedAction, bool) onStatusChanged;
 
   @override
@@ -562,7 +598,7 @@ class _ActionsOverview extends StatelessWidget {
           return _ActionsTable(
             actions: actions,
             savingActionIds: savingActionIds,
-            onOpenTicket: onOpenTicket,
+            onOpenAction: onOpenAction,
             onStatusChanged: onStatusChanged,
           );
         }
@@ -577,7 +613,7 @@ class _ActionsOverview extends StatelessWidget {
               child: _ActionMobileTile(
                 item: item,
                 isSaving: savingActionIds.contains(item.action.id),
-                onOpenTicket: () => onOpenTicket(item),
+                onOpenAction: () => onOpenAction(item),
                 onStatusChanged: (isOk) => onStatusChanged(item, isOk),
               ),
             );
@@ -599,21 +635,29 @@ class _ActionScopeTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        _ActionScopeChip(
-          label: 'Mijn acties',
-          selected: selectedScope == _ActionScope.mine,
-          onTap: () => onSelected(_ActionScope.mine),
-        ),
-        _ActionScopeChip(
-          label: 'Alle acties',
-          selected: selectedScope == _ActionScope.all,
-          onTap: () => onSelected(_ActionScope.all),
-        ),
-      ],
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: kSurfaceMuted,
+        borderRadius: BorderRadius.circular(kRadiusMd),
+        border: Border.all(color: kBorder),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _ActionScopeChip(
+            label: 'Mijn acties',
+            selected: selectedScope == _ActionScope.mine,
+            onTap: () => onSelected(_ActionScope.mine),
+          ),
+          const SizedBox(width: 4),
+          _ActionScopeChip(
+            label: 'Alle acties',
+            selected: selectedScope == _ActionScope.all,
+            onTap: () => onSelected(_ActionScope.all),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -631,17 +675,30 @@ class _ActionScopeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => onTap(),
-      selectedColor: const Color(0xFFEAF4D9),
-      labelStyle: TextStyle(
-        color: selected ? const Color(0xFF4E721C) : const Color(0xFF4C5448),
-        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-      ),
-      side: BorderSide(
-        color: selected ? const Color(0xFF98C74D) : const Color(0xFFD7DBD2),
+    return Material(
+      color: selected ? kSurface : Colors.transparent,
+      borderRadius: BorderRadius.circular(kRadiusSm),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(kRadiusSm),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(kRadiusSm),
+            border: selected
+                ? Border.all(color: kBorder)
+                : Border.all(color: Colors.transparent),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? kBrandGreenDeep : kTextTertiary,
+              fontWeight: FontWeight.w700,
+              fontSize: 13.5,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -666,7 +723,6 @@ class _ActionFilters extends StatelessWidget {
     required this.selectedAssignee,
     required this.onAssigneeSelected,
     required this.onClearFilters,
-    // NIEUW: voeg deze toe
     required this.selectedSort,
     required this.onSortChanged,
   });
@@ -688,37 +744,39 @@ class _ActionFilters extends StatelessWidget {
   final String? selectedAssignee;
   final ValueChanged<String?> onAssigneeSelected;
   final VoidCallback onClearFilters;
-  // NIEUW: voeg deze toe
   final OvaSortOption selectedSort;
   final ValueChanged<OvaSortOption> onSortChanged;
 
   @override
   Widget build(BuildContext context) {
     final searchField = SizedBox(
-      width: 320,
+      width: 340,
       child: TextField(
         controller: searchController,
+        style: const TextStyle(fontSize: 14, color: kTextPrimary),
         decoration: InputDecoration(
-          hintText: 'Zoeken op actie of ticket',
-          prefixIcon: const Icon(Icons.search_rounded, size: 20),
+          hintText: 'Zoeken op actie of ticket…',
+          hintStyle: const TextStyle(color: kTextMuted, fontSize: 14),
+          prefixIcon: const Icon(Icons.search_rounded,
+              size: 20, color: kTextTertiary),
           filled: true,
-          fillColor: const Color(0xFFF4F4F0),
+          fillColor: kSurfaceMuted,
           isDense: true,
           contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
+            horizontal: 14,
+            vertical: 12,
           ),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(999),
-            borderSide: BorderSide.none,
+            borderRadius: BorderRadius.circular(kRadiusMd),
+            borderSide: const BorderSide(color: kBorder),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(999),
-            borderSide: BorderSide.none,
+            borderRadius: BorderRadius.circular(kRadiusMd),
+            borderSide: const BorderSide(color: kBorder),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(999),
-            borderSide: const BorderSide(color: Color(0xFF8CC63F)),
+            borderRadius: BorderRadius.circular(kRadiusMd),
+            borderSide: const BorderSide(color: kBrandGreen, width: 1.4),
           ),
         ),
       ),
@@ -726,28 +784,27 @@ class _ActionFilters extends StatelessWidget {
 
     final filterButton = OutlinedButton.icon(
       onPressed: onToggleFilters,
-      icon: const Icon(Icons.filter_alt_rounded, size: 18),
+      icon: const Icon(Icons.tune_rounded, size: 18),
       label: Text(
-        activeFilterCount > 0 ? 'Filters $activeFilterCount' : 'Filters',
+        activeFilterCount > 0 ? 'Filters · $activeFilterCount' : 'Filters',
       ),
       style: OutlinedButton.styleFrom(
         foregroundColor: filtersExpanded || activeFilterCount > 0
-            ? const Color(0xFF4E721C)
-            : const Color(0xFF3F473B),
-        backgroundColor: filtersExpanded
-            ? const Color(0xFFEAF4D9)
-            : Colors.white,
+            ? kBrandGreenDeep
+            : kTextSecondary,
+        backgroundColor:
+            filtersExpanded ? kBrandGreenSubtle : kSurface,
         side: BorderSide(
           color: filtersExpanded || activeFilterCount > 0
-              ? const Color(0xFF98C74D)
-              : const Color(0xFFD9DDD1),
+              ? kBrandGreenSoft
+              : kBorder,
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(kRadiusMd)),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       ),
     );
 
-    // NIEUW: sortButton toevoegen HIER
     final sortButton = PopupMenuButton<OvaSortOption>(
       tooltip: 'Sorteren',
       onSelected: onSortChanged,
@@ -766,8 +823,11 @@ class _ActionFilters extends StatelessWidget {
                     ? Icons.check_rounded
                     : Icons.calendar_today_rounded,
                 size: 18,
+                color: selectedSort.field == OvaSortField.date
+                    ? kBrandGreenDeep
+                    : kTextTertiary,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               const Text('Deadline'),
             ],
           ),
@@ -786,8 +846,11 @@ class _ActionFilters extends StatelessWidget {
                     ? Icons.check_rounded
                     : Icons.info_outline_rounded,
                 size: 18,
+                color: selectedSort.field == OvaSortField.status
+                    ? kBrandGreenDeep
+                    : kTextTertiary,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               const Text('Status'),
             ],
           ),
@@ -806,8 +869,11 @@ class _ActionFilters extends StatelessWidget {
                     ? Icons.check_rounded
                     : Icons.category_outlined,
                 size: 18,
+                color: selectedSort.field == OvaSortField.type
+                    ? kBrandGreenDeep
+                    : kTextTertiary,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               const Text('Type'),
             ],
           ),
@@ -822,8 +888,9 @@ class _ActionFilters extends StatelessWidget {
                     ? Icons.arrow_downward_rounded
                     : Icons.arrow_upward_rounded,
                 size: 18,
+                color: kTextTertiary,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Text(
                 selectedSort.direction == OvaSortDirection.ascending
                     ? 'Aflopend'
@@ -833,37 +900,54 @@ class _ActionFilters extends StatelessWidget {
           ),
         ),
       ],
-      style: OutlinedButton.styleFrom(
-        foregroundColor: const Color(0xFF3F473B),
-        backgroundColor: Colors.white,
-        side: const BorderSide(color: Color(0xFFD9DDD1)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.sort_rounded, size: 18),
-          const SizedBox(width: 6),
-          Text(selectedSort.label),
-        ],
+      offset: const Offset(0, 44),
+      position: PopupMenuPosition.under,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        decoration: BoxDecoration(
+          color: kSurface,
+          border: Border.all(color: kBorder),
+          borderRadius: BorderRadius.circular(kRadiusMd),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.sort_rounded, size: 18, color: kTextSecondary),
+            const SizedBox(width: 8),
+            Text(
+              selectedSort.label,
+              style: const TextStyle(
+                color: kTextSecondary,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
       ),
     );
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 900;
-        final counter = Text(
-          '$visibleCount actie${visibleCount == 1 ? '' : 's'} zichtbaar',
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF7A8078),
-          ),
+        final counter = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.view_list_rounded,
+                size: 16, color: kTextMuted),
+            const SizedBox(width: 6),
+            Text(
+              '$visibleCount actie${visibleCount == 1 ? '' : 's'} zichtbaar',
+              style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: kTextTertiary,
+              ),
+            ),
+          ],
         );
-        
-        // AANGEPAST: voeg sortButton toe aan actions
-        final actions = compact
+
+        final actionsRow = compact
             ? Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -872,10 +956,7 @@ class _ActionFilters extends StatelessWidget {
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: [
-                      filterButton,
-                      sortButton,
-                    ],
+                    children: [filterButton, sortButton],
                   ),
                 ],
               )
@@ -885,8 +966,8 @@ class _ActionFilters extends StatelessWidget {
                   searchField,
                   const SizedBox(width: 10),
                   filterButton,
-                  const SizedBox(width: 8),  // NIEUW: spacing
-                  sortButton,                 // NIEUW: sortButton
+                  const SizedBox(width: 8),
+                  sortButton,
                 ],
               );
 
@@ -896,21 +977,21 @@ class _ActionFilters extends StatelessWidget {
             if (compact) ...[
               counter,
               const SizedBox(height: 12),
-              actions,
+              actionsRow,
             ] else
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Expanded(child: counter),
-                  actions,
+                  actionsRow,
                 ],
               ),
             if (activeFilterCount > 0) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               _buildActiveFilters(),
             ],
             if (filtersExpanded) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               _ActionFilterPanel(
                 selectedStatus: selectedStatus,
                 onStatusSelected: onStatusSelected,
@@ -931,6 +1012,7 @@ class _ActionFilters extends StatelessWidget {
       },
     );
   }
+
   Widget _buildActiveFilters() {
     return Wrap(
       spacing: 8,
@@ -958,7 +1040,7 @@ class _ActionFilters extends StatelessWidget {
           ),
         TextButton(
           onPressed: onClearFilters,
-          child: const Text('Filters wissen'),
+          child: const Text('Alle filters wissen'),
         ),
       ],
     );
@@ -1033,21 +1115,21 @@ class _ActionFilterPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFFFBFCF8),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E6DD)),
+        color: kSurfaceMuted,
+        borderRadius: BorderRadius.circular(kRadiusLg),
+        border: Border.all(color: kBorder),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final fieldCount = showAssignees ? 4 : 3;
           final fieldWidth = constraints.maxWidth < 760
               ? constraints.maxWidth
-              : (constraints.maxWidth - (12 * (fieldCount - 1))) / fieldCount;
+              : (constraints.maxWidth - (14 * (fieldCount - 1))) / fieldCount;
           return Wrap(
-            spacing: 12,
-            runSpacing: 12,
+            spacing: 14,
+            runSpacing: 14,
             crossAxisAlignment: WrapCrossAlignment.end,
             children: [
               _ActionFilterSelectField<_ActionStatusFilter>(
@@ -1056,17 +1138,11 @@ class _ActionFilterPanel extends StatelessWidget {
                 value: selectedStatus,
                 options: const [
                   _ActionFilterOption(
-                    value: _ActionStatusFilter.nok,
-                    label: 'NOK',
-                  ),
+                      value: _ActionStatusFilter.nok, label: 'NOK'),
                   _ActionFilterOption(
-                    value: _ActionStatusFilter.ok,
-                    label: 'OK',
-                  ),
+                      value: _ActionStatusFilter.ok, label: 'OK'),
                   _ActionFilterOption(
-                    value: _ActionStatusFilter.all,
-                    label: 'Alles',
-                  ),
+                      value: _ActionStatusFilter.all, label: 'Alles'),
                 ],
                 onChanged: onStatusSelected,
               ),
@@ -1076,21 +1152,15 @@ class _ActionFilterPanel extends StatelessWidget {
                 value: selectedDeadline,
                 options: const [
                   _ActionFilterOption(
-                    value: _ActionDeadlineFilter.all,
-                    label: 'Alle deadlines',
-                  ),
+                      value: _ActionDeadlineFilter.all,
+                      label: 'Alle deadlines'),
                   _ActionFilterOption(
-                    value: _ActionDeadlineFilter.overdue,
-                    label: 'Te laat',
-                  ),
+                      value: _ActionDeadlineFilter.overdue, label: 'Te laat'),
                   _ActionFilterOption(
-                    value: _ActionDeadlineFilter.thisWeek,
-                    label: 'Deze week',
-                  ),
+                      value: _ActionDeadlineFilter.thisWeek,
+                      label: 'Deze week'),
                   _ActionFilterOption(
-                    value: _ActionDeadlineFilter.later,
-                    label: 'Later',
-                  ),
+                      value: _ActionDeadlineFilter.later, label: 'Later'),
                 ],
                 onChanged: onDeadlineSelected,
               ),
@@ -1100,17 +1170,13 @@ class _ActionFilterPanel extends StatelessWidget {
                 value: selectedType,
                 options: const [
                   _ActionFilterOption(
-                    value: _ActionTypeFilter.all,
-                    label: 'Alle types',
-                  ),
+                      value: _ActionTypeFilter.all, label: 'Alle types'),
                   _ActionFilterOption(
-                    value: _ActionTypeFilter.corrective,
-                    label: 'Corrigerend',
-                  ),
+                      value: _ActionTypeFilter.corrective,
+                      label: 'Corrigerend'),
                   _ActionFilterOption(
-                    value: _ActionTypeFilter.preventive,
-                    label: 'Preventief',
-                  ),
+                      value: _ActionTypeFilter.preventive,
+                      label: 'Preventief'),
                 ],
                 onChanged: onTypeSelected,
               ),
@@ -1135,9 +1201,10 @@ class _ActionFilterPanel extends StatelessWidget {
                   onChanged: onAssigneeSelected,
                 ),
               if (hasActiveFilters)
-                TextButton(
+                TextButton.icon(
                   onPressed: onClearFilters,
-                  child: const Text('Filters wissen'),
+                  icon: const Icon(Icons.refresh_rounded, size: 16),
+                  label: const Text('Filters wissen'),
                 ),
             ],
           );
@@ -1148,7 +1215,8 @@ class _ActionFilterPanel extends StatelessWidget {
 }
 
 class _ActionActiveFilterChip extends StatelessWidget {
-  const _ActionActiveFilterChip({required this.label, required this.onRemove});
+  const _ActionActiveFilterChip(
+      {required this.label, required this.onRemove});
 
   final String label;
   final VoidCallback onRemove;
@@ -1157,11 +1225,11 @@ class _ActionActiveFilterChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 32,
-      padding: const EdgeInsets.only(left: 10, right: 4),
+      padding: const EdgeInsets.only(left: 12, right: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF4D9),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFCFE5A8)),
+        color: kBrandGreenSoft,
+        borderRadius: BorderRadius.circular(kRadiusPill),
+        border: Border.all(color: kBrandGreenSoft),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1169,22 +1237,19 @@ class _ActionActiveFilterChip extends StatelessWidget {
           Text(
             label,
             style: const TextStyle(
-              color: Color(0xFF4E721C),
-              fontSize: 12,
+              color: kBrandGreenDeep,
+              fontSize: 12.5,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 6),
           InkWell(
             onTap: onRemove,
             borderRadius: BorderRadius.circular(999),
             child: const Padding(
-              padding: EdgeInsets.all(4),
-              child: Icon(
-                Icons.close_rounded,
-                size: 14,
-                color: Color(0xFF4E721C),
-              ),
+              padding: EdgeInsets.all(5),
+              child: Icon(Icons.close_rounded,
+                  size: 14, color: kBrandGreenDeep),
             ),
           ),
         ],
@@ -1217,27 +1282,31 @@ class _ActionFilterSelectField<T> extends StatelessWidget {
       child: DropdownButtonFormField<T>(
         initialValue: value,
         isExpanded: true,
+        icon: const Icon(Icons.keyboard_arrow_down_rounded,
+            color: kTextTertiary),
+        style: const TextStyle(
+            fontSize: 14, color: kTextPrimary, fontWeight: FontWeight.w500),
         hint: hintText == null ? null : Text(hintText!),
         decoration: InputDecoration(
           labelText: label,
           filled: true,
-          fillColor: Colors.white,
+          fillColor: kSurface,
           isDense: true,
           contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
+            horizontal: 14,
             vertical: 12,
           ),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: Color(0xFFD9DDD1)),
+            borderRadius: BorderRadius.circular(kRadiusMd),
+            borderSide: const BorderSide(color: kBorder),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: Color(0xFFD9DDD1)),
+            borderRadius: BorderRadius.circular(kRadiusMd),
+            borderSide: const BorderSide(color: kBorder),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: Color(0xFF8CC63F)),
+            borderRadius: BorderRadius.circular(kRadiusMd),
+            borderSide: const BorderSide(color: kBrandGreen, width: 1.4),
           ),
         ),
         items: options
@@ -1269,33 +1338,35 @@ class _ActionsTable extends StatelessWidget {
   const _ActionsTable({
     required this.actions,
     required this.savingActionIds,
-    required this.onOpenTicket,
+    required this.onOpenAction,
     required this.onStatusChanged,
   });
 
   final List<OvaAssignedAction> actions;
   final Set<int> savingActionIds;
-  final ValueChanged<OvaAssignedAction> onOpenTicket;
+  final ValueChanged<OvaAssignedAction> onOpenAction;
   final Future<void> Function(OvaAssignedAction, bool) onStatusChanged;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE2E6DD)),
+        borderRadius: BorderRadius.circular(kRadiusLg),
+        border: Border.all(color: kBorder),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(kRadiusLg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Container(
-              color: const Color(0xFFF6F7F2),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              color: kSurfaceMuted,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
               child: const Row(
                 children: [
-                  Expanded(flex: 44, child: _TableHeaderLabel('Omschrijving')),
+                  Expanded(
+                      flex: 44, child: _TableHeaderLabel('Omschrijving')),
                   SizedBox(width: 12),
                   SizedBox(
                     width: 180,
@@ -1304,7 +1375,7 @@ class _ActionsTable extends StatelessWidget {
                   SizedBox(width: 12),
                   SizedBox(
                     width: 110,
-                    child: _TableHeaderLabel('Ticketnummer'),
+                    child: _TableHeaderLabel('Ticket'),
                   ),
                   SizedBox(width: 12),
                   SizedBox(width: 110, child: _TableHeaderLabel('Deadline')),
@@ -1320,12 +1391,36 @@ class _ActionsTable extends StatelessWidget {
               final item = actions[index];
               return _ActionsTableRow(
                 item: item,
-                striped: index.isOdd,
                 isSaving: savingActionIds.contains(item.action.id),
-                onOpenTicket: () => onOpenTicket(item),
+                onOpenAction: () => onOpenAction(item),
                 onStatusChanged: (isOk) => onStatusChanged(item, isOk),
               );
             }),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+              decoration: const BoxDecoration(
+                color: kSurfaceMuted,
+                border: Border(top: BorderSide(color: kBorder)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline_rounded,
+                      size: 14, color: kTextMuted),
+                  SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Klik op een rij om de actiedetails en het gekoppelde ticket te bekijken.',
+                      style: TextStyle(
+                        color: kTextTertiary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -1333,111 +1428,125 @@ class _ActionsTable extends StatelessWidget {
   }
 }
 
-class _ActionsTableRow extends StatelessWidget {
+class _ActionsTableRow extends StatefulWidget {
   const _ActionsTableRow({
     required this.item,
-    required this.striped,
     required this.isSaving,
-    required this.onOpenTicket,
+    required this.onOpenAction,
     required this.onStatusChanged,
   });
 
   final OvaAssignedAction item;
-  final bool striped;
   final bool isSaving;
-  final VoidCallback onOpenTicket;
+  final VoidCallback onOpenAction;
   final ValueChanged<bool> onStatusChanged;
 
   @override
+  State<_ActionsTableRow> createState() => _ActionsTableRowState();
+}
+
+class _ActionsTableRowState extends State<_ActionsTableRow> {
+  bool _hovered = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Material(
-      color: striped ? const Color(0xFFF9FAF6) : Colors.white,
-      child: InkWell(
-        onTap: onOpenTicket,
-        child: Container(
-          decoration: const BoxDecoration(
-            border: Border(top: BorderSide(color: Color(0xFFE8ECE3))),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                flex: 44,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.action.description,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF2F382E),
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: Material(
+        color: _hovered ? kSurfaceHover : kSurface,
+        child: InkWell(
+          onTap: widget.onOpenAction,
+          child: Container(
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: kBorderSubtle)),
+            ),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  flex: 44,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.item.action.description,
+                        style: const TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w600,
+                          color: kTextPrimary,
+                          height: 1.4,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      item.action.typeLabel,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF7B8077),
+                      const SizedBox(height: 4),
+                      Text(
+                        widget.item.action.typeLabel,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: kTextTertiary,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 180,
+                  child: Text(
+                    widget.item.action.assigneeLabel,
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w500,
+                      color: kTextSecondary,
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              SizedBox(
-                width: 180,
-                child: Text(
-                  item.action.assigneeLabel,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF4D5548),
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: 12),
-              SizedBox(
-                width: 110,
-                child: Text(
-                  '#${item.ticket.id}',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF4D5548),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              SizedBox(
-                width: 110,
-                child: Text(
-                  formatOvaDate(item.action.dueDate),
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF4D5548),
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 110,
+                  child: Text(
+                    '#${widget.item.ticket.id.toString().padLeft(4, '0')}',
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: kTextSecondary,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              SizedBox(
-                width: 110,
-                child: Center(
-                  child: _StatusDropdown(
-                    isOk: item.action.isOk,
-                    isSaving: isSaving,
-                    onChanged: onStatusChanged,
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 110,
+                  child: Text(
+                    formatOvaDate(widget.item.action.dueDate),
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w500,
+                      color: kTextSecondary,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 110,
+                  child: Center(
+                    child: _StatusDropdown(
+                      isOk: widget.item.action.isOk,
+                      isSaving: widget.isSaving,
+                      onChanged: widget.onStatusChanged,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1449,56 +1558,94 @@ class _ActionMobileTile extends StatelessWidget {
   const _ActionMobileTile({
     required this.item,
     required this.isSaving,
-    required this.onOpenTicket,
+    required this.onOpenAction,
     required this.onStatusChanged,
   });
 
   final OvaAssignedAction item;
   final bool isSaving;
-  final VoidCallback onOpenTicket;
+  final VoidCallback onOpenAction;
   final ValueChanged<bool> onStatusChanged;
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(8),
+      color: kSurface,
+      borderRadius: BorderRadius.circular(kRadiusLg),
       child: InkWell(
-        onTap: onOpenTicket,
-        borderRadius: BorderRadius.circular(8),
+        onTap: onOpenAction,
+        borderRadius: BorderRadius.circular(kRadiusLg),
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFFE2E6DD)),
+            borderRadius: BorderRadius.circular(kRadiusLg),
+            border: Border.all(color: kBorder),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                item.action.description,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF2F382E),
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      item.action.description,
+                      style: const TextStyle(
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w700,
+                        color: kTextPrimary,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  _StatusDropdown(
+                    isOk: item.action.isOk,
+                    isSaving: isSaving,
+                    onChanged: onStatusChanged,
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  _InfoPill(label: 'Ticket #${item.ticket.id}'),
-                  _InfoPill(label: item.action.assigneeLabel),
                   _InfoPill(
+                    icon: Icons.confirmation_number_outlined,
+                    label: '#${item.ticket.id}',
+                  ),
+                  _InfoPill(
+                    icon: Icons.person_outline,
+                    label: item.action.assigneeLabel,
+                  ),
+                  _InfoPill(
+                    icon: Icons.event_rounded,
                     label: 'Deadline ${formatOvaDate(item.action.dueDate)}',
                   ),
-                  _InfoPill(label: item.action.typeLabel),
-                  _StatusDropdown(
-                    isOk: item.action.isOk,
-                    isSaving: isSaving,
-                    onChanged: onStatusChanged,
+                  _InfoPill(
+                    icon: Icons.category_outlined,
+                    label: item.action.typeLabel,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              const Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    'Details bekijken',
+                    style: TextStyle(
+                      color: kBrandGreenDark,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  SizedBox(width: 6),
+                  Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 16,
+                    color: kBrandGreenDark,
                   ),
                 ],
               ),
@@ -1523,12 +1670,12 @@ class _StatusDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final foregroundColor = isOk
-        ? const Color(0xFF6B8F2A)
-        : const Color(0xFFC43C33);
+    final fg = isOk ? kSuccess : kDanger;
+    final bg = isOk ? kSuccessBg : kDangerBg;
+    final border = isOk ? kSuccessBorder : kDangerBorder;
 
     return InkWell(
-      borderRadius: BorderRadius.circular(999),
+      borderRadius: BorderRadius.circular(kRadiusPill),
       onTap: isSaving
           ? null
           : () async {
@@ -1545,13 +1692,11 @@ class _StatusDropdown extends StatelessWidget {
               }
             },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isOk ? const Color(0xFFEAF4D9) : const Color(0xFFFFECEB),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: isOk ? const Color(0xFF98C74D) : const Color(0xFFE8A09C),
-          ),
+          color: bg,
+          borderRadius: BorderRadius.circular(kRadiusPill),
+          border: Border.all(color: border),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1560,8 +1705,9 @@ class _StatusDropdown extends StatelessWidget {
               isOk ? 'OK' : 'NOK',
               style: TextStyle(
                 fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: foregroundColor,
+                fontWeight: FontWeight.w800,
+                color: fg,
+                letterSpacing: 0.3,
               ),
             ),
             const SizedBox(width: 4),
@@ -1571,15 +1717,11 @@ class _StatusDropdown extends StatelessWidget {
                 height: 12,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: foregroundColor,
+                  color: fg,
                 ),
               )
             else
-              Icon(
-                Icons.keyboard_arrow_down_rounded,
-                size: 14,
-                color: foregroundColor,
-              ),
+              Icon(Icons.keyboard_arrow_down_rounded, size: 14, color: fg),
           ],
         ),
       ),
@@ -1590,7 +1732,7 @@ class _StatusDropdown extends StatelessWidget {
     required bool value,
     required String label,
   }) {
-    final color = value ? const Color(0xFF6B8F2A) : const Color(0xFFC43C33);
+    final color = value ? kSuccess : kDanger;
 
     return PopupMenuItem<bool>(
       value: value,
@@ -1601,8 +1743,9 @@ class _StatusDropdown extends StatelessWidget {
             height: 8,
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
-          const SizedBox(width: 8),
-          Text(label),
+          const SizedBox(width: 10),
+          Text(label,
+              style: const TextStyle(fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -1628,26 +1771,36 @@ class _StatusDropdown extends StatelessWidget {
 }
 
 class _InfoPill extends StatelessWidget {
-  const _InfoPill({required this.label});
+  const _InfoPill({required this.label, this.icon});
 
   final String label;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFFF6F7F2),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFE2E6DD)),
+        color: kSurfaceMuted,
+        borderRadius: BorderRadius.circular(kRadiusPill),
+        border: Border.all(color: kBorder),
       ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: Color(0xFF545C50),
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 13, color: kTextTertiary),
+            const SizedBox(width: 5),
+          ],
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: kTextSecondary,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1663,9 +1816,10 @@ class _TableHeaderLabel extends StatelessWidget {
     return Text(
       label,
       style: const TextStyle(
-        fontSize: 12,
+        fontSize: 11.5,
         fontWeight: FontWeight.w700,
-        color: Color(0xFF545C50),
+        color: kTextTertiary,
+        letterSpacing: 0.6,
       ),
     );
   }
@@ -1686,47 +1840,112 @@ class _ActionEmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final isAllScope = scope == _ActionScope.all;
 
-    return Container(
-      padding: const EdgeInsets.all(28),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAF4),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFDCE6C7)),
-      ),
-      child: Column(
-        children: [
-          const Icon(
-            Icons.task_alt_rounded,
-            size: 44,
-            color: Color(0xFF6B8F2A),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            filtered
-                ? 'Geen acties voor deze filters'
-                : isAllScope
-                ? 'Geen openstaande OVA-acties'
-                : 'Je hebt geen openstaande acties',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            filtered
-                ? 'Pas je zoekterm of filters aan om opnieuw acties te tonen.'
-                : isAllScope
-                ? 'Zodra er een opvolgactie op een open OVA-ticket staat, verschijnt ze hier automatisch.'
-                : 'Zodra een opvolgactie aan jou is toegewezen, verschijnt ze hier automatisch.',
-            textAlign: TextAlign.center,
-          ),
-          if (filtered) ...[
-            const SizedBox(height: 18),
-            OutlinedButton(
-              onPressed: onClearFilters,
-              child: const Text('Filters wissen'),
+    return AppEmptyState.emphasis(
+      icon: filtered ? Icons.filter_alt_off_rounded : Icons.task_alt_rounded,
+      title: filtered
+          ? 'Geen acties voor deze filters'
+          : isAllScope
+              ? 'Geen openstaande OVA-acties'
+              : 'Je hebt geen openstaande acties',
+      message: filtered
+          ? 'Pas je zoekterm of filters aan om opnieuw acties te tonen.'
+          : isAllScope
+              ? 'Zodra er een opvolgactie op een open OVA-ticket staat, verschijnt ze hier automatisch.'
+              : 'Zodra een opvolgactie aan jou is toegewezen, verschijnt ze hier automatisch.',
+      actionLabel: filtered ? 'Filters wissen' : null,
+      onAction: filtered ? onClearFilters : null,
+    );
+  }
+}
+
+class _ActionsLoadingSkeleton extends StatelessWidget {
+  const _ActionsLoadingSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 760;
+        if (compact) {
+          return Column(
+            children: List.generate(
+              4,
+              (i) => Padding(
+                padding: EdgeInsets.only(bottom: i == 3 ? 0 : 12),
+                child: const AppListRowSkeleton(),
+              ),
             ),
-          ],
-        ],
-      ),
+          );
+        }
+        return Container(
+          decoration: BoxDecoration(
+            color: kSurface,
+            borderRadius: BorderRadius.circular(kRadiusLg),
+            border: Border.all(color: kBorder),
+          ),
+          child: Column(
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+                decoration: const BoxDecoration(
+                  color: kSurfaceMuted,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(kRadiusLg),
+                    topRight: Radius.circular(kRadiusLg),
+                  ),
+                ),
+                child: const Row(
+                  children: [
+                    AppSkeleton(height: 10, width: 100),
+                    Spacer(),
+                    AppSkeleton(height: 10, width: 60),
+                  ],
+                ),
+              ),
+              ...List.generate(
+                5,
+                (i) => Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 22, vertical: 18),
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      top: BorderSide(color: kBorderSubtle),
+                    ),
+                  ),
+                  child: const Row(
+                    children: [
+                      Expanded(
+                        flex: 5,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            AppSkeleton(height: 13, width: 280),
+                            SizedBox(height: 8),
+                            AppSkeleton(height: 11, width: 90),
+                          ],
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        flex: 2,
+                        child: AppSkeleton(height: 12, width: 120),
+                      ),
+                      SizedBox(width: 12),
+                      AppSkeleton(height: 12, width: 60),
+                      SizedBox(width: 24),
+                      AppSkeleton(height: 12, width: 80),
+                      SizedBox(width: 24),
+                      AppSkeleton(
+                          height: 22, width: 60, borderRadius: 999),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -1742,21 +1961,95 @@ class _ActionErrorState extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF6F6),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFF1C9C9)),
+        color: kDangerBg,
+        borderRadius: BorderRadius.circular(kRadiusLg),
+        border: Border.all(color: kDangerBorder),
       ),
       child: Column(
         children: [
-          const Icon(Icons.error_outline_rounded, color: Colors.redAccent),
+          const Icon(Icons.error_outline_rounded, color: kDanger, size: 28),
           const SizedBox(height: 12),
-          Text(message, textAlign: TextAlign.center),
-          const SizedBox(height: 16),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 14,
+              color: kTextPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 18),
           OutlinedButton(
             onPressed: onRetry,
             child: const Text('Opnieuw proberen'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _Breadcrumb extends StatelessWidget {
+  const _Breadcrumb({required this.segments});
+  final List<String> segments;
+
+  @override
+  Widget build(BuildContext context) {
+    final children = <Widget>[];
+    for (var i = 0; i < segments.length; i++) {
+      final isLast = i == segments.length - 1;
+      children.add(
+        Text(
+          segments[i],
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: isLast ? FontWeight.w700 : FontWeight.w500,
+            color: isLast ? kTextSecondary : kTextTertiary,
+            letterSpacing: 0.1,
+          ),
+        ),
+      );
+      if (!isLast) {
+        children.add(const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 8),
+          child: Icon(Icons.chevron_right_rounded,
+              size: 16, color: kTextMuted),
+        ));
+      }
+    }
+
+    return Row(mainAxisSize: MainAxisSize.min, children: children);
+  }
+}
+
+class _BackLink extends StatelessWidget {
+  const _BackLink({required this.label, required this.onTap});
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(kRadiusSm),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.arrow_back_rounded,
+                color: kBrandGreenDark, size: 18),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                color: kBrandGreenDark,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -4,6 +4,7 @@ import '../services/api_service.dart';
 import '../services/notification_settings_service.dart';
 import '../services/auth_service.dart';
 import '../models/notification_setting.dart';
+import '../widgets/design/design_system.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -179,231 +180,210 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Dummy data fallback als API faalt
-    final List<NotificationSetting> settings = _uiSettings.isEmpty
-        ? _dummySettings
-        : _uiSettings;
+    final List<NotificationSetting> settings =
+        _uiSettings.isEmpty ? _dummySettings : _uiSettings;
 
-    // Groepeer per module
     final Map<String, List<NotificationSetting>> moduleMap = {};
     for (final s in settings) {
       moduleMap.putIfAbsent(s.module, () => []).add(s);
     }
 
-    // Algemene e-mail toggle (dummy: als één setting email=true, dan aan)
-    bool emailAll = settings.any((s) => s.email);
+    final bool emailAll = settings.any((s) => s.email);
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final moduleEntries = moduleMap.entries.toList();
-        final int moduleCount = moduleEntries.length;
-        final double minTileWidth = 220;
-        final double spacing = 24;
-        // Bereken hoeveel tegels er in de breedte passen
-        int tilesPerRow = (constraints.maxWidth / (minTileWidth + spacing))
-            .floor();
-        tilesPerRow = tilesPerRow.clamp(1, moduleCount);
-
-        // Gebruik een Wrap zodat de cards automatisch afbreken naar een nieuwe regel
-        const double cardWidth = 260;
-        const double newSpacing = 16;
-        final Widget dashboardTiles = Wrap(
-          spacing: newSpacing,
-          runSpacing: newSpacing,
-          children: moduleEntries.map((entry) {
-            final module = entry.key;
-            final items = entry.value;
-            final icon = _moduleIcon(module);
-            return SizedBox(
-              width: cardWidth,
-              child: Card(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: const BorderSide(color: Colors.black12),
+    return Container(
+      color: kBackground,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(32, 28, 32, 32),
+        child: Container(
+          decoration: BoxDecoration(
+            color: kSurface,
+            borderRadius: BorderRadius.circular(kRadius2xl),
+            border: Border.all(color: kBorder),
+          ),
+          padding: const EdgeInsets.fromLTRB(32, 28, 32, 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const AppBreadcrumb(
+                  segments: ['Instellingen', 'Meldingen']),
+              const SizedBox(height: 16),
+              const Text(
+                'Meldingen',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: kTextPrimary,
+                  letterSpacing: -0.4,
+                  height: 1.15,
                 ),
-                elevation: 0,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(icon, size: 28, color: Colors.grey[700]),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              module,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Kies per module welke meldingen je ontvangt en of ze ook per e-mail worden verzonden.',
+                style: TextStyle(
+                  fontSize: 14.5,
+                  color: kTextSecondary,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              AppSectionPanel(
+                title: 'Algemene voorkeur',
+                icon: Icons.tune_rounded,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text(
+                            'Stuur meldingen ook per e-mail',
+                            style: TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w600,
+                              color: kTextPrimary,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Schakel deze optie in om alle ingeschakelde meldingen ook in je inbox te ontvangen.',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: kTextTertiary,
+                              height: 1.45,
                             ),
                           ),
                         ],
                       ),
-                      const Divider(height: 24),
-                      ...items.map(
-                        (s) => Column(
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    _notificationTypeLabel(s),
-                                    style: const TextStyle(fontSize: 15),
-                                  ),
-                                ),
-                                Switch(
-                                  value: s.enabled,
-                                  onChanged: (val) {
-                                    setState(() {
-                                      _uiSettings = List<NotificationSetting>.from(
-                                        settings.map(
-                                          (item) =>
-                                              (item.module == s.module &&
-                                                  item.type == s.type)
-                                              ? NotificationSetting(
-                                                  module: item.module,
-                                                  type: item.type,
-                                                  enabled: val,
-                                                  email: item.email,
-                                                )
-                                              : item,
-                                        ),
-                                      );
-                                    });
-                                  },
-                                ),
-                              ],
-                            ),
-                            if (s.enabled)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 8, bottom: 8),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.email_outlined,
-                                      size: 16,
-                                      color: Colors.grey[600],
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        'Email',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
-                                    ),
-                                    Switch(
-                                      value: s.email,
-                                      materialTapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
-                                      onChanged: (val) {
-                                        setState(() {
-                                          _uiSettings = List<NotificationSetting>.from(
-                                            settings.map(
-                                              (item) =>
-                                                  (item.module == s.module &&
-                                                      item.type == s.type)
-                                                  ? NotificationSetting(
-                                                      module: item.module,
-                                                      type: item.type,
-                                                      enabled: item.enabled,
-                                                      email: val,
-                                                    )
-                                                  : item,
-                                            ),
-                                          );
-                                        });
-                                      },
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            if (items.indexOf(s) < items.length - 1)
-                              const Divider(height: 1),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-        );
-
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(32.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 16),
-              const Text(
-                'Algemeen',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              Row(
-                children: [
-                  Checkbox(
-                    value: emailAll,
-                    onChanged: (val) {
-                      setState(() {
-                        _uiSettings = List<NotificationSetting>.from(
-                          settings.map(
-                            (s) => NotificationSetting(
-                              module: s.module,
-                              type: s.type,
-                              enabled: s.enabled,
-                              email: val ?? false,
-                            ),
-                          ),
-                        );
-                      });
-                    },
-                  ),
-                  const Text(
-                    'Stuur meldingen via E-Mail',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Dashboard',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              dashboardTiles,
-              const SizedBox(height: 16),
-              Align(
-                alignment: Alignment.bottomLeft,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ElevatedButton(
-                      onPressed: _saving ? null : _saveSettings,
-                      child: _saving
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text('Opslaan'),
                     ),
                     const SizedBox(width: 16),
-                    if (_error != null)
-                      Text(_error!, style: const TextStyle(color: Colors.red)),
+                    Switch(
+                      value: emailAll,
+                      onChanged: (val) {
+                        setState(() {
+                          _uiSettings = List<NotificationSetting>.from(
+                            settings.map(
+                              (s) => NotificationSetting(
+                                module: s.module,
+                                type: s.type,
+                                enabled: s.enabled,
+                                email: val,
+                              ),
+                            ),
+                          );
+                        });
+                      },
+                    ),
                   ],
                 ),
               ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: kBrandGreenSubtle,
+                      borderRadius: BorderRadius.circular(kRadiusSm),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.notifications_outlined,
+                        size: 18, color: kBrandGreenDeep),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Per module',
+                    style: TextStyle(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w700,
+                      color: kTextPrimary,
+                      letterSpacing: -0.1,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 16,
+                runSpacing: 16,
+                children: moduleMap.entries.map((entry) {
+                  final module = entry.key;
+                  final items = entry.value;
+                  return SizedBox(
+                    width: 320,
+                    child: _ModuleNotificationsCard(
+                      module: module,
+                      items: items,
+                      icon: _moduleIcon(module),
+                      onToggleEnabled: (s, val) {
+                        setState(() {
+                          _uiSettings =
+                              List<NotificationSetting>.from(settings.map(
+                            (item) => (item.module == s.module &&
+                                    item.type == s.type)
+                                ? NotificationSetting(
+                                    module: item.module,
+                                    type: item.type,
+                                    enabled: val,
+                                    email: item.email,
+                                  )
+                                : item,
+                          ));
+                        });
+                      },
+                      onToggleEmail: (s, val) {
+                        setState(() {
+                          _uiSettings =
+                              List<NotificationSetting>.from(settings.map(
+                            (item) => (item.module == s.module &&
+                                    item.type == s.type)
+                                ? NotificationSetting(
+                                    module: item.module,
+                                    type: item.type,
+                                    enabled: item.enabled,
+                                    email: val,
+                                  )
+                                : item,
+                          ));
+                        });
+                      },
+                      labelFor: _notificationTypeLabel,
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: _saving ? null : _saveSettings,
+                    icon: _saving
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.save_rounded, size: 18),
+                    label: const Text('Wijzigingen opslaan'),
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(width: 16),
+                    Text(
+                      _error!,
+                      style: const TextStyle(
+                        color: kDanger,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -538,5 +518,139 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       return 'Status verandering';
     }
     return s.type;
+  }
+}
+
+class _ModuleNotificationsCard extends StatelessWidget {
+  const _ModuleNotificationsCard({
+    required this.module,
+    required this.items,
+    required this.icon,
+    required this.onToggleEnabled,
+    required this.onToggleEmail,
+    required this.labelFor,
+  });
+
+  final String module;
+  final List<NotificationSetting> items;
+  final IconData icon;
+  final void Function(NotificationSetting, bool) onToggleEnabled;
+  final void Function(NotificationSetting, bool) onToggleEmail;
+  final String Function(NotificationSetting) labelFor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: kSurface,
+        borderRadius: BorderRadius.circular(kRadiusLg),
+        border: Border.all(color: kBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: kBrandGreenSoft,
+                  borderRadius: BorderRadius.circular(kRadiusSm),
+                ),
+                alignment: Alignment.center,
+                child: Icon(icon, size: 18, color: kBrandGreenDeep),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  module,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: kTextPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...List.generate(items.length, (i) {
+            final s = items[i];
+            return Padding(
+              padding: EdgeInsets.only(bottom: i == items.length - 1 ? 0 : 8),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: s.enabled ? kBrandGreenSubtle : kSurfaceMuted,
+                  borderRadius: BorderRadius.circular(kRadiusMd),
+                  border: Border.all(
+                    color: s.enabled ? kBrandGreenSoft : kBorder,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            labelFor(s),
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                              color: s.enabled ? kTextPrimary : kTextSecondary,
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                        Transform.scale(
+                          scale: 0.85,
+                          child: Switch(
+                            value: s.enabled,
+                            onChanged: (val) => onToggleEnabled(s, val),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (s.enabled)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.mail_outline_rounded,
+                                size: 14, color: kTextTertiary),
+                            const SizedBox(width: 6),
+                            const Expanded(
+                              child: Text(
+                                'Ook per e-mail',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: kTextTertiary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            Transform.scale(
+                              scale: 0.7,
+                              child: Switch(
+                                value: s.email,
+                                materialTapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                                onChanged: (val) => onToggleEmail(s, val),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
   }
 }

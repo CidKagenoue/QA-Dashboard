@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/whs_tour.dart';
 import '../services/whs_api_service.dart';
-import '../theme/app_theme.dart';
+import '../widgets/design/design_system.dart';
 
 class WhsToursScreen extends StatefulWidget {
   const WhsToursScreen({super.key, required this.token});
@@ -51,83 +51,346 @@ class _WhsToursScreenState extends State<WhsToursScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('WHS-Tours'),
-        backgroundColor: kBrandGreen,
-      ),
-      body: RefreshIndicator(
-        onRefresh: _loadTours,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Builder(builder: (context) {
-            if (isLoading) {
-              return const Center(child: CircularProgressIndicator(color: kBrandGreen));
-            }
-
-            if (loadError != null) {
-              return ListView(
-                children: [
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Fout bij laden WHS tours', style: TextStyle(fontWeight: FontWeight.w700)),
-                          const SizedBox(height: 8),
-                          Text(loadError!),
-                          const SizedBox(height: 12),
-                          ElevatedButton(
-                            onPressed: _loadTours,
-                            style: ElevatedButton.styleFrom(backgroundColor: kBrandGreen),
-                            child: const Text('Opnieuw proberen'),
-                          )
-                        ],
+    return Container(
+      color: kBackground,
+      padding: const EdgeInsets.fromLTRB(32, 28, 32, 32),
+      child: Container(
+        decoration: BoxDecoration(
+          color: kSurface,
+          borderRadius: BorderRadius.circular(kRadius2xl),
+          border: Border.all(color: kBorder),
+        ),
+        child: RefreshIndicator(
+          onRefresh: _loadTours,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(36, 32, 36, 36),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _WhsHeader(
+                        tourCount: tours.length,
+                        isLoading: isLoading,
+                        onRefresh: _loadTours,
                       ),
+                      const SizedBox(height: 30),
+                      _WhsContent(
+                        isLoading: isLoading,
+                        loadError: loadError,
+                        tours: tours,
+                        onRetry: _loadTours,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WhsHeader extends StatelessWidget {
+  const _WhsHeader({
+    required this.tourCount,
+    required this.isLoading,
+    required this.onRefresh,
+  });
+
+  final int tourCount;
+  final bool isLoading;
+  final VoidCallback onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const AppBreadcrumb(segments: ['Dashboard', 'WHS-Tours']),
+        const SizedBox(height: 16),
+        Wrap(
+          spacing: 16,
+          runSpacing: 12,
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            const Text(
+              'WHS-Tours',
+              style: TextStyle(
+                fontSize: 30,
+                fontWeight: FontWeight.w800,
+                color: kTextPrimary,
+                letterSpacing: -0.4,
+                height: 1.15,
+              ),
+            ),
+            OutlinedButton.icon(
+              onPressed: isLoading ? null : onRefresh,
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Vernieuwen'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Text(
+          tourCount == 1
+              ? 'Bekijk de meest recente WHS-tour en bijhorende locatiegegevens.'
+              : 'Bekijk recente WHS-tours en bijhorende locatiegegevens.',
+          style: const TextStyle(
+            fontSize: 15,
+            color: kTextSecondary,
+            height: 1.55,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _WhsContent extends StatelessWidget {
+  const _WhsContent({
+    required this.isLoading,
+    required this.loadError,
+    required this.tours,
+    required this.onRetry,
+  });
+
+  final bool isLoading;
+  final String? loadError;
+  final List<WhsTour> tours;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Column(
+        children: [
+          AppListRowSkeleton(),
+          SizedBox(height: 12),
+          AppListRowSkeleton(),
+          SizedBox(height: 12),
+          AppListRowSkeleton(),
+        ],
+      );
+    }
+
+    if (loadError != null) {
+      return AppEmptyState.emphasis(
+        icon: Icons.error_outline_rounded,
+        title: 'WHS tours konden niet geladen worden',
+        message: loadError!,
+        actionLabel: 'Opnieuw proberen',
+        onAction: onRetry,
+      );
+    }
+
+    if (tours.isEmpty) {
+      return const AppEmptyState.emphasis(
+        icon: Icons.tour_outlined,
+        title: 'Nog geen WHS tours beschikbaar',
+        message: 'Zodra er WHS-tours geregistreerd zijn, verschijnen ze hier.',
+      );
+    }
+
+    return Column(
+      children: List.generate(tours.length, (index) {
+        return Padding(
+          padding: EdgeInsets.only(bottom: index == tours.length - 1 ? 0 : 12),
+          child: _WhsTourCard(tour: tours[index]),
+        );
+      }),
+    );
+  }
+}
+
+class _WhsTourCard extends StatefulWidget {
+  const _WhsTourCard({required this.tour});
+
+  final WhsTour tour;
+
+  @override
+  State<_WhsTourCard> createState() => _WhsTourCardState();
+}
+
+class _WhsTourCardState extends State<_WhsTourCard> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final tour = widget.tour;
+    final title = tour.vestigingAddress?.trim().isNotEmpty == true
+        ? tour.vestigingAddress!.trim()
+        : 'Onbekende locatie';
+    final author = _authorLabel(tour);
+    final date = _dateLabel(tour.datum);
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        transform: Matrix4.translationValues(0, _hovered ? -1 : 0, 0),
+        child: Material(
+          color: kSurface,
+          borderRadius: BorderRadius.circular(kRadiusLg),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(kRadiusLg),
+            onTap: () {
+              // Detailnavigatie kan hier later op aansluiten.
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(kRadiusLg),
+                border: Border.all(
+                  color: _hovered ? kBrandGreenDark : kBorder,
+                  width: _hovered ? 1.4 : 1,
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: kBrandGreenSubtle,
+                      borderRadius: BorderRadius.circular(kRadiusMd),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Icon(
+                      Icons.tour_outlined,
+                      color: kBrandGreenDeep,
+                      size: 22,
                     ),
                   ),
-                ],
-              );
-            }
-
-            if (tours.isEmpty) {
-              return ListView(
-                children: const [
-                  SizedBox(height: 64),
-                  Center(child: Text('Nog geen WHS tours beschikbaar.')),
-                ],
-              );
-            }
-
-            return ListView.separated(
-              itemCount: tours.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final t = tours[index];
-                final title = t.vestigingAddress ?? 'Onbekende locatie';
-                final author = (t.gebruikerVoornaam ?? '') + (t.gebruikerAchternaam != null ? ' ${t.gebruikerAchternaam}' : '');
-                final subtitle = t.datum != null ? '${t.datum!.day.toString().padLeft(2,'0')}/${t.datum!.month.toString().padLeft(2,'0')}/${t.datum!.year}' : '';
-
-                return Card(
-                  child: ListTile(
-                    title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF2B3424))),
-                    subtitle: Column(
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (author.trim().isNotEmpty) Text(author, style: const TextStyle(color: Color(0xFF6B7A62))),
-                        if (subtitle.isNotEmpty) Text(subtitle, style: const TextStyle(color: Color(0xFF6B7A62))),
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.w700,
+                            color: kTextPrimary,
+                            letterSpacing: -0.1,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 14,
+                          runSpacing: 6,
+                          children: [
+                            if (author != null)
+                              _TourMeta(
+                                icon: Icons.person_outline_rounded,
+                                label: author,
+                              ),
+                            if (date != null)
+                              _TourMeta(
+                                icon: Icons.calendar_today_outlined,
+                                label: date,
+                              ),
+                          ],
+                        ),
                       ],
                     ),
-                    trailing: const Icon(Icons.chevron_right_rounded, color: kBrandGreen),
-                    onTap: () {
-                      // Future: open detail view; for now no-op
-                    },
                   ),
-                );
-              },
-            );
-          }),
+                  const SizedBox(width: 16),
+                  _TourIdPill(id: tour.id),
+                  const SizedBox(width: 8),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: kTextMuted,
+                    size: 22,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String? _authorLabel(WhsTour tour) {
+    final parts = [
+      tour.gebruikerVoornaam,
+      tour.gebruikerAchternaam,
+    ].where((part) => part != null && part.trim().isNotEmpty);
+    final label = parts.map((part) => part!.trim()).join(' ');
+    if (label.isNotEmpty) return label;
+
+    final email = tour.gebruikerEmail;
+    if (email != null && email.trim().isNotEmpty) return email.trim();
+    return null;
+  }
+
+  String? _dateLabel(DateTime? date) {
+    if (date == null) return null;
+
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    return '$day/$month/${date.year}';
+  }
+}
+
+class _TourMeta extends StatelessWidget {
+  const _TourMeta({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 15, color: kTextMuted),
+        const SizedBox(width: 5),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: kTextTertiary,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TourIdPill extends StatelessWidget {
+  const _TourIdPill({required this.id});
+
+  final int id;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: kSurfaceMuted,
+        borderRadius: BorderRadius.circular(kRadiusPill),
+        border: Border.all(color: kBorder),
+      ),
+      child: Text(
+        '#${id.toString().padLeft(4, '0')}',
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: kTextTertiary,
+          letterSpacing: 0.1,
         ),
       ),
     );

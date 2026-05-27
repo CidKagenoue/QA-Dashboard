@@ -166,7 +166,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               fontWeight: FontWeight.w500,
                             ),
                             decoration: _inputDecoration(
-                              hintText: 'admin',
+                              hintText: 'naam@vlotter.be',
                               icon: Icons.person_outline_rounded,
                             ),
                             validator: (value) {

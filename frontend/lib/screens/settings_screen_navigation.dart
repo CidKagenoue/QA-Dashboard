@@ -4,6 +4,7 @@ import 'package:qa_dashboard/screens/departments_screen.dart';
 import 'package:qa_dashboard/screens/locations_screen.dart';
 import 'package:qa_dashboard/screens/account_management_screen.dart';
 import 'package:qa_dashboard/screens/notifications_screen.dart';
+import '../theme/app_theme.dart';
 import '../widgets/app_bars/main_app_bar.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -31,65 +32,69 @@ class _SettingsScreenNavigationState extends State<SettingsScreen> {
       body: Row(
         children: [
           Container(
-            width: 220,
-            color: const Color(0xFFE6E6E6),
-            height: double.infinity,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 30),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.start,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 40),
-                  _SidebarItem(
-                    icon: Icons.person,
-                    title: 'Profiel',
-                    selected: _selected == _SettingsSection.profiel,
-                    onTap: () =>
-                        setState(() => _selected = _SettingsSection.profiel),
-                  ),
-                  const SizedBox(height: 20),
-                  _SidebarItem(
-                    icon: Icons.notifications,
-                    title: 'Meldingen',
-                    selected: _selected == _SettingsSection.meldingen,
-                    onTap: () =>
-                        setState(() => _selected = _SettingsSection.meldingen),
-                  ),
-                  const SizedBox(height: 20),
-                  _SidebarItem(
-                    icon: Icons.manage_accounts,
-                    title: 'Accountbeheer',
-                    selected: _selected == _SettingsSection.accountbeheer,
-                    onTap: () => setState(
-                      () => _selected = _SettingsSection.accountbeheer,
+            width: 240,
+            decoration: const BoxDecoration(
+              color: kSurface,
+              border: Border(right: BorderSide(color: kBorder, width: 1)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 24),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 22),
+                  child: Text(
+                    'INSTELLINGEN',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: kTextMuted,
+                      letterSpacing: 0.8,
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  _SidebarItem(
-                    icon: Icons.apartment,
-                    title: 'Afdelingen',
-                    selected: _selected == _SettingsSection.afdelingen,
-                    onTap: () =>
-                        setState(() => _selected = _SettingsSection.afdelingen),
+                ),
+                const SizedBox(height: 12),
+                _SidebarItem(
+                  icon: Icons.person_outline_rounded,
+                  title: 'Profiel',
+                  selected: _selected == _SettingsSection.profiel,
+                  onTap: () =>
+                      setState(() => _selected = _SettingsSection.profiel),
+                ),
+                _SidebarItem(
+                  icon: Icons.notifications_none_rounded,
+                  title: 'Meldingen',
+                  selected: _selected == _SettingsSection.meldingen,
+                  onTap: () =>
+                      setState(() => _selected = _SettingsSection.meldingen),
+                ),
+                _SidebarItem(
+                  icon: Icons.manage_accounts_outlined,
+                  title: 'Accountbeheer',
+                  selected: _selected == _SettingsSection.accountbeheer,
+                  onTap: () => setState(
+                    () => _selected = _SettingsSection.accountbeheer,
                   ),
-                  const SizedBox(height: 20),
-                  _SidebarItem(
-                    icon: Icons.location_on,
-                    title: 'Locaties',
-                    selected: _selected == _SettingsSection.locaties,
-                    onTap: () =>
-                        setState(() => _selected = _SettingsSection.locaties),
-                  ),
-                  const Spacer(),
-                ],
-              ),
+                ),
+                _SidebarItem(
+                  icon: Icons.apartment_rounded,
+                  title: 'Afdelingen',
+                  selected: _selected == _SettingsSection.afdelingen,
+                  onTap: () =>
+                      setState(() => _selected = _SettingsSection.afdelingen),
+                ),
+                _SidebarItem(
+                  icon: Icons.place_outlined,
+                  title: 'Locaties',
+                  selected: _selected == _SettingsSection.locaties,
+                  onTap: () =>
+                      setState(() => _selected = _SettingsSection.locaties),
+                ),
+                const Spacer(),
+              ],
             ),
           ),
-          // Remove Expanded to avoid ParentDataWidget error
-          Expanded(
-            child: Center(child: _buildSectionContent(_selected)),
-          ),
+          Expanded(child: _buildSectionContent(_selected)),
         ],
       ),
     );
@@ -126,28 +131,56 @@ class _SidebarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color iconColor = selected
-        ? const Color(0xFF7CB342)
-        : Colors.grey.shade400;
-    final Color textColor = selected ? Colors.black : Colors.grey.shade600;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(4),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
-        child: Row(
-          children: [
-            Icon(icon, color: iconColor, size: 22),
-            const SizedBox(width: 12),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 16,
-                color: textColor,
-                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-              ),
+    final fg = selected ? kBrandGreenDeep : kTextSecondary;
+    final bg = selected ? kBrandGreenSoft : Colors.transparent;
+    final borderColor = selected ? kBrandGreenSoft : Colors.transparent;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 2, 12, 2),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(kRadiusMd),
+          hoverColor: selected ? kBrandGreenSubtle : kSurfaceHover,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            decoration: BoxDecoration(
+              color: bg,
+              border: Border.all(color: borderColor),
+              borderRadius: BorderRadius.circular(kRadiusMd),
             ),
-          ],
+            child: Row(
+              children: [
+                Icon(icon, color: fg, size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: fg,
+                      fontWeight:
+                          selected ? FontWeight.w700 : FontWeight.w500,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                if (selected)
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: kBrandGreenDeep,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );

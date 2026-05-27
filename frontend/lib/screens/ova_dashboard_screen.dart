@@ -305,8 +305,9 @@ class _OvaTileCardState extends State<_OvaTileCard> {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 160),
               width: 240,
+              height: 200,
               padding: const EdgeInsets.symmetric(
-                  horizontal: 24, vertical: 28),
+                  horizontal: 24, vertical: 26),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(kRadiusXl),
                 border: Border.all(
@@ -315,7 +316,7 @@ class _OvaTileCardState extends State<_OvaTileCard> {
                 ),
               ),
               child: Column(
-                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
                     width: 58,

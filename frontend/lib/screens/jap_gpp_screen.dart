@@ -4,6 +4,7 @@ import '../services/jap_export_service.dart';
 import '../models/jap_gpp_entry.dart';
 import '../services/jap_gpp_api_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/design/app_breadcrumb.dart';
 import 'jap_gpp_detail_pane.dart';
 
 class JapGppScreen extends StatefulWidget {
@@ -1315,24 +1316,9 @@ class _JapGppScreenState extends State<JapGppScreen> {
   }
 
   Widget _buildBreadcrumb() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(28, 8, 24, 0),
-      child: Row(
-        children: [
-          Text(
-            'Dashboard',
-            style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Icon(Icons.chevron_right, size: 14, color: Colors.grey[400]),
-          ),
-          Text(
-            'JAP & GPP',
-            style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-          ),
-        ],
-      ),
+    return const Padding(
+      padding: EdgeInsets.fromLTRB(28, 8, 24, 0),
+      child: AppBreadcrumb(segments: ['Dashboard', 'JAP & GPP']),
     );
   }
 

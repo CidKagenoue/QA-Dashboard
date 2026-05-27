@@ -45,6 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _initialJapGppModule;
   int? _initialJapGppEntryId;
   int? _initialMaintenanceInspectionId;
+  int _breadcrumbNavigationVersion = 0;
 
   @override
   void initState() {
@@ -86,23 +87,64 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: const MainAppBar(title: 'Vlotter'),
-      body: Row(
-        children: [
-          _Sidebar(
-            selected: _selected,
-            onSelect: (section) {
-              setState(() {
-                if (section == _HomeSection.ova) {
-                  _initialOvaPage = OvaDashboardInitialPage.overview;
-                }
-                _selected = section;
-              });
-            },
-          ),
-          Expanded(child: _buildSectionContent(_selected)),
-        ],
+      body: AppBreadcrumbNavigation(
+        onNavigateTo: _navigateFromBreadcrumb,
+        child: Row(
+          children: [
+            _Sidebar(
+              selected: _selected,
+              onSelect: (section) {
+                setState(() {
+                  if (section == _HomeSection.ova) {
+                    _initialOvaPage = OvaDashboardInitialPage.overview;
+                  }
+                  _selected = section;
+                });
+              },
+            ),
+            Expanded(child: _buildSectionContent(_selected)),
+          ],
+        ),
       ),
     );
+  }
+
+  void _navigateFromBreadcrumb(String key) {
+    setState(() {
+      _breadcrumbNavigationVersion++;
+      _initialOvaTicketId = null;
+      _initialOvaTicketConsumed = true;
+      _initialJapGppModule = null;
+      _initialJapGppEntryId = null;
+      _initialMaintenanceInspectionId = null;
+
+      switch (key) {
+        case 'dashboard':
+          _selected = _HomeSection.dashboard;
+          break;
+        case 'whsTours':
+          _selected = _HomeSection.whsTours;
+          break;
+        case 'ovaTickets':
+          _initialOvaPage = OvaDashboardInitialPage.tickets;
+          _selected = _HomeSection.ova;
+          break;
+        case 'ovaActions':
+          _initialOvaPage = OvaDashboardInitialPage.actions;
+          _selected = _HomeSection.ova;
+          break;
+        case 'ova':
+          _initialOvaPage = OvaDashboardInitialPage.overview;
+          _selected = _HomeSection.ova;
+          break;
+        case 'onderhoud':
+          _selected = _HomeSection.onderhoud;
+          break;
+        case 'japGpp':
+          _selected = _HomeSection.japGpp;
+          break;
+      }
+    });
   }
 
   Widget _buildSectionContent(_HomeSection section) {
@@ -126,14 +168,17 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         );
       case _HomeSection.whsTours:
-        return WhsToursScreen(token: token ?? '');
+        return WhsToursScreen(
+          key: ValueKey<String>('whsTours-$_breadcrumbNavigationVersion'),
+          token: token ?? '',
+        );
       case _HomeSection.ova:
         final ovaTicketId = _initialOvaTicketConsumed
             ? null
             : _initialOvaTicketId;
         return OvaDashboardScreen(
           key: ValueKey<String>(
-            'ova-${_initialOvaPage.name}-${ovaTicketId ?? 'none'}',
+            'ova-${_initialOvaPage.name}-${ovaTicketId ?? 'none'}-$_breadcrumbNavigationVersion',
           ),
           initialPage: _initialOvaPage,
           initialTicketId: ovaTicketId,
@@ -148,11 +193,12 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       case _HomeSection.onderhoud:
         return MaintenanceInspectionsScreen(
+          key: ValueKey<String>('maintenance-$_breadcrumbNavigationVersion'),
           initialInspectionId: _initialMaintenanceInspectionId,
         );
       case _HomeSection.japGpp:
         return JapGppScreen(
-          key: const ValueKey<String>('japGpp-screen'),
+          key: ValueKey<String>('japGpp-$_breadcrumbNavigationVersion'),
           token: token ?? '',
           initialModule: _initialJapGppModule,
           initialEntryId: _initialJapGppEntryId,

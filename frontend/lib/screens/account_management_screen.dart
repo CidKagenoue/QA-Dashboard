@@ -6,6 +6,7 @@ import '../models/user.dart';
 import '../services/account_management_service.dart';
 import '../services/auth_service.dart';
 import '../services/department_api_service.dart';
+import '../widgets/design/design_system.dart';
 
 class AccountManagementScreen extends StatefulWidget {
   const AccountManagementScreen({super.key});
@@ -48,99 +49,115 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
         }
 
         if (!accountManagementService.canManageAccounts) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(28),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 720),
-                child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(28),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.lock_outline_rounded,
-                          size: 48,
-                          color: Color(0xFF7C8A72),
-                        ),
-                        const SizedBox(height: 18),
-                        Text(
-                          'Accountbeheer geopend',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          'Je zit op de juiste pagina, maar dit account heeft momenteel geen adminrechten om accounts te beheren.',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyLarge,
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          'Log in met een admin-account om gebruikers aan te maken, rechten aan te passen en accounts te verwijderen.',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+          return Container(
+            color: kBackground,
+            padding: const EdgeInsets.all(32),
+            child: Center(
+              child: AppEmptyState.emphasis(
+                icon: Icons.lock_outline_rounded,
+                title: 'Geen toegang tot Accountbeheer',
+                message:
+                    'Dit account heeft geen adminrechten. Log in met een admin-account om gebruikers aan te maken, rechten aan te passen en accounts te verwijderen.',
               ),
             ),
           );
         }
 
-        return RefreshIndicator(
-          onRefresh: accountManagementService.refresh,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(28, 28, 28, 36),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 760),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Instellingen Accountbeheer',
-                        style: Theme.of(context).textTheme.headlineMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Beheer gebruikers en bepaal direct wie toegang heeft tot Basis, WHS-Tours, OVA, JAP & GPP en Onderhoud & Keuringen.',
-                        style: Theme.of(context).textTheme.bodyLarge,
-                      ),
-                    ],
-                  ),
+        return Container(
+          color: kBackground,
+          child: RefreshIndicator(
+            onRefresh: accountManagementService.refresh,
+            color: kBrandGreenDark,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(32, 28, 32, 32),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: kSurface,
+                  borderRadius: BorderRadius.circular(kRadius2xl),
+                  border: Border.all(color: kBorder),
                 ),
-                const SizedBox(height: 24),
-                Wrap(
-                  spacing: 16,
-                  runSpacing: 16,
-                  crossAxisAlignment: WrapCrossAlignment.center,
+                padding: const EdgeInsets.fromLTRB(32, 28, 32, 32),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(
-                      width: 520,
-                      child: TextField(
-                        controller: _searchController,
-                        decoration: const InputDecoration(
-                          prefixIcon: Icon(Icons.search_rounded),
-                          hintText: 'Zoeken op naam of e-mail',
-                        ),
-                        onChanged: (_) => setState(() {}),
+                    const AppBreadcrumb(
+                        segments: ['Instellingen', 'Accountbeheer']),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Accountbeheer',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        color: kTextPrimary,
+                        letterSpacing: -0.4,
+                        height: 1.15,
                       ),
                     ),
-                    ElevatedButton.icon(
-                      onPressed: accountManagementService.canManageAccounts
-                          ? _showCreateAccountDialog
-                          : null,
-                      icon: const Icon(Icons.add_rounded),
-                      label: const Text('Nieuw'),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Beheer gebruikers en bepaal direct wie toegang heeft tot Basis, WHS-Tours, OVA, JAP & GPP en Onderhoud & Keuringen.',
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        color: kTextSecondary,
+                        height: 1.5,
+                      ),
                     ),
-                  ],
-                ),
+                    const SizedBox(height: 24),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: 420,
+                          child: TextField(
+                            controller: _searchController,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: kTextPrimary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            decoration: InputDecoration(
+                              prefixIcon: const Icon(Icons.search_rounded,
+                                  color: kTextTertiary, size: 20),
+                              hintText: 'Zoeken op naam of e-mail',
+                              filled: true,
+                              fillColor: kSurfaceMuted,
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(kRadiusMd),
+                                borderSide:
+                                    const BorderSide(color: kBorder),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(kRadiusMd),
+                                borderSide:
+                                    const BorderSide(color: kBorder),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(kRadiusMd),
+                                borderSide: const BorderSide(
+                                    color: kBrandGreen, width: 1.4),
+                              ),
+                            ),
+                            onChanged: (_) => setState(() {}),
+                          ),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: accountManagementService.canManageAccounts
+                              ? _showCreateAccountDialog
+                              : null,
+                          icon: const Icon(Icons.person_add_alt_1_rounded,
+                              size: 18),
+                          label: const Text('Nieuw account'),
+                        ),
+                      ],
+                    ),
                 const SizedBox(height: 28),
                 _AccountSection(
                   title: 'Accounts zonder toegang',
@@ -196,13 +213,15 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
                           onDelete: _handleDeleteAccount,
                         ),
                 ),
-                if (accountManagementService.isLoading &&
-                    accountManagementService.hasLoaded)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 24),
-                    child: Center(child: CircularProgressIndicator()),
-                  ),
-              ],
+                    if (accountManagementService.isLoading &&
+                        accountManagementService.hasLoaded)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 24),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                  ],
+                ),
+              ),
             ),
           ),
         );

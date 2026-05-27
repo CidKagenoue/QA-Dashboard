@@ -15,7 +15,8 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isSettingsRoute = ModalRoute.of(context)?.settings.name == '/settings';
+    final isSettingsRoute =
+        ModalRoute.of(context)?.settings.name == '/settings';
     final isLogo = title.trim().toLowerCase() == 'vlotter';
 
     return AppBar(
@@ -40,8 +41,9 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
         Consumer<NotificationService>(
           builder: (context, notificationService, child) {
             final unreadCount = notificationService.unreadCount;
-            final recentNotifications =
-                notificationService.notifications.take(5).toList();
+            final recentNotifications = notificationService.notifications
+                .take(5)
+                .toList();
 
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -59,16 +61,19 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
                 onOpened: () async {
                   final service = context.read<NotificationService>();
                   debugPrint(
-                      '[MainAppBar] Notification popup opened. hasLoaded=${service.hasLoaded}, count=${service.notifications.length}');
+                    '[MainAppBar] Notification popup opened. hasLoaded=${service.hasLoaded}, count=${service.notifications.length}',
+                  );
 
                   try {
                     await service.loadNotifications(limit: 50);
                     await service.refreshUnreadCount();
                     debugPrint(
-                        '[MainAppBar] Refreshed notifications after popup open');
+                      '[MainAppBar] Refreshed notifications after popup open',
+                    );
                   } catch (e) {
                     debugPrint(
-                        '[MainAppBar] Failed to refresh notifications: $e');
+                      '[MainAppBar] Failed to refresh notifications: $e',
+                    );
                   }
                 },
                 onSelected: (value) async {
@@ -92,32 +97,35 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
                   }
 
                   final id = int.tryParse(
-                      value.replaceFirst('open-notification:', ''));
+                    value.replaceFirst('open-notification:', ''),
+                  );
                   if (id == null) {
                     return;
                   }
 
-                  final selected =
-                      recentNotifications.where((item) => item.id == id);
+                  final selected = recentNotifications.where(
+                    (item) => item.id == id,
+                  );
                   if (selected.isEmpty) {
                     return;
                   }
 
                   final notification = selected.first;
                   if (!notification.isRead) {
-                    await context
-                        .read<NotificationService>()
-                        .markAsRead([notification.id]);
+                    await context.read<NotificationService>().markAsRead([
+                      notification.id,
+                    ]);
                   }
 
                   if (!context.mounted) {
                     return;
                   }
 
-                  final opened = await NotificationNavigationService.openContext(
-                    context,
-                    notification,
-                  );
+                  final opened =
+                      await NotificationNavigationService.openContext(
+                        context,
+                        notification,
+                      );
                   if (opened && context.mounted) {
                     await context
                         .read<NotificationService>()
@@ -186,14 +194,17 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
                         PopupMenuItem<String>(
                           value: 'open-notification:${notification.id}',
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
                           child: SizedBox(
                             width: 340,
                             child: _NotificationPreviewTile(
                               title: notification.title,
                               body: notification.body,
-                              timeLabel:
-                                  _relativeTimeLabel(notification.createdAt),
+                              timeLabel: _relativeTimeLabel(
+                                notification.createdAt,
+                              ),
                               unread: !notification.isRead,
                             ),
                           ),
@@ -208,8 +219,11 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
                       value: 'open-all',
                       child: Row(
                         children: [
-                          Icon(Icons.unfold_more_rounded,
-                              size: 18, color: kBrandGreenDark),
+                          Icon(
+                            Icons.unfold_more_rounded,
+                            size: 18,
+                            color: kBrandGreenDark,
+                          ),
                           SizedBox(width: 8),
                           Text(
                             'Alle meldingen openen',
@@ -233,7 +247,7 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
                       const Icon(
                         Icons.notifications_none_rounded,
                         color: kTextSecondary,
-                        size: 22,
+                        size: 24,
                       ),
                       if (unreadCount > 0)
                         Positioned(
@@ -244,8 +258,10 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
                               horizontal: 5,
                               vertical: 1,
                             ),
-                            constraints:
-                                const BoxConstraints(minWidth: 16, minHeight: 16),
+                            constraints: const BoxConstraints(
+                              minWidth: 16,
+                              minHeight: 16,
+                            ),
                             decoration: BoxDecoration(
                               color: kDanger,
                               borderRadius: BorderRadius.circular(999),
@@ -332,7 +348,7 @@ class _AppBarIconButton extends StatelessWidget {
       child: _AppBarIconSlot(
         child: Icon(
           icon,
-          size: 22,
+          size: 24,
           color: onTap == null ? kTextMuted : kTextSecondary,
         ),
       ),
@@ -348,12 +364,10 @@ class _AppBarIconSlot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 40,
-      height: 40,
+      width: 42,
+      height: 42,
       alignment: Alignment.center,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(kRadiusMd),
-      ),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(kRadiusMd)),
       child: child,
     );
   }

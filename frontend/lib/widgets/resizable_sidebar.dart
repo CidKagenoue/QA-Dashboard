@@ -123,10 +123,23 @@ class _ResizableSidebarState extends State<ResizableSidebar> {
                           : 'Navigatie uitklappen',
                       child: IconButton(
                         onPressed: _toggleExpanded,
+                        style: IconButton.styleFrom(
+                          foregroundColor: kTextSecondary,
+                          backgroundColor: kSurfaceMuted,
+                          hoverColor: kSurfaceHover,
+                          fixedSize: const Size(38, 38),
+                          minimumSize: const Size(38, 38),
+                          padding: EdgeInsets.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(kRadiusMd),
+                            side: const BorderSide(color: kBorder),
+                          ),
+                        ),
                         icon: Icon(
                           _expanded
                               ? Icons.keyboard_double_arrow_left_rounded
                               : Icons.keyboard_double_arrow_right_rounded,
+                          size: 22,
                         ),
                       ),
                     ),

@@ -835,7 +835,7 @@ class _SummaryMetric extends StatelessWidget {
               Text(
                 data.label,
                 style: const TextStyle(
-                  fontSize: 11.5,
+                  fontSize: 14.5,
                   fontWeight: FontWeight.w600,
                   color: kTextTertiary,
                   height: 1.2,
@@ -848,9 +848,9 @@ class _SummaryMetric extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w700,
-                  color: kTextPrimary,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.black,
                   height: 1.2,
                 ),
               ),
@@ -882,14 +882,13 @@ class _InfoItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isEmpty = value.trim() == '-';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
           style: const TextStyle(
-            fontSize: 12.5,
+            fontSize: 15.5,
             fontWeight: FontWeight.w600,
             color: kTextTertiary,
             letterSpacing: 0.2,
@@ -899,10 +898,10 @@ class _InfoItem extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           value,
-          style: TextStyle(
-            fontSize: 15.5,
-            fontWeight: FontWeight.w600,
-            color: isEmpty ? kTextMuted : kTextPrimary,
+          style: const TextStyle(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w800,
+            color: Colors.black,
             height: 1.5,
           ),
         ),

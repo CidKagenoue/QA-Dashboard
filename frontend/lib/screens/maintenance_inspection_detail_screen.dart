@@ -6,6 +6,7 @@ import '../models/maintenance_inspection_form.dart';
 import '../models/maintenance_inspections.dart';
 import '../services/auth_service.dart';
 import '../services/maintenance_api_service.dart';
+import '../widgets/design/design_system.dart';
 
 class MaintenanceInspectionDetailScreen extends StatefulWidget {
   const MaintenanceInspectionDetailScreen({
@@ -309,7 +310,7 @@ class _MaintenanceInspectionDetailScreenState
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF8CC63F),
+              backgroundColor: kBrandGreen,
               foregroundColor: Colors.white,
             ),
             child: const Text('Toevoegen'),
@@ -542,65 +543,45 @@ class _MaintenanceInspectionDetailScreenState
   ) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE4E9DD)),
+        color: kSurface,
+        borderRadius: BorderRadius.circular(kRadius2xl),
+        border: Border.all(color: kBorder),
       ),
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.fromLTRB(28, 24, 28, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Dashboard > Onderhoud & Keuringen',
-            style: const TextStyle(
-              fontSize: 12,
-              color: Color(0xFF9CA39A),
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 10),
+          const AppBreadcrumb(
+              segments: ['Dashboard', 'Onderhoud & Keuringen']),
+          const SizedBox(height: 16),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              IconButton(
-                onPressed: widget.onClose,
-                icon: const Icon(Icons.arrow_back, color: Color(0xFF243022)),
-                tooltip: 'Terug',
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                visualDensity: VisualDensity.compact,
-              ),
-              const SizedBox(width: 8),
+              AppBackButton(onTap: widget.onClose),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Onderhoud & Keuringen',
+                      'Onderhoud / Keuring',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: kTextTertiary,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '#${inspection.id.toString().padLeft(4, '0')}',
                       style: const TextStyle(
                         fontSize: 30,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF243022),
+                        color: kTextPrimary,
                         height: 1.1,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Onderhoud & Keuringen-detail',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF6B7A62),
-                        height: 1.1,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'ID ${inspection.id.toString().padLeft(4, '0')}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF6B7A62),
-                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.5,
                       ),
                     ),
                   ],
@@ -611,22 +592,13 @@ class _MaintenanceInspectionDetailScreenState
                 spacing: 8,
                 runSpacing: 8,
                 alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   if (_editing)
-                    TextButton(
+                    OutlinedButton(
                       onPressed: _isSaving ? null : _cancelEditing,
                       child: const Text('Annuleren'),
                     ),
-                  TextButton.icon(
-                    onPressed: (_isDeleting || _isSaving)
-                        ? null
-                        : _confirmDelete,
-                    icon: const Icon(Icons.delete_outline, size: 18),
-                    label: const Text('Verwijderen'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFFD32F2F),
-                    ),
-                  ),
                   ElevatedButton.icon(
                     onPressed: _isDeleting
                         ? null
@@ -641,30 +613,26 @@ class _MaintenanceInspectionDetailScreenState
                             ),
                           )
                         : Icon(
-                            _editing
-                                ? Icons.save_outlined
-                                : Icons.edit_outlined,
+                            _editing ? Icons.save_rounded : Icons.edit_outlined,
                             size: 18,
                           ),
                     label: Text(_editing ? 'Opslaan' : 'Bewerken'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF8CC63F),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(999),
-                      ),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed:
+                        (_isDeleting || _isSaving) ? null : _confirmDelete,
+                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                    label: const Text('Verwijderen'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: kDanger,
+                      side: const BorderSide(color: kDangerBorder),
                     ),
                   ),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          const SizedBox(height: 6),
+          const SizedBox(height: 20),
           Expanded(
             child: SingleChildScrollView(
               child: Container(
@@ -863,7 +831,7 @@ class _MaintenanceInspectionDetailScreenState
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFF8CC63F)),
+              borderSide: const BorderSide(color: kBrandGreen),
             ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 12,
@@ -896,11 +864,11 @@ class _MaintenanceInspectionDetailScreenState
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFF8CC63F)),
+          borderSide: const BorderSide(color: kBrandGreen),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFF8CC63F)),
+          borderSide: const BorderSide(color: kBrandGreen),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 12,
@@ -948,7 +916,7 @@ class _MaintenanceInspectionDetailScreenState
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: Color(0xFF8CC63F)),
+                borderSide: const BorderSide(color: kBrandGreen),
               ),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 12,
@@ -978,7 +946,7 @@ class _MaintenanceInspectionDetailScreenState
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: Color(0xFF8CC63F)),
+                borderSide: const BorderSide(color: kBrandGreen),
               ),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 12,
@@ -1039,7 +1007,7 @@ class _MaintenanceInspectionDetailScreenState
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: Color(0xFF8CC63F)),
+            borderSide: const BorderSide(color: kBrandGreen),
           ),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 12,
@@ -1119,7 +1087,7 @@ class _MaintenanceInspectionDetailScreenState
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFF8CC63F)),
+          borderSide: const BorderSide(color: kBrandGreen),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 12,
@@ -1191,7 +1159,7 @@ class _MaintenanceInspectionDetailScreenState
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFF8CC63F)),
+          borderSide: const BorderSide(color: kBrandGreen),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 12,

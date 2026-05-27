@@ -842,6 +842,81 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
     await _persistTicket(silent: true);
   }
 
+  Future<void> _deleteAction(EditableOvaFollowUpAction action) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Opvolgactie verwijderen?'),
+          content: const Text(
+            'Deze opvolgactie wordt definitief verwijderd. Dit kun je niet ongedaan maken.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Annuleren'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.of(context).pop(true),
+              icon: const Icon(Icons.delete_outline_rounded),
+              label: const Text('Verwijderen'),
+              style: ElevatedButton.styleFrom(backgroundColor: kDanger),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    final previousActions = _actions;
+    setState(() {
+      _isSaving = true;
+      _error = null;
+      _actions = _actions.where((item) => !item.matches(action)).toList();
+    });
+
+    try {
+      final actionId = action.id;
+      if (actionId != null) {
+        final token = await context.read<AuthService>().getValidAccessToken();
+        await ApiService.deleteOvaAction(token: token, actionId: actionId);
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Opvolgactie verwijderd.')),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _actions = previousActions;
+        _error = error.toString().replaceFirst('Exception: ', '');
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Verwijderen mislukt: $_error'),
+          backgroundColor: kDanger,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
+  }
+
   void _jumpToStep(int index) {
     if (_ticket?.isClosed == true) {
       setState(() {
@@ -1440,6 +1515,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
           onAdd: () => _openActionDialog(type: 'corrective'),
           onEdit: (action) =>
               _openActionDialog(initialAction: action, type: action.type),
+          onDelete: _deleteAction,
           onStatusChanged: _updateActionStatus,
         ),
         const SizedBox(height: 20),
@@ -1451,6 +1527,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
           onAdd: () => _openActionDialog(type: 'preventive'),
           onEdit: (action) =>
               _openActionDialog(initialAction: action, type: action.type),
+          onDelete: _deleteAction,
           onStatusChanged: _updateActionStatus,
         ),
       ],
@@ -1614,6 +1691,7 @@ class _ActionSection extends StatelessWidget {
     required this.actions,
     required this.onAdd,
     required this.onEdit,
+    required this.onDelete,
     required this.onStatusChanged,
   });
 
@@ -1622,6 +1700,7 @@ class _ActionSection extends StatelessWidget {
   final List<EditableOvaFollowUpAction> actions;
   final VoidCallback onAdd;
   final ValueChanged<EditableOvaFollowUpAction> onEdit;
+  final ValueChanged<EditableOvaFollowUpAction> onDelete;
   final Future<void> Function(EditableOvaFollowUpAction action, bool isOk)
   onStatusChanged;
 
@@ -1665,6 +1744,7 @@ class _ActionSection extends StatelessWidget {
                       child: _ActionCard(
                         action: action,
                         onEdit: () => onEdit(action),
+                        onDelete: () => onDelete(action),
                         onStatusChanged: (isOk) =>
                             onStatusChanged(action, isOk),
                       ),
@@ -1682,11 +1762,13 @@ class _ActionCard extends StatelessWidget {
   const _ActionCard({
     required this.action,
     required this.onEdit,
+    required this.onDelete,
     required this.onStatusChanged,
   });
 
   final EditableOvaFollowUpAction action;
   final VoidCallback onEdit;
+  final VoidCallback onDelete;
   final ValueChanged<bool> onStatusChanged;
 
   @override
@@ -1719,6 +1801,12 @@ class _ActionCard extends StatelessWidget {
                 onPressed: onEdit,
                 icon: const Icon(Icons.edit_outlined),
                 tooltip: 'Bewerken',
+              ),
+              IconButton(
+                onPressed: onDelete,
+                icon: const Icon(Icons.delete_outline_rounded),
+                tooltip: 'Verwijderen',
+                color: kDanger,
               ),
             ],
           ),

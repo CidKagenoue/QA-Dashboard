@@ -8,6 +8,7 @@ import 'package:file_picker/file_picker.dart';
 import '../models/department.dart';
 import '../services/department_api_service.dart';
 import '../services/auth_service.dart';
+import '../widgets/design/design_system.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -62,7 +63,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               isExpanded: true,
               decoration: const InputDecoration(
                 labelText: 'Kies een afdeling',
-                border: OutlineInputBorder(),
               ),
               items: availableDepartments
                   .map(
@@ -87,9 +87,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Navigator.of(ctx).pop();
                 }
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF7CB342),
-              ),
               child: const Text('Toevoegen'),
             ),
           ],
@@ -112,7 +109,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _lastNameController.text = split.sublist(1).join(' ');
       }
       _selectedDepartmentIds = user.departments.map((d) => d.id).toSet();
-      // Profielfoto laden uit backend
       if (user.profileImage != null && user.profileImage!.isNotEmpty) {
         try {
           _avatarImageBase64 = user.profileImage;
@@ -153,401 +149,333 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final auth = Provider.of<AuthService>(context, listen: false);
     final user = auth.user;
     final isAdmin = user?.isAdmin ?? false;
+    final initial =
+        (user?.name?.isNotEmpty == true) ? user!.name![0].toUpperCase() : '?';
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(40, 28, 40, 28),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Stack(
-                alignment: Alignment.bottomRight,
-                children: [
-                  Container(
-                    width: 130,
-                    height: 130,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.grey.shade200,
-                      border: Border.all(color: Colors.grey.shade300, width: 2),
-                    ),
-                    child: _avatarImageBytes != null
-                        ? ClipOval(
-                            child: Image.memory(
-                              _avatarImageBytes!,
-                              width: 130,
-                              height: 130,
-                              fit: BoxFit.cover,
+    return Container(
+      color: kBackground,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(32, 28, 32, 32),
+        child: Container(
+          decoration: BoxDecoration(
+            color: kSurface,
+            borderRadius: BorderRadius.circular(kRadius2xl),
+            border: Border.all(color: kBorder),
+          ),
+          padding: const EdgeInsets.fromLTRB(32, 28, 32, 32),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const AppBreadcrumb(
+                    segments: ['Instellingen', 'Profiel']),
+                const SizedBox(height: 16),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Mijn profiel',
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w800,
+                              color: kTextPrimary,
+                              letterSpacing: -0.4,
+                              height: 1.15,
                             ),
-                          )
-                        : (user?.profileImage != null &&
-                                  user!.profileImage!.isNotEmpty
-                              ? ClipOval(
-                                  child: Image.memory(
-                                    base64Decode(user.profileImage!),
-                                    width: 130,
-                                    height: 130,
-                                    fit: BoxFit.cover,
-                                  ),
-                                )
-                              : const Icon(
-                                  Icons.person,
-                                  size: 70,
-                                  color: Colors.black54,
-                                )),
-                  ),
-                  MouseRegion(
-                    cursor: SystemMouseCursors.click,
-                    child: GestureDetector(
-                      onTap: _pickAvatarImage,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 150),
-                        margin: const EdgeInsets.only(bottom: 6, right: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.grey.shade400,
-                            width: 1,
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: .08),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
+                          const SizedBox(height: 6),
+                          Text(
+                            isAdmin
+                                ? 'Beheer je gegevens, afdelingstoewijzing en wachtwoord.'
+                                : 'Beheer je gegevens en wachtwoord.',
+                            style: const TextStyle(
+                              fontSize: 14.5,
+                              color: kTextSecondary,
+                              height: 1.5,
                             ),
-                          ],
-                        ),
-                        padding: const EdgeInsets.all(3),
-                        child: const Icon(
-                          Icons.edit,
-                          size: 16,
-                          color: Color(0xFF7CB342),
-                        ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(width: 48),
-
-              Expanded(
-                child: Form(
-                  key: _formKey,
+                  ],
+                ),
+                const SizedBox(height: 28),
+                _ProfileHeader(
+                  avatarBytes: _avatarImageBytes,
+                  initial: initial,
+                  displayName:
+                      _composedDisplayName().isEmpty ? '—' : _composedDisplayName(),
+                  email: _emailController.text.isEmpty
+                      ? user?.email ?? ''
+                      : _emailController.text,
+                  role: isAdmin ? 'Administrator' : 'Gebruiker',
+                  onPickAvatar: _pickAvatarImage,
+                ),
+                const SizedBox(height: 22),
+                AppSectionPanel(
+                  title: 'Persoonlijke gegevens',
+                  icon: Icons.person_outline_rounded,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _LabeledTextField(
-                              label: 'Voornaam',
-                              controller: _firstNameController,
-                              validator: (v) => v == null || v.trim().isEmpty
-                                  ? 'Voornaam is verplicht'
-                                  : null,
-                            ),
-                          ),
-                          const SizedBox(width: 20),
-                          Expanded(
-                            child: _LabeledTextField(
-                              label: 'Achternaam',
-                              controller: _lastNameController,
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Expanded(
-                            flex: 2,
-                            child: _LabeledTextField(
-                              label: 'Email',
-                              controller: _emailController,
-                              keyboardType: TextInputType.emailAddress,
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'E-mail is verplicht';
-                                }
-                                if (!value.contains('@')) {
-                                  return 'Voer een geldig e-mailadres in';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 20),
-                          Expanded(
-                            flex: 1,
-                            child: _PasswordAdjustButton(
-                              onPressed: _openPasswordChangeSheet,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 28),
-
-                      const Text(
-                        'Mijn afdelingen',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Builder(
-                        builder: (context) {
-                          if (isAdmin) {
-                            if (_departmentsLoading) {
-                              return const Padding(
-                                padding: EdgeInsets.all(16),
-                                child: CircularProgressIndicator(),
-                              );
-                            }
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final compact = constraints.maxWidth < 560;
+                          if (compact) {
                             return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Container(
-                                  constraints: const BoxConstraints(
-                                    minHeight: 150,
-                                  ),
-                                  width: double.infinity,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    border: Border.all(
-                                      color: Colors.grey.shade300,
-                                    ),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  padding: const EdgeInsets.all(12),
-                                  child: Wrap(
-                                    spacing: 10,
-                                    runSpacing: 10,
-                                    children: [
-                                      ..._allDepartments
-                                          .where(
-                                            (dept) => _selectedDepartmentIds
-                                                .contains(dept.id),
-                                          )
-                                          .map(
-                                            (dept) => Padding(
-                                              padding: const EdgeInsets.only(
-                                                right: 6,
-                                                bottom: 6,
-                                              ),
-                                              child: Chip(
-                                                label: SizedBox(
-                                                  width: 80,
-                                                  child: Text(
-                                                    dept.name,
-                                                    style: const TextStyle(
-                                                      fontSize: 14,
-                                                    ),
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    maxLines: 1,
-                                                  ),
-                                                ),
-                                                deleteIcon: const Icon(
-                                                  Icons.close,
-                                                  size: 18,
-                                                ),
-                                                onDeleted: () {
-                                                  setState(() {
-                                                    _selectedDepartmentIds
-                                                        .remove(dept.id);
-                                                  });
-                                                },
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(20),
-                                                  side: BorderSide(
-                                                    color: Colors.grey.shade400,
-                                                  ),
-                                                ),
-                                                backgroundColor: Colors.white,
-                                              ),
-                                            ),
-                                          ),
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          right: 6,
-                                          bottom: 6,
-                                        ),
-                                        child: ActionChip(
-                                          label: const Icon(
-                                            Icons.add,
-                                            color: Color(0xFF7CB342),
-                                          ),
-                                          onPressed: _showAddDepartmentDialog,
-                                          backgroundColor: Colors.white,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              20,
-                                            ),
-                                            side: BorderSide(
-                                              color: Colors.grey.shade400,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                _LabeledTextField(
+                                  label: 'Voornaam',
+                                  controller: _firstNameController,
+                                  validator: (v) =>
+                                      v == null || v.trim().isEmpty
+                                          ? 'Voornaam is verplicht'
+                                          : null,
+                                ),
+                                const SizedBox(height: 16),
+                                _LabeledTextField(
+                                  label: 'Achternaam',
+                                  controller: _lastNameController,
                                 ),
                               ],
                             );
-                          } else {
-                            return Container(
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                border: Border.all(color: Colors.grey.shade300),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              padding: const EdgeInsets.all(12),
-                              child: Wrap(
-                                spacing: 10,
-                                runSpacing: 10,
-                                children:
-                                    user?.departments
-                                        .map(
-                                          (d) => Padding(
-                                            padding: const EdgeInsets.only(
-                                              right: 6,
-                                              bottom: 6,
-                                            ),
-                                            child: Chip(
-                                              label: SizedBox(
-                                                width: 80,
-                                                child: Text(
-                                                  d.name,
-                                                  style: const TextStyle(
-                                                    fontSize: 14,
-                                                  ),
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  maxLines: 1,
-                                                ),
-                                              ),
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(20),
-                                                side: BorderSide(
-                                                  color: Colors.grey.shade400,
-                                                ),
-                                              ),
-                                              backgroundColor: Colors.white,
-                                            ),
-                                          ),
-                                        )
-                                        .toList() ??
-                                    [],
-                              ),
-                            );
                           }
+                          return Row(
+                            children: [
+                              Expanded(
+                                child: _LabeledTextField(
+                                  label: 'Voornaam',
+                                  controller: _firstNameController,
+                                  validator: (v) =>
+                                      v == null || v.trim().isEmpty
+                                          ? 'Voornaam is verplicht'
+                                          : null,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: _LabeledTextField(
+                                  label: 'Achternaam',
+                                  controller: _lastNameController,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      _LabeledTextField(
+                        label: 'E-mailadres',
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        prefixIcon: Icons.mail_outline_rounded,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'E-mail is verplicht';
+                          }
+                          if (!value.contains('@')) {
+                            return 'Voer een geldig e-mailadres in';
+                          }
+                          return null;
                         },
                       ),
                     ],
                   ),
                 ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 28),
-
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    if (!_formKey.currentState!.validate()) return;
-
-                    final firstName = _firstNameController.text.trim();
-                    final lastName = _lastNameController.text.trim();
-                    final eMail = _emailController.text.trim();
-                    final fullName = [
-                      firstName,
-                      lastName,
-                    ].where((s) => s.isNotEmpty).join(' ');
-
-                    try {
-                      final auth = Provider.of<AuthService>(
-                        context,
-                        listen: false,
-                      );
-                      final isAdmin = auth.user?.isAdmin ?? false;
-                      await auth.updateProfile(
-                        name: fullName,
-                        email: eMail,
-                        departmentIds: isAdmin
-                            ? _selectedDepartmentIds.toList()
-                            : null,
-                        profileImage: _avatarImageBase64,
-                      );
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Profiel succesvol opgeslagen'),
-                          ),
-                        );
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Opslaan mislukt: $e'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                    }
-                  },
-                  icon: const Icon(Icons.save),
-                  label: const Text('Opslaan'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF7CB342),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    await Provider.of<AuthService>(
-                      context,
-                      listen: false,
-                    ).logout();
-                    if (context.mounted) {
-                      Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(
-                          builder: (context) => const LoginScreen(),
+                const SizedBox(height: 16),
+                AppSectionPanel(
+                  title: 'Beveiliging',
+                  icon: Icons.lock_outline_rounded,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: const [
+                            Text(
+                              'Wachtwoord',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: kTextPrimary,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Wijzig je wachtwoord regelmatig voor een veilig account.',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: kTextTertiary,
+                                height: 1.45,
+                              ),
+                            ),
+                          ],
                         ),
-                        (route) => false,
-                      );
-                    }
-                  },
-                  icon: const Icon(Icons.logout, color: Colors.red),
-                  label: const Text(
-                    'Uitloggen',
-                    style: TextStyle(color: Colors.red),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Colors.red),
+                      ),
+                      const SizedBox(width: 16),
+                      OutlinedButton.icon(
+                        onPressed: _openPasswordChangeSheet,
+                        icon: const Icon(Icons.password_rounded, size: 18),
+                        label: const Text('Wachtwoord wijzigen'),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                AppSectionPanel(
+                  title: 'Afdelingen',
+                  icon: Icons.apartment_rounded,
+                  child: _buildDepartmentsContent(user, isAdmin),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: _saveProfile,
+                      icon: const Icon(Icons.save_rounded, size: 18),
+                      label: const Text('Wijzigingen opslaan'),
+                    ),
+                    const SizedBox(width: 12),
+                    OutlinedButton.icon(
+                      onPressed: _logout,
+                      icon: const Icon(Icons.logout_rounded, size: 18),
+                      label: const Text('Uitloggen'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: kDanger,
+                        side: const BorderSide(color: kDangerBorder),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ],
+        ),
       ),
     );
+  }
+
+  String _composedDisplayName() {
+    final fn = _firstNameController.text.trim();
+    final ln = _lastNameController.text.trim();
+    return [fn, ln].where((s) => s.isNotEmpty).join(' ');
+  }
+
+  Widget _buildDepartmentsContent(dynamic user, bool isAdmin) {
+    if (isAdmin && _departmentsLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 12),
+        child: CircularProgressIndicator(),
+      );
+    }
+    if (isAdmin) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_selectedDepartmentIds.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                'Nog geen afdelingen toegewezen.',
+                style: TextStyle(fontSize: 13.5, color: kTextTertiary),
+              ),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _allDepartments
+                  .where((d) => _selectedDepartmentIds.contains(d.id))
+                  .map((dept) => _DepartmentChip(
+                        label: dept.name,
+                        onRemove: () {
+                          setState(() {
+                            _selectedDepartmentIds.remove(dept.id);
+                          });
+                        },
+                      ))
+                  .toList(),
+            ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _showAddDepartmentDialog,
+            icon: const Icon(Icons.add_rounded, size: 18),
+            label: const Text('Afdeling toevoegen'),
+          ),
+        ],
+      );
+    }
+    final depts = (user?.departments as List?) ?? const [];
+    if (depts.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: Text(
+          'Geen afdelingen toegewezen. Vraag een beheerder om toegang.',
+          style: TextStyle(fontSize: 13.5, color: kTextTertiary),
+        ),
+      );
+    }
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: depts
+          .map<Widget>((d) => _DepartmentChip(label: d.name))
+          .toList(),
+    );
+  }
+
+  Future<void> _saveProfile() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final firstName = _firstNameController.text.trim();
+    final lastName = _lastNameController.text.trim();
+    final eMail = _emailController.text.trim();
+    final fullName =
+        [firstName, lastName].where((s) => s.isNotEmpty).join(' ');
+
+    try {
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final isAdmin = auth.user?.isAdmin ?? false;
+      await auth.updateProfile(
+        name: fullName,
+        email: eMail,
+        departmentIds:
+            isAdmin ? _selectedDepartmentIds.toList() : null,
+        profileImage: _avatarImageBase64,
+      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profiel succesvol opgeslagen'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Opslaan mislukt: $e'),
+            backgroundColor: kDanger,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _logout() async {
+    await Provider.of<AuthService>(context, listen: false).logout();
+    if (context.mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (route) => false,
+      );
+    }
   }
 
   void _openPasswordChangeSheet() {
@@ -568,18 +496,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Material(
             color: Colors.transparent,
             child: Container(
-              width: 420,
-              padding: const EdgeInsets.all(20),
+              width: 440,
+              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    blurRadius: 24,
-                    spreadRadius: 4,
-                    color: Colors.black.withValues(alpha: .15),
-                  ),
-                ],
+                color: kSurface,
+                borderRadius: BorderRadius.circular(kRadiusXl),
+                border: Border.all(color: kBorder),
+                boxShadow: kShadowCard,
               ),
               child: StatefulBuilder(
                 builder: (ctx, setState) {
@@ -587,93 +510,75 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     key: formKey,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Text(
-                          'Wachtwoord wijzigen',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-
-                        // CURRENT PASSWORD
-                        TextFormField(
-                          controller: currentCtl,
-                          obscureText: !showCurrent,
-                          decoration: InputDecoration(
-                            labelText: 'Huidig wachtwoord',
-                            prefixIcon: const Icon(Icons.lock),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                showCurrent
-                                    ? Icons.visibility
-                                    : Icons.visibility_off,
+                        Row(
+                          children: [
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: kBrandGreenSoft,
+                                borderRadius:
+                                    BorderRadius.circular(kRadiusSm),
                               ),
-                              onPressed: () =>
-                                  setState(() => showCurrent = !showCurrent),
+                              alignment: Alignment.center,
+                              child: const Icon(Icons.lock_outline_rounded,
+                                  size: 18, color: kBrandGreenDeep),
                             ),
-                          ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Text(
+                                'Wachtwoord wijzigen',
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w700,
+                                  color: kTextPrimary,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded),
+                              onPressed: () => Navigator.of(ctx).pop(),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        _PasswordField(
+                          controller: currentCtl,
+                          label: 'Huidig wachtwoord',
+                          visible: showCurrent,
+                          toggle: () =>
+                              setState(() => showCurrent = !showCurrent),
                           validator: (v) {
                             if (v == null || v.isEmpty) {
                               return 'Voer je huidige wachtwoord in';
                             }
-                            if (v.length < 8) {
-                              return 'Minimaal 8 tekens';
-                            }
+                            if (v.length < 8) return 'Minimaal 8 tekens';
                             return null;
                           },
                         ),
-
-                        const SizedBox(height: 16),
-
-                        // NEW PASSWORD
-                        TextFormField(
+                        const SizedBox(height: 14),
+                        _PasswordField(
                           controller: newCtl,
-                          obscureText: !showNew,
-                          decoration: InputDecoration(
-                            labelText: 'Nieuw wachtwoord',
-                            prefixIcon: const Icon(Icons.lock),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                showNew
-                                    ? Icons.visibility
-                                    : Icons.visibility_off,
-                              ),
-                              onPressed: () =>
-                                  setState(() => showNew = !showNew),
-                            ),
-                          ),
+                          label: 'Nieuw wachtwoord',
+                          visible: showNew,
+                          toggle: () => setState(() => showNew = !showNew),
                           validator: (v) {
                             if (v == null || v.isEmpty) {
                               return 'Voer een nieuw wachtwoord in';
                             }
-                            if (v.length < 8) {
-                              return 'Minimaal 8 tekens';
-                            }
+                            if (v.length < 8) return 'Minimaal 8 tekens';
                             return null;
                           },
                         ),
-
-                        const SizedBox(height: 16),
-
-                        // CONFIRM PASSWORD
-                        TextFormField(
+                        const SizedBox(height: 14),
+                        _PasswordField(
                           controller: confirmCtl,
-                          obscureText: !showConfirm,
-                          decoration: InputDecoration(
-                            labelText: 'Bevestig wachtwoord',
-                            prefixIcon: const Icon(Icons.lock),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                showConfirm
-                                    ? Icons.visibility
-                                    : Icons.visibility_off,
-                              ),
-                              onPressed: () =>
-                                  setState(() => showConfirm = !showConfirm),
-                            ),
-                          ),
+                          label: 'Bevestig wachtwoord',
+                          visible: showConfirm,
+                          toggle: () =>
+                              setState(() => showConfirm = !showConfirm),
                           validator: (v) {
                             if (v == null || v.isEmpty) {
                               return 'Bevestig je wachtwoord';
@@ -684,12 +589,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             return null;
                           },
                         ),
-
-                        const SizedBox(height: 28),
-
+                        const SizedBox(height: 24),
                         Consumer<AuthService>(
                           builder: (_, auth, _) => SizedBox(
-                            width: double.infinity,
                             height: 48,
                             child: ElevatedButton(
                               onPressed: auth.isLoading
@@ -711,35 +613,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                                         if (!mounted) return;
                                         Navigator.of(context).pop();
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
                                           const SnackBar(
                                             content: Text(
-                                              'Wachtwoord succesvol gewijzigd',
-                                            ),
+                                                'Wachtwoord succesvol gewijzigd'),
                                           ),
                                         );
                                       } catch (e) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
                                           SnackBar(
                                             content: Text(e.toString()),
-                                            backgroundColor: Colors.red,
+                                            backgroundColor: kDanger,
                                           ),
                                         );
                                       }
                                     },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF7CB342),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
                               child: auth.isLoading
-                                  ? const CircularProgressIndicator(
-                                      color: Colors.white,
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                          color: Colors.white, strokeWidth: 2),
                                     )
-                                  : const Text('Opslaan'),
+                                  : const Text('Wachtwoord opslaan'),
                             ),
                           ),
                         ),
@@ -756,17 +654,153 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
+class _ProfileHeader extends StatelessWidget {
+  const _ProfileHeader({
+    required this.avatarBytes,
+    required this.initial,
+    required this.displayName,
+    required this.email,
+    required this.role,
+    required this.onPickAvatar,
+  });
+
+  final Uint8List? avatarBytes;
+  final String initial;
+  final String displayName;
+  final String email;
+  final String role;
+  final VoidCallback onPickAvatar;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: kSurfaceMuted,
+        borderRadius: BorderRadius.circular(kRadiusLg),
+        border: Border.all(color: kBorder),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Stack(
+            alignment: Alignment.bottomRight,
+            children: [
+              Container(
+                width: 96,
+                height: 96,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: kBrandGreenSoft,
+                  border: Border.all(color: kSurface, width: 3),
+                  boxShadow: kShadowSoft,
+                ),
+                child: avatarBytes != null
+                    ? ClipOval(
+                        child: Image.memory(
+                          avatarBytes!,
+                          width: 96,
+                          height: 96,
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    : Center(
+                        child: Text(
+                          initial,
+                          style: const TextStyle(
+                            fontSize: 36,
+                            fontWeight: FontWeight.w800,
+                            color: kBrandGreenDeep,
+                          ),
+                        ),
+                      ),
+              ),
+              Positioned(
+                bottom: -4,
+                right: -4,
+                child: Material(
+                  color: kSurface,
+                  shape: const CircleBorder(
+                      side: BorderSide(color: kBorder)),
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: onPickAvatar,
+                    child: const Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Icon(Icons.edit_outlined,
+                          size: 16, color: kBrandGreenDeep),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        displayName,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: kTextPrimary,
+                          height: 1.15,
+                        ),
+                      ),
+                    ),
+                    AppStatusPill(
+                        label: role.toUpperCase(),
+                        tone: AppStatusTone.brand),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.mail_outline_rounded,
+                        size: 16, color: kTextTertiary),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        email,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          color: kTextTertiary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _LabeledTextField extends StatelessWidget {
   final String label;
   final TextEditingController controller;
   final String? Function(String?)? validator;
   final TextInputType? keyboardType;
+  final IconData? prefixIcon;
 
   const _LabeledTextField({
     required this.label,
     required this.controller,
     this.validator,
     this.keyboardType,
+    this.prefixIcon,
   });
 
   @override
@@ -776,28 +810,31 @@ class _LabeledTextField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: kTextSecondary,
+            letterSpacing: 0.1,
+          ),
         ),
         const SizedBox(height: 6),
         TextFormField(
           controller: controller,
           validator: validator,
           keyboardType: keyboardType,
+          style: const TextStyle(
+            fontSize: 14.5,
+            color: kTextPrimary,
+            fontWeight: FontWeight.w500,
+          ),
           decoration: InputDecoration(
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey.shade400),
-            ),
-            focusedBorder: const OutlineInputBorder(
-              borderSide: BorderSide(color: Color(0xFF7CB342), width: 2),
-            ),
+            prefixIcon: prefixIcon == null
+                ? null
+                : Icon(prefixIcon, color: kTextTertiary, size: 20),
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
+              horizontal: 14,
               vertical: 12,
             ),
-            filled: true,
-            fillColor: Colors.white,
           ),
         ),
       ],
@@ -805,42 +842,94 @@ class _LabeledTextField extends StatelessWidget {
   }
 }
 
-class _PasswordAdjustButton extends StatelessWidget {
-  final VoidCallback onPressed;
-  const _PasswordAdjustButton({required this.onPressed});
+class _PasswordField extends StatelessWidget {
+  const _PasswordField({
+    required this.controller,
+    required this.label,
+    required this.visible,
+    required this.toggle,
+    required this.validator,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final bool visible;
+  final VoidCallback toggle;
+  final String? Function(String?) validator;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 48,
-      child: ElevatedButton.icon(
-        onPressed: onPressed,
-        icon: const Icon(Icons.lock_open, color: Colors.black87, size: 18),
-        label: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Expanded(
-              child: Text(
-                'Wachtwoord Aanpassen',
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Colors.black87,
-                  fontWeight: FontWeight.w600,
-                ),
+    return TextFormField(
+      controller: controller,
+      obscureText: !visible,
+      style: const TextStyle(
+        fontSize: 14.5,
+        color: kTextPrimary,
+        fontWeight: FontWeight.w500,
+      ),
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon:
+            const Icon(Icons.lock_outline_rounded, color: kTextTertiary),
+        suffixIcon: IconButton(
+          icon: Icon(
+            visible
+                ? Icons.visibility_off_rounded
+                : Icons.visibility_rounded,
+            color: kTextTertiary,
+            size: 20,
+          ),
+          onPressed: toggle,
+        ),
+      ),
+      validator: validator,
+    );
+  }
+}
+
+class _DepartmentChip extends StatelessWidget {
+  const _DepartmentChip({required this.label, this.onRemove});
+
+  final String label;
+  final VoidCallback? onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 32,
+      padding: EdgeInsets.only(left: 12, right: onRemove == null ? 12 : 4),
+      decoration: BoxDecoration(
+        color: kBrandGreenSubtle,
+        borderRadius: BorderRadius.circular(kRadiusPill),
+        border: Border.all(color: kBrandGreenSoft),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.apartment_rounded,
+              size: 14, color: kBrandGreenDeep),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              color: kBrandGreenDeep,
+              fontWeight: FontWeight.w700,
+              fontSize: 12.5,
+            ),
+          ),
+          if (onRemove != null) ...[
+            const SizedBox(width: 4),
+            InkWell(
+              onTap: onRemove,
+              borderRadius: BorderRadius.circular(999),
+              child: const Padding(
+                padding: EdgeInsets.all(5),
+                child: Icon(Icons.close_rounded,
+                    size: 14, color: kBrandGreenDeep),
               ),
             ),
-            Icon(Icons.edit, color: Colors.grey.shade700, size: 18),
           ],
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.grey.shade300,
-          foregroundColor: Colors.black87,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-        ),
+        ],
       ),
     );
   }

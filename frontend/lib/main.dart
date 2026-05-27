@@ -10,6 +10,9 @@ import 'services/auth_service.dart';
 import 'theme/app_theme.dart';
 import 'services/notification_service.dart';
 
+const double _kAccessibilityTextScale = 1.12;
+const double _kMaxAccessibilityTextScale = 1.6;
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const QADashboardApp());
@@ -61,6 +64,21 @@ class QADashboardApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Vlotter',
         theme: buildAppTheme(),
+        builder: (context, child) {
+          final mediaQuery = MediaQuery.of(context);
+          final userScale = mediaQuery.textScaler.scale(1);
+          final effectiveScale = (userScale * _kAccessibilityTextScale).clamp(
+            _kAccessibilityTextScale,
+            _kMaxAccessibilityTextScale,
+          );
+
+          return MediaQuery(
+            data: mediaQuery.copyWith(
+              textScaler: TextScaler.linear(effectiveScale),
+            ),
+            child: child ?? const SizedBox.shrink(),
+          );
+        },
         home: _buildInitialScreen(),
         routes: {'/account-management': (_) => const AccountManagementScreen()},
         debugShowCheckedModeBanner: false,

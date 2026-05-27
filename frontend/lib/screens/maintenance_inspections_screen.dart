@@ -9,6 +9,7 @@ import '../services/auth_service.dart';
 import '../services/maintenance_api_service.dart';
 import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/design/app_breadcrumb.dart';
 import 'maintenance_inspection_detail_screen.dart';
 
 class MaintenanceInspectionsScreen extends StatefulWidget {
@@ -711,24 +712,9 @@ class _MaintenanceInspectionsScreenState
   }
 
   Widget _buildBreadcrumb() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-      child: Row(
-        children: [
-          Text(
-            'Dashboard',
-            style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Icon(Icons.chevron_right, size: 14, color: Colors.grey[400]),
-          ),
-          Text(
-            'Onderhoud & Keuringen',
-            style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-          ),
-        ],
-      ),
+    return const Padding(
+      padding: EdgeInsets.fromLTRB(24, 20, 24, 0),
+      child: AppBreadcrumb(segments: ['Dashboard', 'Onderhoud & Keuringen']),
     );
   }
 

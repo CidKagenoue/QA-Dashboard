@@ -6,6 +6,8 @@ import 'package:qa_dashboard/screens/account_management_screen.dart';
 import 'package:qa_dashboard/screens/notifications_screen.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_bars/main_app_bar.dart';
+import '../widgets/design/app_breadcrumb.dart';
+import '../widgets/resizable_sidebar.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -29,75 +31,89 @@ class _SettingsScreenNavigationState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: const MainAppBar(title: 'Vlotter'),
-      body: Row(
-        children: [
-          Container(
-            width: 240,
-            decoration: const BoxDecoration(
-              color: kSurface,
-              border: Border(right: BorderSide(color: kBorder, width: 1)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 24),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 22),
-                  child: Text(
-                    'INSTELLINGEN',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: kTextMuted,
-                      letterSpacing: 0.8,
+      body: AppBreadcrumbNavigation(
+        onNavigateTo: _navigateFromBreadcrumb,
+        child: Row(
+          children: [
+            ResizableSidebar(
+              title: 'INSTELLINGEN',
+              storageKey: 'settingsSidebar',
+              defaultWidth: 240,
+              childBuilder: (context, expanded) => Column(
+                children: [
+                  _SidebarItem(
+                    icon: Icons.person_outline_rounded,
+                    title: 'Profiel',
+                    expanded: expanded,
+                    selected: _selected == _SettingsSection.profiel,
+                    onTap: () =>
+                        setState(() => _selected = _SettingsSection.profiel),
+                  ),
+                  _SidebarItem(
+                    icon: Icons.notifications_none_rounded,
+                    title: 'Meldingen',
+                    expanded: expanded,
+                    selected: _selected == _SettingsSection.meldingen,
+                    onTap: () =>
+                        setState(() => _selected = _SettingsSection.meldingen),
+                  ),
+                  _SidebarItem(
+                    icon: Icons.manage_accounts_outlined,
+                    title: 'Accountbeheer',
+                    expanded: expanded,
+                    selected: _selected == _SettingsSection.accountbeheer,
+                    onTap: () => setState(
+                      () => _selected = _SettingsSection.accountbeheer,
                     ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                _SidebarItem(
-                  icon: Icons.person_outline_rounded,
-                  title: 'Profiel',
-                  selected: _selected == _SettingsSection.profiel,
-                  onTap: () =>
-                      setState(() => _selected = _SettingsSection.profiel),
-                ),
-                _SidebarItem(
-                  icon: Icons.notifications_none_rounded,
-                  title: 'Meldingen',
-                  selected: _selected == _SettingsSection.meldingen,
-                  onTap: () =>
-                      setState(() => _selected = _SettingsSection.meldingen),
-                ),
-                _SidebarItem(
-                  icon: Icons.manage_accounts_outlined,
-                  title: 'Accountbeheer',
-                  selected: _selected == _SettingsSection.accountbeheer,
-                  onTap: () => setState(
-                    () => _selected = _SettingsSection.accountbeheer,
+                  _SidebarItem(
+                    icon: Icons.apartment_rounded,
+                    title: 'Afdelingen',
+                    expanded: expanded,
+                    selected: _selected == _SettingsSection.afdelingen,
+                    onTap: () =>
+                        setState(() => _selected = _SettingsSection.afdelingen),
                   ),
-                ),
-                _SidebarItem(
-                  icon: Icons.apartment_rounded,
-                  title: 'Afdelingen',
-                  selected: _selected == _SettingsSection.afdelingen,
-                  onTap: () =>
-                      setState(() => _selected = _SettingsSection.afdelingen),
-                ),
-                _SidebarItem(
-                  icon: Icons.place_outlined,
-                  title: 'Locaties',
-                  selected: _selected == _SettingsSection.locaties,
-                  onTap: () =>
-                      setState(() => _selected = _SettingsSection.locaties),
-                ),
-                const Spacer(),
-              ],
+                  _SidebarItem(
+                    icon: Icons.place_outlined,
+                    title: 'Locaties',
+                    expanded: expanded,
+                    selected: _selected == _SettingsSection.locaties,
+                    onTap: () =>
+                        setState(() => _selected = _SettingsSection.locaties),
+                  ),
+                  const Spacer(),
+                ],
+              ),
             ),
-          ),
-          Expanded(child: _buildSectionContent(_selected)),
-        ],
+            Expanded(child: _buildSectionContent(_selected)),
+          ],
+        ),
       ),
     );
+  }
+
+  void _navigateFromBreadcrumb(String key) {
+    setState(() {
+      switch (key) {
+        case 'settings':
+        case 'settingsProfile':
+          _selected = _SettingsSection.profiel;
+          break;
+        case 'settingsNotifications':
+          _selected = _SettingsSection.meldingen;
+          break;
+        case 'settingsAccounts':
+          _selected = _SettingsSection.accountbeheer;
+          break;
+        case 'settingsDepartments':
+          _selected = _SettingsSection.afdelingen;
+          break;
+        case 'settingsLocations':
+          _selected = _SettingsSection.locaties;
+          break;
+      }
+    });
   }
 
   Widget _buildSectionContent(_SettingsSection section) {
@@ -119,12 +135,14 @@ class _SettingsScreenNavigationState extends State<SettingsScreen> {
 class _SidebarItem extends StatelessWidget {
   final IconData icon;
   final String title;
+  final bool expanded;
   final bool selected;
   final VoidCallback? onTap;
 
   const _SidebarItem({
     required this.icon,
     required this.title,
+    required this.expanded,
     this.selected = false,
     this.onTap,
   });
@@ -135,8 +153,8 @@ class _SidebarItem extends StatelessWidget {
     final bg = selected ? kBrandGreenSoft : Colors.transparent;
     final borderColor = selected ? kBrandGreenSoft : Colors.transparent;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 2, 12, 2),
+    final item = Padding(
+      padding: EdgeInsets.fromLTRB(12, 2, expanded ? 12 : 10, 2),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -153,36 +171,42 @@ class _SidebarItem extends StatelessWidget {
               borderRadius: BorderRadius.circular(kRadiusMd),
             ),
             child: Row(
+              mainAxisAlignment:
+                  expanded ? MainAxisAlignment.start : MainAxisAlignment.center,
               children: [
                 Icon(icon, color: fg, size: 20),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: fg,
-                      fontWeight:
-                          selected ? FontWeight.w700 : FontWeight.w500,
-                      fontSize: 14,
+                if (expanded) ...[
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: fg,
+                        fontWeight:
+                            selected ? FontWeight.w700 : FontWeight.w500,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
-                ),
-                if (selected)
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: const BoxDecoration(
-                      color: kBrandGreenDeep,
-                      shape: BoxShape.circle,
+                  if (selected)
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                        color: kBrandGreenDeep,
+                        shape: BoxShape.circle,
+                      ),
                     ),
-                  ),
+                ],
               ],
             ),
           ),
         ),
       ),
     );
+
+    return Tooltip(message: title, child: item);
   }
 }

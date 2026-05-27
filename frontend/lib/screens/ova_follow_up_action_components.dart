@@ -185,12 +185,28 @@ class _OvaFollowUpActionEditorDialogState
     _assigneeType = initialAction?.assigneeType ?? 'internal';
     _dueDate =
         initialAction?.dueDate ?? DateTime.now().add(const Duration(days: 7));
-    _selectedInternalUser = initialAction?.internalAssignee;
+    _selectedInternalUser = _matchingAssignableUser(
+      initialAction?.internalAssignee,
+    );
     _selectedExternalResponsible = external;
 
     _firstNameController.addListener(_scheduleLookup);
     _lastNameController.addListener(_scheduleLookup);
     _emailController.addListener(_scheduleLookup);
+  }
+
+  OvaTicketUser? _matchingAssignableUser(OvaTicketUser? user) {
+    if (user == null) {
+      return null;
+    }
+
+    for (final assignableUser in widget.assignableUsers) {
+      if (assignableUser.id == user.id) {
+        return assignableUser;
+      }
+    }
+
+    return null;
   }
 
   @override

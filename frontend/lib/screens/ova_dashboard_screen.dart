@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/design/app_breadcrumb.dart';
 import 'ova_actions_screen.dart';
 import 'ova_ticket_list_screen.dart';
 import 'ova_ticket_wizard_screen.dart';
@@ -304,8 +305,9 @@ class _OvaTileCardState extends State<_OvaTileCard> {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 160),
               width: 240,
+              height: 224,
               padding: const EdgeInsets.symmetric(
-                  horizontal: 24, vertical: 28),
+                  horizontal: 24, vertical: 24),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(kRadiusXl),
                 border: Border.all(
@@ -314,7 +316,7 @@ class _OvaTileCardState extends State<_OvaTileCard> {
                 ),
               ),
               child: Column(
-                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
                     width: 58,
@@ -330,6 +332,8 @@ class _OvaTileCardState extends State<_OvaTileCard> {
                   Text(
                     widget.data.title,
                     textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
@@ -341,6 +345,8 @@ class _OvaTileCardState extends State<_OvaTileCard> {
                   Text(
                     widget.data.subtitle,
                     textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
@@ -379,29 +385,6 @@ class _Breadcrumb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final children = <Widget>[];
-    for (var i = 0; i < segments.length; i++) {
-      final isLast = i == segments.length - 1;
-      children.add(
-        Text(
-          segments[i],
-          style: TextStyle(
-            fontSize: 12.5,
-            fontWeight: isLast ? FontWeight.w700 : FontWeight.w500,
-            color: isLast ? kTextSecondary : kTextTertiary,
-            letterSpacing: 0.1,
-          ),
-        ),
-      );
-      if (!isLast) {
-        children.add(const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 8),
-          child: Icon(Icons.chevron_right_rounded,
-              size: 16, color: kTextMuted),
-        ));
-      }
-    }
-
-    return Row(mainAxisSize: MainAxisSize.min, children: children);
+    return AppBreadcrumb(segments: segments);
   }
 }

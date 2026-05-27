@@ -5,6 +5,7 @@ import '../models/ova_ticket.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/design/app_breadcrumb.dart';
 import 'ova_ticket_wizard_screen.dart';
 
 class OvaTicketDetailScreen extends StatefulWidget {
@@ -435,12 +436,20 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 1040;
         if (wide) {
+          final sideColumnWidth = (constraints.maxWidth * 0.34).clamp(
+            420.0,
+            540.0,
+          );
+
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(flex: 7, child: _buildPrimaryColumn(ticket)),
               const SizedBox(width: 18),
-              SizedBox(width: 380, child: _buildSideColumn(ticket)),
+              SizedBox(
+                width: sideColumnWidth,
+                child: _buildSideColumn(ticket),
+              ),
             ],
           );
         }
@@ -1033,30 +1042,7 @@ class _Breadcrumb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final children = <Widget>[];
-    for (var i = 0; i < segments.length; i++) {
-      final isLast = i == segments.length - 1;
-      children.add(
-        Text(
-          segments[i],
-          style: TextStyle(
-            fontSize: 12.5,
-            fontWeight: isLast ? FontWeight.w700 : FontWeight.w500,
-            color: isLast ? kTextSecondary : kTextTertiary,
-            letterSpacing: 0.1,
-          ),
-        ),
-      );
-      if (!isLast) {
-        children.add(const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 8),
-          child: Icon(Icons.chevron_right_rounded,
-              size: 16, color: kTextMuted),
-        ));
-      }
-    }
-
-    return Row(mainAxisSize: MainAxisSize.min, children: children);
+    return AppBreadcrumb(segments: segments);
   }
 }
 

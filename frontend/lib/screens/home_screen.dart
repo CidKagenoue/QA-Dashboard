@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../widgets/app_bars/main_app_bar.dart';
+import '../widgets/resizable_sidebar.dart';
 import '../models/ova_assigned_action.dart';
 import '../models/ova_ticket.dart';
 import '../models/jap_gpp_entry.dart';
@@ -45,6 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _initialJapGppModule;
   int? _initialJapGppEntryId;
   int? _initialMaintenanceInspectionId;
+  int _breadcrumbNavigationVersion = 0;
 
   @override
   void initState() {
@@ -86,23 +88,64 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: const MainAppBar(title: 'Vlotter'),
-      body: Row(
-        children: [
-          _Sidebar(
-            selected: _selected,
-            onSelect: (section) {
-              setState(() {
-                if (section == _HomeSection.ova) {
-                  _initialOvaPage = OvaDashboardInitialPage.overview;
-                }
-                _selected = section;
-              });
-            },
-          ),
-          Expanded(child: _buildSectionContent(_selected)),
-        ],
+      body: AppBreadcrumbNavigation(
+        onNavigateTo: _navigateFromBreadcrumb,
+        child: Row(
+          children: [
+            _Sidebar(
+              selected: _selected,
+              onSelect: (section) {
+                setState(() {
+                  if (section == _HomeSection.ova) {
+                    _initialOvaPage = OvaDashboardInitialPage.overview;
+                  }
+                  _selected = section;
+                });
+              },
+            ),
+            Expanded(child: _buildSectionContent(_selected)),
+          ],
+        ),
       ),
     );
+  }
+
+  void _navigateFromBreadcrumb(String key) {
+    setState(() {
+      _breadcrumbNavigationVersion++;
+      _initialOvaTicketId = null;
+      _initialOvaTicketConsumed = true;
+      _initialJapGppModule = null;
+      _initialJapGppEntryId = null;
+      _initialMaintenanceInspectionId = null;
+
+      switch (key) {
+        case 'dashboard':
+          _selected = _HomeSection.dashboard;
+          break;
+        case 'whsTours':
+          _selected = _HomeSection.whsTours;
+          break;
+        case 'ovaTickets':
+          _initialOvaPage = OvaDashboardInitialPage.tickets;
+          _selected = _HomeSection.ova;
+          break;
+        case 'ovaActions':
+          _initialOvaPage = OvaDashboardInitialPage.actions;
+          _selected = _HomeSection.ova;
+          break;
+        case 'ova':
+          _initialOvaPage = OvaDashboardInitialPage.overview;
+          _selected = _HomeSection.ova;
+          break;
+        case 'onderhoud':
+          _selected = _HomeSection.onderhoud;
+          break;
+        case 'japGpp':
+          _selected = _HomeSection.japGpp;
+          break;
+      }
+    });
   }
 
   Widget _buildSectionContent(_HomeSection section) {
@@ -126,14 +169,17 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         );
       case _HomeSection.whsTours:
-        return WhsToursScreen(token: token ?? '');
+        return WhsToursScreen(
+          key: ValueKey<String>('whsTours-$_breadcrumbNavigationVersion'),
+          token: token ?? '',
+        );
       case _HomeSection.ova:
         final ovaTicketId = _initialOvaTicketConsumed
             ? null
             : _initialOvaTicketId;
         return OvaDashboardScreen(
           key: ValueKey<String>(
-            'ova-${_initialOvaPage.name}-${ovaTicketId ?? 'none'}',
+            'ova-${_initialOvaPage.name}-${ovaTicketId ?? 'none'}-$_breadcrumbNavigationVersion',
           ),
           initialPage: _initialOvaPage,
           initialTicketId: ovaTicketId,
@@ -148,11 +194,12 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       case _HomeSection.onderhoud:
         return MaintenanceInspectionsScreen(
+          key: ValueKey<String>('maintenance-$_breadcrumbNavigationVersion'),
           initialInspectionId: _initialMaintenanceInspectionId,
         );
       case _HomeSection.japGpp:
         return JapGppScreen(
-          key: const ValueKey<String>('japGpp-screen'),
+          key: ValueKey<String>('japGpp-$_breadcrumbNavigationVersion'),
           token: token ?? '',
           initialModule: _initialJapGppModule,
           initialEntryId: _initialJapGppEntryId,
@@ -190,71 +237,59 @@ class _Sidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 232,
-      decoration: const BoxDecoration(
-        color: kSurface,
-        border: Border(right: BorderSide(color: kBorder, width: 1)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 24),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 22),
-            child: Text(
-              'NAVIGATIE',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: kTextMuted,
-                letterSpacing: 0.8,
-              ),
-            ),
+    return ResizableSidebar(
+      title: 'NAVIGATIE',
+      storageKey: 'homeSidebar',
+      defaultWidth: 232,
+      footer: const Padding(
+        padding: EdgeInsets.fromLTRB(22, 0, 22, 18),
+        child: Text(
+          'Vlotter QA Dashboard',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            color: kTextMuted,
           ),
-          const SizedBox(height: 12),
+        ),
+      ),
+      childBuilder: (context, expanded) => Column(
+        children: [
           _SidebarItem(
             icon: Icons.dashboard_rounded,
             label: 'Dashboard',
+            expanded: expanded,
             selected: selected == _HomeSection.dashboard,
             onTap: () => onSelect(_HomeSection.dashboard),
           ),
           _SidebarItem(
             icon: Icons.apartment_rounded,
             label: 'WHS-Tours',
+            expanded: expanded,
             selected: selected == _HomeSection.whsTours,
             onTap: () => onSelect(_HomeSection.whsTours),
           ),
           _SidebarItem(
             icon: Icons.report_problem_outlined,
             label: 'OVA',
+            expanded: expanded,
             selected: selected == _HomeSection.ova,
             onTap: () => onSelect(_HomeSection.ova),
           ),
           _SidebarItem(
             icon: Icons.build_rounded,
             label: 'Onderhoud & Keuringen',
+            expanded: expanded,
             selected: selected == _HomeSection.onderhoud,
             onTap: () => onSelect(_HomeSection.onderhoud),
           ),
           _SidebarItem(
             icon: Icons.assignment_rounded,
             label: 'JAP & GPP',
+            expanded: expanded,
             selected: selected == _HomeSection.japGpp,
             onTap: () => onSelect(_HomeSection.japGpp),
           ),
           const Spacer(),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(22, 0, 22, 18),
-            child: Text(
-              'Vlotter QA Dashboard',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: kTextMuted,
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -264,12 +299,14 @@ class _Sidebar extends StatelessWidget {
 class _SidebarItem extends StatelessWidget {
   final IconData icon;
   final String label;
+  final bool expanded;
   final bool selected;
   final VoidCallback? onTap;
 
   const _SidebarItem({
     required this.icon,
     required this.label,
+    required this.expanded,
     required this.selected,
     this.onTap,
   });
@@ -280,8 +317,8 @@ class _SidebarItem extends StatelessWidget {
     final bg = selected ? kBrandGreenSoft : Colors.transparent;
     final borderColor = selected ? kBrandGreenSoft : Colors.transparent;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 2, 12, 2),
+    final item = Padding(
+      padding: EdgeInsets.fromLTRB(12, 2, expanded ? 12 : 10, 2),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -298,37 +335,43 @@ class _SidebarItem extends StatelessWidget {
               borderRadius: BorderRadius.circular(kRadiusMd),
             ),
             child: Row(
+              mainAxisAlignment:
+                  expanded ? MainAxisAlignment.start : MainAxisAlignment.center,
               children: [
                 Icon(icon, color: fg, size: 20),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: fg,
-                      fontWeight:
-                          selected ? FontWeight.w700 : FontWeight.w500,
-                      fontSize: 14,
+                if (expanded) ...[
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: fg,
+                        fontWeight:
+                            selected ? FontWeight.w700 : FontWeight.w500,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
-                ),
-                if (selected)
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: const BoxDecoration(
-                      color: kBrandGreenDeep,
-                      shape: BoxShape.circle,
+                  if (selected)
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                        color: kBrandGreenDeep,
+                        shape: BoxShape.circle,
+                      ),
                     ),
-                  ),
+                ],
               ],
             ),
           ),
         ),
       ),
     );
+
+    return Tooltip(message: label, child: item);
   }
 }
 

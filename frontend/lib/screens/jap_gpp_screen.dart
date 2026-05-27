@@ -3,6 +3,7 @@ import '../widgets/manage_dropdown_field.dart';
 import '../services/jap_export_service.dart';
 import '../models/jap_gpp_entry.dart';
 import '../services/jap_gpp_api_service.dart';
+import '../theme/app_theme.dart';
 import 'jap_gpp_detail_pane.dart';
 
 class JapGppScreen extends StatefulWidget {
@@ -562,7 +563,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
                                     previewEntries = _entriesForExportYear(y);
                                   }),
                                   backgroundColor: Colors.white,
-                                  selectedColor: const Color(0xFF8BC34A).withValues(alpha: 0.18),
+                                  selectedColor: kBrandGreen.withValues(alpha: 0.18),
                                 );
                               }).toList(),
                             ),
@@ -602,7 +603,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
                                             contentPadding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
                                             leading: CircleAvatar(
                                               radius: 14,
-                                              backgroundColor: const Color(0xFF8BC34A).withValues(alpha: 0.12),
+                                              backgroundColor: kBrandGreen.withValues(alpha: 0.12),
                                               child: Text('${idx + 1}', style: const TextStyle(fontSize: 11, color: Color(0xFF4A7A1E), fontWeight: FontWeight.w700)),
                                             ),
                                             title: Text(e.goalMeasure, maxLines: 2, overflow: TextOverflow.ellipsis),
@@ -660,7 +661,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
                                   },
                             icon: const Icon(Icons.picture_as_pdf_outlined),
                             label: exporting ? const Text('Bezig met exporteren...') : const Text('PDF downloaden'),
-                            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8BC34A)),
+                            style: ElevatedButton.styleFrom(backgroundColor: kBrandGreen),
                           ),
                         ],
                       ),
@@ -727,7 +728,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFF8BC34A)),
+              borderSide: BorderSide(color: kBrandGreen),
             ),
             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           );
@@ -1202,7 +1203,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
                                   }
                                 },
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF8BC34A),
+                                  backgroundColor: kBrandGreen,
                                   foregroundColor: Colors.white,
                                   padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -1335,18 +1336,6 @@ class _JapGppScreenState extends State<JapGppScreen> {
     );
   }
 
-  Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-      child: Text(
-        'JAP & GPP',
-        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-
   Widget _buildToolbar() {
     return Row(
       children: [
@@ -1378,7 +1367,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(999),
                 borderSide: const BorderSide(
-                  color: Color(0xFF8CC63F),
+                  color: kBrandGreen,
                   width: 1.5,
                 ),
               ),
@@ -1401,7 +1390,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
           icon: const Icon(Icons.add, size: 18),
           label: const Text('Nieuw'),
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF8CC63F),
+            backgroundColor: kBrandGreen,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             textStyle: const TextStyle(
@@ -1419,7 +1408,7 @@ class _JapGppScreenState extends State<JapGppScreen> {
           icon: const Icon(Icons.download_outlined, size: 18),
           label: const Text('Export'),
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF8CC63F),
+            backgroundColor: kBrandGreen,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             textStyle: const TextStyle(
@@ -1662,87 +1651,6 @@ class _JapHeaderCell extends StatelessWidget {
           fontWeight: FontWeight.w600,
           color: Color(0xFF6B7A62),
         ),
-      ),
-    );
-  }
-}
-
-class _JapTextCell extends StatelessWidget {
-  const _JapTextCell(
-    this.value, {
-    this.color,
-    this.maxLines = 2,
-  }) : weight = FontWeight.w400;
-
-  final String value;
-  final Color? color;
-  final FontWeight weight;
-  final int maxLines;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-      child: Text(
-        value,
-        maxLines: maxLines,
-        overflow: TextOverflow.ellipsis,
-        textAlign: TextAlign.left,
-        style: TextStyle(
-          fontSize: 13,
-          color: color ?? const Color(0xFF4D5548),
-          fontWeight: weight,
-        ),
-      ),
-    );
-  }
-}
-
-class _JapStickyHeaderRow extends StatelessWidget {
-  const _JapStickyHeaderRow();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFFF5F5F5),
-      child: Row(
-        children: const [
-          Expanded(flex: 1, child: _JapHeaderCell(label: 'Jaar')),
-          Expanded(flex: 3, child: _JapHeaderCell(label: 'Doelstelling - maatregel')),
-          Expanded(flex: 2, child: _JapHeaderCell(label: 'Domein')),
-          Expanded(flex: 1, child: _JapHeaderCell(label: 'Prioriteit')),
-          Expanded(flex: 4, child: _JapHeaderCell(label: 'Realisatie')),
-        ],
-      ),
-    );
-  }
-}
-
-class _JapTableRow extends StatelessWidget {
-  const _JapTableRow({required this.item, required this.onTap});
-
-  final _CombinedListItem item;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(flex: 1, child: _JapTextCell(item.yearLabel)),
-          Expanded(flex: 3, child: _JapTextCell(item.goalMeasure, maxLines: 2)),
-          Expanded(flex: 2, child: _JapTextCell(item.domain)),
-          Expanded(flex: 1, child: _JapTextCell(item.priorityLabel)),
-          Expanded(
-            flex: 4,
-            child: _JapTextCell(
-              item.realisationLabel,
-              color: _japValueColor(item.realisationLabel),
-            ),
-          ),
-        ],
       ),
     );
   }

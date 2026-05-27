@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/jap_comment.dart';
+import '../theme/app_theme.dart';
 
 class CommentsSection extends StatefulWidget {
   final List<JapComment> comments;
@@ -158,7 +159,7 @@ class _CommentsSectionState extends State<CommentsSection> {
                   height: 32,
                   margin: const EdgeInsets.only(bottom: 2),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF8CC63F),
+                    color: kBrandGreen,
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: const Center(
@@ -196,7 +197,7 @@ class _CommentsSectionState extends State<CommentsSection> {
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: const BorderSide(
-                            color: Color(0xFF8CC63F), width: 1.5),
+                            color: kBrandGreen, width: 1.5),
                       ),
                       filled: true,
                       fillColor: const Color(0xFFF9FAF6),
@@ -209,7 +210,7 @@ class _CommentsSectionState extends State<CommentsSection> {
                   child: ElevatedButton(
                     onPressed: _submitting ? null : _submit,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF8CC63F),
+                      backgroundColor: kBrandGreen,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       shape: RoundedRectangleBorder(

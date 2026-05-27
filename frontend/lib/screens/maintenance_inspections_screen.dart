@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -250,19 +252,6 @@ class _MaintenanceInspectionsScreenState
       return Colors.orange;
     }
     return Colors.grey[600]!;
-  }
-
-  Color _getStatusColor(String? status) {
-    switch (_getStatusLabel(status)) {
-      case 'Uitgevoerd':
-        return Colors.green;
-      case 'In uitvoering':
-        return Colors.blue;
-      case 'Nog niet uitgevoerd':
-        return Colors.red;
-      default:
-        return Colors.grey[600]!;
-    }
   }
 
   String _getStatusLabel(String? status) {
@@ -571,141 +560,130 @@ class _MaintenanceInspectionsScreenState
     );
   }
 
+  static const double _maintenanceTableColumnGap = 10;
+  static const int _equipmentFlex = 23;
+  static const int _institutionFlex = 20;
+  static const int _locationsFlex = 20;
+  static const int _frequencyFlex = 12;
+  static const int _statusFlex = 13;
+  static const int _dueDateFlex = 14;
+  static const double _minMaintenanceTableWidth = 1080;
+
   Widget _buildInspectionTable({double minHeight = 0, double minWidth = 0}) {
-    final rows = filteredInspections
-        .map((i) => _buildInspectionDataRow(i))
-        .toList();
-    final availableWidth = minWidth > 0 ? minWidth - 32 : 980.0;
-    final tableWidth = availableWidth > 980 ? availableWidth : 980.0;
     const bottomGap = 16.0;
-    final tableHeight = minHeight > 44 ? minHeight - 44 : 384.0;
-    const Map<int, TableColumnWidth> columnWidths = {
-      0: FlexColumnWidth(2.3),
-      1: FlexColumnWidth(2.0),
-      2: FlexColumnWidth(2.0),
-      3: FlexColumnWidth(1.5),
-      4: FlexColumnWidth(1.3),
-      5: FlexColumnWidth(1.4),
-    };
+    const headerHeight = 48.0;
+    const footerHeight = 40.0;
+    final tableHeight = minHeight > (headerHeight + footerHeight + bottomGap)
+        ? minHeight - bottomGap
+        : 420.0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: bottomGap),
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE4E9DD)),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E6DD)),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SizedBox(
-              width: tableWidth,
-              height: tableHeight,
-              child: Column(
-                children: [
-                  Table(
-                    columnWidths: columnWidths,
-                    children: [_buildInspectionHeaderRow()],
-                  ),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.vertical,
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: Table(
-                          columnWidths: columnWidths,
-                          children: rows,
+        borderRadius: BorderRadius.circular(18),
+        child: LayoutBuilder(
+          builder: (context, c) {
+            final width =
+                math.max(c.maxWidth, _minMaintenanceTableWidth).toDouble();
+
+            return SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                width: width,
+                height: tableHeight,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const _MaintenanceTableHeader(),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.vertical,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: List<Widget>.generate(
+                            filteredInspections.length,
+                            (index) {
+                              final inspection = filteredInspections[index];
+                              return _MaintenanceTableRow(
+                                striped: index.isOdd,
+                                onTap: () => _openInspectionDetail(inspection),
+                                cells: [
+                                  _MaintenanceCellData(
+                                    flex: _equipmentFlex,
+                                    child: _MaintenanceCellText(
+                                      inspection.equipment,
+                                      emphasized: true,
+                                    ),
+                                  ),
+                                  _MaintenanceCellData(
+                                    flex: _institutionFlex,
+                                    child: _MaintenanceCellText(
+                                      inspection.inspectionInstitution,
+                                    ),
+                                  ),
+                                  _MaintenanceCellData(
+                                    flex: _locationsFlex,
+                                    child: _MaintenanceCellText(
+                                      inspection.locations.join(', '),
+                                    ),
+                                  ),
+                                  _MaintenanceCellData(
+                                    flex: _frequencyFlex,
+                                    child: _MaintenanceCellText(
+                                      inspection.frequency,
+                                    ),
+                                  ),
+                                  _MaintenanceCellData(
+                                    flex: _statusFlex,
+                                    child: _MaintenanceStatusChip(
+                                      label: _getStatusLabel(inspection.status),
+                                    ),
+                                  ),
+                                  _MaintenanceCellData(
+                                    flex: _dueDateFlex,
+                                    child: _MaintenanceCellText(
+                                      _formatDate(inspection.dueDate),
+                                      color: _getDateColor(inspection.dueDate),
+                                      weight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFFBFCF8),
+                        border: Border(
+                          top: BorderSide(color: Color(0xFFE8ECE3)),
+                        ),
+                      ),
+                      child: const Text(
+                        'Klik op een rij om alle details en de planning te openen.',
+                        style: TextStyle(
+                          color: Color(0xFF6B7367),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  TableRow _buildInspectionHeaderRow() {
-    return TableRow(
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFE4E9DD))),
-      ),
-      children: const [
-        _MaintenanceHeaderCell(label: 'Toestel/Instalatie'),
-        _MaintenanceHeaderCell(label: 'Keurinstelling'),
-        _MaintenanceHeaderCell(label: 'Vestigingen'),
-        _MaintenanceHeaderCell(label: 'Frequentie'),
-        _MaintenanceHeaderCell(label: 'Status'),
-        _MaintenanceHeaderCell(label: 'Keuren voor', isLast: true),
-      ],
-    );
-  }
-
-  TableRow _buildInspectionDataRow(MaintenanceInspection inspection) {
-    void openDetail() {
-      _openInspectionDetail(inspection);
-    }
-
-    Widget tappable(Widget child) {
-      return GestureDetector(onTap: openDetail, child: child);
-    }
-
-    return TableRow(
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFF0F2EC))),
-      ),
-      children: [
-        tappable(_buildInspectionTextCell(inspection.equipment)),
-        tappable(_buildInspectionTextCell(inspection.inspectionInstitution)),
-        tappable(_buildInspectionTextCell(inspection.locations.join(', '))),
-        tappable(_buildInspectionTextCell(inspection.frequency)),
-        tappable(
-          _buildInspectionTextCell(
-            _getStatusLabel(inspection.status),
-            color: _getStatusColor(inspection.status),
-            weight: FontWeight.w500,
-          ),
-        ),
-        tappable(
-          _buildInspectionTextCell(
-            _formatDate(inspection.dueDate),
-            color: _getDateColor(inspection.dueDate),
-            weight: FontWeight.w500,
-            isLast: true,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInspectionTextCell(
-    String value, {
-    Color? color,
-    FontWeight weight = FontWeight.w400,
-    bool isLast = false,
-  }) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: isLast ? 20 : 16,
-        top: 16,
-        bottom: 16,
-      ),
-      child: Text(
-        value,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontSize: 13,
-          color: color ?? const Color(0xFF4D5548),
-          fontWeight: weight,
+            );
+          },
         ),
       ),
     );
@@ -876,27 +854,228 @@ class _MaintenanceInspectionsScreenState
   }
 }
 
-class _MaintenanceHeaderCell extends StatelessWidget {
-  const _MaintenanceHeaderCell({required this.label, this.isLast = false});
-
-  final String label;
-  final bool isLast;
+class _MaintenanceTableHeader extends StatelessWidget {
+  const _MaintenanceTableHeader();
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: isLast ? 20 : 16,
-        top: 14,
-        bottom: 14,
+    return Container(
+      color: kSurfaceMuted,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        children: _withMaintenanceTableColumnGaps(
+          const [
+            _MaintenanceHeaderColumn(
+              label: 'Toestel/Instalatie',
+              flex: _MaintenanceInspectionsScreenState._equipmentFlex,
+            ),
+            _MaintenanceHeaderColumn(
+              label: 'Keurinstelling',
+              flex: _MaintenanceInspectionsScreenState._institutionFlex,
+            ),
+            _MaintenanceHeaderColumn(
+              label: 'Vestigingen',
+              flex: _MaintenanceInspectionsScreenState._locationsFlex,
+            ),
+            _MaintenanceHeaderColumn(
+              label: 'Frequentie',
+              flex: _MaintenanceInspectionsScreenState._frequencyFlex,
+            ),
+            _MaintenanceHeaderColumn(
+              label: 'Status',
+              flex: _MaintenanceInspectionsScreenState._statusFlex,
+            ),
+            _MaintenanceHeaderColumn(
+              label: 'Keuren voor',
+              flex: _MaintenanceInspectionsScreenState._dueDateFlex,
+            ),
+          ],
+        ),
       ),
+    );
+  }
+}
+
+class _MaintenanceHeaderColumn extends StatelessWidget {
+  const _MaintenanceHeaderColumn({required this.label, required this.flex});
+
+  final String label;
+  final int flex;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      flex: flex,
       child: Text(
         label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: const TextStyle(
           fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: Color(0xFF6B7A62),
+          fontWeight: FontWeight.w700,
+          color: Color(0xFF545C50),
+        ),
+      ),
+    );
+  }
+}
+
+class _MaintenanceTableRow extends StatefulWidget {
+  const _MaintenanceTableRow({
+    required this.cells,
+    required this.onTap,
+    required this.striped,
+  });
+
+  final List<_MaintenanceCellData> cells;
+  final VoidCallback onTap;
+  final bool striped;
+
+  @override
+  State<_MaintenanceTableRow> createState() => _MaintenanceTableRowState();
+}
+
+class _MaintenanceTableRowState extends State<_MaintenanceTableRow> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final baseColor = widget.striped ? const Color(0xFFF9FAF6) : kSurface;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: Material(
+        color: _hovered ? kSurfaceHover : baseColor,
+        child: InkWell(
+          onTap: widget.onTap,
+          child: Container(
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: Color(0xFFE8ECE3))),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+            child: Row(
+              children: _withMaintenanceTableColumnGaps(
+                widget.cells.map((cell) {
+                  return Expanded(
+                    flex: cell.flex,
+                    child: Align(
+                      alignment: cell.alignment,
+                      child: cell.child,
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+List<Widget> _withMaintenanceTableColumnGaps(List<Widget> children) {
+  final spacedChildren = <Widget>[];
+
+  for (var index = 0; index < children.length; index += 1) {
+    if (index > 0) {
+      spacedChildren.add(
+        const SizedBox(
+          width: _MaintenanceInspectionsScreenState._maintenanceTableColumnGap,
+        ),
+      );
+    }
+
+    spacedChildren.add(children[index]);
+  }
+
+  return spacedChildren;
+}
+
+class _MaintenanceCellData {
+  const _MaintenanceCellData({required this.flex, required this.child})
+      : alignment = Alignment.centerLeft;
+
+  final int flex;
+  final Widget child;
+  final Alignment alignment;
+}
+
+class _MaintenanceCellText extends StatelessWidget {
+  const _MaintenanceCellText(
+    this.value, {
+    this.color,
+    this.emphasized = false,
+    this.weight,
+  });
+
+  final String value;
+  final Color? color;
+  final bool emphasized;
+  final FontWeight? weight;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: value,
+      waitDuration: const Duration(milliseconds: 450),
+      child: Text(
+        value,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: color ?? const Color(0xFF2F382E),
+          fontSize: 13.5,
+          fontWeight: weight ?? (emphasized ? FontWeight.w600 : FontWeight.w500),
+          height: 1.3,
+        ),
+      ),
+    );
+  }
+}
+
+class _MaintenanceStatusChip extends StatelessWidget {
+  const _MaintenanceStatusChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalized = label.trim().toLowerCase();
+    late final Color backgroundColor;
+    late final Color textColor;
+
+    if (normalized == 'uitgevoerd') {
+      backgroundColor = kSuccessBg;
+      textColor = kSuccess;
+    } else if (normalized == 'in uitvoering') {
+      backgroundColor = kInfoBg;
+      textColor = kInfo;
+    } else if (normalized == 'nog niet uitgevoerd') {
+      backgroundColor = kDangerBg;
+      textColor = kDanger;
+    } else {
+      backgroundColor = kSurfaceMuted;
+      textColor = kTextTertiary;
+    }
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(kRadiusPill),
+        ),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: textColor,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+          ),
         ),
       ),
     );

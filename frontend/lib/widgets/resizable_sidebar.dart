@@ -137,9 +137,9 @@ class _ResizableSidebarState extends State<ResizableSidebar> {
                         ),
                         icon: Icon(
                           _expanded
-                              ? Icons.keyboard_double_arrow_left_rounded
-                              : Icons.keyboard_double_arrow_right_rounded,
-                          size: 22,
+                              ? Icons.menu_open_rounded
+                              : Icons.menu_rounded,
+                          size: 20,
                         ),
                       ),
                     ),

@@ -1442,99 +1442,78 @@ class _JapGppScreenState extends State<JapGppScreen> {
         return a.goalMeasure.compareTo(b.goalMeasure);
       });
 
-    final rows = combinedItems.map((it) {
-      return TableRow(
-        decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Color(0xFFF0F2EC)))),
-        children: [
-          _tappableJapCell(it, it.yearLabel),
-          _tappableJapCell(it, it.goalMeasure),
-          _tappableJapCell(it, it.domain),
-          _tappableJapCell(it, it.priorityLabel),
-          _tappableJapCell(it, it.realisationLabel, isLast: true, color: _japValueColor(it.realisationLabel)),
-        ],
-      );
-    }).toList();
-
-    final availableWidth =  (MediaQuery.of(context).size.width) - 32;
-    final tableWidth = availableWidth > 980 ? availableWidth : 980.0;
     final tableHeight = 420.0;
-    const Map<int, TableColumnWidth> columnWidths = {
-      0: FlexColumnWidth(1.0),
-      1: FlexColumnWidth(3.0),
-      2: FlexColumnWidth(2.0),
-      3: FlexColumnWidth(1.0),
-      4: FlexColumnWidth(2.0),
-    };
 
     return Container(
       margin: const EdgeInsets.fromLTRB(0, 8, 0, 8),
       width: double.infinity,
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE4E9DD))),
+      height: tableHeight,
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(18), border: Border.all(color: const Color(0xFFE2E6DD))),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SizedBox(
-              width: tableWidth,
-              height: tableHeight,
-              child: Column(
-                children: [
-                  Table(columnWidths: columnWidths, children: [_buildJapHeaderRow()]),
-                  Expanded(
-                    child: combinedItems.isEmpty
-                        ? const Center(child: Text('Geen resultaten', style: TextStyle(fontSize: 13, color: Color(0xFF4D5548))))
-                        : SingleChildScrollView(
-                            scrollDirection: Axis.vertical,
-                            child: Padding(padding: const EdgeInsets.only(bottom: 12), child: Table(columnWidths: columnWidths, children: rows)),
-                          ),
-                  ),
-                ],
+        borderRadius: BorderRadius.circular(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const _JapGppTableHeader(),
+            Expanded(
+              child: combinedItems.isEmpty
+                  ? const Center(child: Text('Geen resultaten', style: TextStyle(fontSize: 13, color: Color(0xFF4D5548))))
+                  : SingleChildScrollView(
+                      scrollDirection: Axis.vertical,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: List<Widget>.generate(combinedItems.length, (index) {
+                          final item = combinedItems[index];
+                          return _JapGppTableRow(
+                            striped: index.isOdd,
+                            onTap: () {
+                              if (item.isJap) {
+                                if (item.jap != null) _selectJap(item.jap!);
+                              } else {
+                                if (item.gpp != null) _selectGpp(item.gpp!);
+                              }
+                            },
+                            cells: [
+                              _JapGppCellData(
+                                flex: _japYearFlex,
+                                child: _JapGppCellText(item.yearLabel, emphasized: true),
+                              ),
+                              _JapGppCellData(
+                                flex: _japGoalFlex,
+                                child: _JapGppCellText(item.goalMeasure, emphasized: true, maxLines: 2),
+                              ),
+                              _JapGppCellData(
+                                flex: _japDomainFlex,
+                                child: _JapGppCellText(item.domain),
+                              ),
+                              _JapGppCellData(
+                                flex: _japPriorityFlex,
+                                child: _JapGppPriorityChip(label: item.priorityLabel),
+                              ),
+                              _JapGppCellData(
+                                flex: _japRealisationFlex,
+                                child: _JapGppRealisationChip(label: item.realisationLabel),
+                              ),
+                            ],
+                          );
+                        }),
+                      ),
+                    ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: const BoxDecoration(
+                color: Color(0xFFFBFCF8),
+                border: Border(top: BorderSide(color: Color(0xFFE8ECE3))),
+              ),
+              child: const Text(
+                'Klik op een rij om de JAP/GPP-details te openen.',
+                style: TextStyle(color: Color(0xFF6B7367), fontSize: 12, fontWeight: FontWeight.w600),
               ),
             ),
-          ),
+          ],
         ),
       ),
-    );
-  }
-
-  TableRow _buildJapHeaderRow() {
-    return TableRow(decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Color(0xFFE4E9DD)))), children: const [
-      _JapHeaderCell(label: 'Jaar'),
-      _JapHeaderCell(label: 'Doelstelling - maatregel'),
-      _JapHeaderCell(label: 'Domein'),
-      _JapHeaderCell(label: 'Prioriteit'),
-      _JapHeaderCell(label: 'Realisatie', isLast: true),
-    ]);
-  }
-
-  Widget _buildJapTableTextCell(String value, {bool isLast = false, Color? color}) {
-    return Padding(
-      padding: EdgeInsets.only(left: 16, right: isLast ? 20 : 16, top: 16, bottom: 16),
-      child: Text(
-        value,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontSize: 13,
-          color: color ?? const Color(0xFF4D5548),
-        ),
-      ),
-    );
-  }
-
-  Widget _tappableJapCell(_CombinedListItem item, String value, {bool isLast = false, Color? color}) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        if (item.isJap) {
-          if (item.jap != null) _selectJap(item.jap!);
-        } else {
-          if (item.gpp != null) _selectGpp(item.gpp!);
-        }
-      },
-      child: _buildJapTableTextCell(value, isLast: isLast, color: color),
     );
   }
 
@@ -1619,23 +1598,249 @@ class _CombinedListItem {
   }
 }
 
-class _JapHeaderCell extends StatelessWidget {
-  const _JapHeaderCell({required this.label, this.isLast = false});
+const double _japGppTableColumnGap = 10;
+const int _japYearFlex = 10;
+const int _japGoalFlex = 30;
+const int _japDomainFlex = 20;
+const int _japPriorityFlex = 10;
+const int _japRealisationFlex = 20;
 
-  final String label;
-  final bool isLast;
+class _JapGppTableHeader extends StatelessWidget {
+  const _JapGppTableHeader();
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(left: 16, right: isLast ? 20 : 16, top: 14, bottom: 14),
+    return Container(
+      color: kSurfaceMuted,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        children: _withJapGppTableColumnGaps(
+          const [
+            _JapGppHeaderColumn(label: 'Jaar', flex: _japYearFlex),
+            _JapGppHeaderColumn(label: 'Doelstelling - maatregel', flex: _japGoalFlex),
+            _JapGppHeaderColumn(label: 'Domein', flex: _japDomainFlex),
+            _JapGppHeaderColumn(label: 'Prioriteit', flex: _japPriorityFlex),
+            _JapGppHeaderColumn(label: 'Realisatie', flex: _japRealisationFlex),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _JapGppHeaderColumn extends StatelessWidget {
+  const _JapGppHeaderColumn({required this.label, required this.flex});
+
+  final String label;
+  final int flex;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      flex: flex,
       child: Text(
         label,
-        textAlign: TextAlign.left,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: const TextStyle(
           fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: Color(0xFF6B7A62),
+          fontWeight: FontWeight.w700,
+          color: Color(0xFF545C50),
+        ),
+      ),
+    );
+  }
+}
+
+class _JapGppTableRow extends StatefulWidget {
+  const _JapGppTableRow({
+    required this.cells,
+    required this.onTap,
+    required this.striped,
+  });
+
+  final List<_JapGppCellData> cells;
+  final VoidCallback onTap;
+  final bool striped;
+
+  @override
+  State<_JapGppTableRow> createState() => _JapGppTableRowState();
+}
+
+class _JapGppTableRowState extends State<_JapGppTableRow> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final baseColor = widget.striped ? const Color(0xFFF9FAF6) : kSurface;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: Material(
+        color: _hovered ? kSurfaceHover : baseColor,
+        child: InkWell(
+          onTap: widget.onTap,
+          child: Container(
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: Color(0xFFE8ECE3))),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+            child: Row(
+              children: _withJapGppTableColumnGaps(
+                widget.cells.map((cell) {
+                  return Expanded(
+                    flex: cell.flex,
+                    child: Align(
+                      alignment: cell.alignment,
+                      child: cell.child,
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+List<Widget> _withJapGppTableColumnGaps(List<Widget> children) {
+  final spacedChildren = <Widget>[];
+
+  for (var index = 0; index < children.length; index += 1) {
+    if (index > 0) {
+      spacedChildren.add(const SizedBox(width: _japGppTableColumnGap));
+    }
+
+    spacedChildren.add(children[index]);
+  }
+
+  return spacedChildren;
+}
+
+class _JapGppCellData {
+  const _JapGppCellData({required this.flex, required this.child})
+      : alignment = Alignment.centerLeft;
+
+  final int flex;
+  final Widget child;
+  final Alignment alignment;
+}
+
+class _JapGppCellText extends StatelessWidget {
+  const _JapGppCellText(
+    this.value, {
+    this.emphasized = false,
+    this.maxLines = 1,
+  });
+
+  final String value;
+  final bool emphasized;
+  final int maxLines;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: value,
+      waitDuration: const Duration(milliseconds: 450),
+      child: Text(
+        value,
+        maxLines: maxLines,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: const Color(0xFF2F382E),
+          fontSize: 13.5,
+          fontWeight: emphasized ? FontWeight.w600 : FontWeight.w500,
+          height: 1.3,
+        ),
+      ),
+    );
+  }
+}
+
+class _JapGppPriorityChip extends StatelessWidget {
+  const _JapGppPriorityChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalized = label.trim().toLowerCase();
+    final Color backgroundColor;
+    final Color textColor;
+
+    if (normalized == 'hoog') {
+      backgroundColor = kDangerBg;
+      textColor = kDanger;
+    } else if (normalized == 'middel') {
+      backgroundColor = kWarningBg;
+      textColor = kWarning;
+    } else {
+      backgroundColor = kSuccessBg;
+      textColor = kSuccess;
+    }
+
+    return _JapGppChip(label: label, backgroundColor: backgroundColor, textColor: textColor);
+  }
+}
+
+class _JapGppRealisationChip extends StatelessWidget {
+  const _JapGppRealisationChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = _japValueColor(label);
+    final normalized = label.trim().toLowerCase();
+    final Color backgroundColor;
+
+    if (normalized == 'uitgevoerd') {
+      backgroundColor = kSuccessBg;
+    } else if (normalized == 'in uitvoering') {
+      backgroundColor = kInfoBg;
+    } else if (normalized == 'nog niet' || normalized == 'nog niet uitgevoerd') {
+      backgroundColor = kDangerBg;
+    } else {
+      backgroundColor = kSurfaceMuted;
+    }
+
+    return _JapGppChip(label: label, backgroundColor: backgroundColor, textColor: textColor);
+  }
+}
+
+class _JapGppChip extends StatelessWidget {
+  const _JapGppChip({
+    required this.label,
+    required this.backgroundColor,
+    required this.textColor,
+  });
+
+  final String label;
+  final Color backgroundColor;
+  final Color textColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(kRadiusPill),
+        ),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: textColor,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+          ),
         ),
       ),
     );

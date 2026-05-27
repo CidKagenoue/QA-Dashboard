@@ -1522,7 +1522,7 @@ class _TableHeader extends StatelessWidget {
   }
 }
 
-class _TicketTableRow extends StatelessWidget {
+class _TicketTableRow extends StatefulWidget {
   const _TicketTableRow({
     required this.cells,
     required this.onTap,
@@ -1534,24 +1534,39 @@ class _TicketTableRow extends StatelessWidget {
   final bool striped;
 
   @override
+  State<_TicketTableRow> createState() => _TicketTableRowState();
+}
+
+class _TicketTableRowState extends State<_TicketTableRow> {
+  bool _hovered = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: striped ? const Color(0xFFF9FAF6) : Colors.white,
-        border: const Border(top: BorderSide(color: Color(0xFFE8ECE3))),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-          child: Row(
-            children: _withTableColumnGaps(
-              cells.map((cell) {
-                return Expanded(
-                  flex: cell.flex,
-                  child: Align(alignment: cell.alignment, child: cell.child),
-                );
-              }).toList(),
+    final baseColor =
+        widget.striped ? const Color(0xFFF9FAF6) : Colors.white;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: Material(
+        color: _hovered ? kSurfaceHover : baseColor,
+        child: InkWell(
+          onTap: widget.onTap,
+          child: Container(
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: Color(0xFFE8ECE3))),
+            ),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+            child: Row(
+              children: _withTableColumnGaps(
+                widget.cells.map((cell) {
+                  return Expanded(
+                    flex: cell.flex,
+                    child: Align(alignment: cell.alignment, child: cell.child),
+                  );
+                }).toList(),
+              ),
             ),
           ),
         ),

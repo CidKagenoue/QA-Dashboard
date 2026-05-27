@@ -436,12 +436,20 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 1040;
         if (wide) {
+          final sideColumnWidth = (constraints.maxWidth * 0.34).clamp(
+            420.0,
+            540.0,
+          );
+
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(flex: 7, child: _buildPrimaryColumn(ticket)),
               const SizedBox(width: 18),
-              SizedBox(width: 380, child: _buildSideColumn(ticket)),
+              SizedBox(
+                width: sideColumnWidth,
+                child: _buildSideColumn(ticket),
+              ),
             ],
           );
         }

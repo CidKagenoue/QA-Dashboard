@@ -13,23 +13,25 @@ class _ActionStatusMenuButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final foreground = isOk ? const Color(0xFF5F8424) : const Color(0xFFC43C33);
-    final background = isOk ? const Color(0xFFEAF4D9) : const Color(0xFFFFECEB);
-    final border = isOk ? const Color(0xFF98C74D) : const Color(0xFFE8A09C);
+    final fg = isOk ? kSuccess : kDanger;
+    final bg = isOk ? kSuccessBg : kDangerBg;
+    final border = isOk ? kSuccessBorder : kDangerBorder;
 
     return PopupMenuButton<bool>(
       enabled: !isSaving,
       tooltip: 'Status wijzigen',
       onSelected: onChanged,
+      offset: const Offset(0, 48),
+      position: PopupMenuPosition.under,
       itemBuilder: (context) => const [
         PopupMenuItem(value: false, child: Text('NOK')),
         PopupMenuItem(value: true, child: Text('OK')),
       ],
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: background,
-          borderRadius: BorderRadius.circular(999),
+          color: bg,
+          borderRadius: BorderRadius.circular(kRadiusPill),
           border: Border.all(color: border),
         ),
         child: Row(
@@ -38,9 +40,10 @@ class _ActionStatusMenuButton extends StatelessWidget {
             Text(
               isOk ? 'Status OK' : 'Status NOK',
               style: TextStyle(
-                color: foreground,
+                color: fg,
                 fontSize: 13,
                 fontWeight: FontWeight.w800,
+                letterSpacing: 0.2,
               ),
             ),
             const SizedBox(width: 8),
@@ -50,14 +53,14 @@ class _ActionStatusMenuButton extends StatelessWidget {
                 height: 14,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: foreground,
+                  color: fg,
                 ),
               )
             else
               Icon(
                 Icons.keyboard_arrow_down_rounded,
                 size: 18,
-                color: foreground,
+                color: fg,
               ),
           ],
         ),
@@ -66,56 +69,99 @@ class _ActionStatusMenuButton extends StatelessWidget {
   }
 }
 
-class _HeaderIconButton extends StatelessWidget {
-  const _HeaderIconButton({
-    required this.icon,
-    required this.tooltip,
-    required this.onPressed,
-    required this.foregroundColor,
-    required this.borderColor,
-    required this.backgroundColor,
-    this.isLoading = false,
-  });
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.isOk});
 
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback? onPressed;
-  final Color foregroundColor;
-  final Color borderColor;
-  final Color backgroundColor;
-  final bool isLoading;
+  final bool isOk;
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = isOk ? kSuccess : kDanger;
+    final bg = isOk ? kSuccessBg : kDangerBg;
+    final border = isOk ? kSuccessBorder : kDangerBorder;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(kRadiusPill),
+        border: Border.all(color: border),
+      ),
+      child: Text(
+        isOk ? 'OK' : 'NOK',
+        style: TextStyle(
+          fontSize: 11.5,
+          fontWeight: FontWeight.w800,
+          color: fg,
+          letterSpacing: 0.3,
+        ),
+      ),
+    );
+  }
+}
+
+class _BackButton extends StatelessWidget {
+  const _BackButton({required this.onTap});
+
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: tooltip,
-      child: Container(
-        width: 42,
-        height: 42,
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: borderColor),
-        ),
-        child: IconButton(
-          onPressed: isLoading ? null : onPressed,
-          icon: isLoading
-              ? SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: foregroundColor,
-                  ),
-                )
-              : Icon(icon, size: 20),
-          color: foregroundColor,
-          disabledColor: foregroundColor.withValues(alpha: 0.45),
-          padding: EdgeInsets.zero,
-          visualDensity: VisualDensity.compact,
+      message: 'Terug naar acties',
+      child: Material(
+        color: kSurfaceMuted,
+        borderRadius: BorderRadius.circular(kRadiusMd),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(kRadiusMd),
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(kRadiusMd),
+              border: Border.all(color: kBorder),
+            ),
+            alignment: Alignment.center,
+            child: const Icon(Icons.arrow_back_rounded,
+                color: kTextPrimary, size: 20),
+          ),
         ),
       ),
     );
+  }
+}
+
+class _Breadcrumb extends StatelessWidget {
+  const _Breadcrumb({required this.segments});
+  final List<String> segments;
+
+  @override
+  Widget build(BuildContext context) {
+    final children = <Widget>[];
+    for (var i = 0; i < segments.length; i++) {
+      final isLast = i == segments.length - 1;
+      children.add(
+        Text(
+          segments[i],
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: isLast ? FontWeight.w700 : FontWeight.w500,
+            color: isLast ? kTextSecondary : kTextTertiary,
+            letterSpacing: 0.1,
+          ),
+        ),
+      );
+      if (!isLast) {
+        children.add(const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 8),
+          child: Icon(Icons.chevron_right_rounded,
+              size: 16, color: kTextMuted),
+        ));
+      }
+    }
+
+    return Row(mainAxisSize: MainAxisSize.min, children: children);
   }
 }
 
@@ -127,17 +173,19 @@ class _ActionMetric extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
-          width: 34,
-          height: 34,
+          width: 36,
+          height: 36,
           decoration: BoxDecoration(
-            color: const Color(0xFFEAF4D9),
-            borderRadius: BorderRadius.circular(9),
+            color: kBrandGreenSoft,
+            borderRadius: BorderRadius.circular(kRadiusSm),
           ),
-          child: Icon(data.icon, size: 18, color: const Color(0xFF5F8424)),
+          alignment: Alignment.center,
+          child: Icon(data.icon, size: 18, color: kBrandGreenDeep),
         ),
-        const SizedBox(width: 9),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -146,22 +194,23 @@ class _ActionMetric extends StatelessWidget {
               Text(
                 data.label,
                 style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF6F7A68),
-                  height: 1.1,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: kTextTertiary,
+                  height: 1.2,
+                  letterSpacing: 0.2,
                 ),
               ),
-              const SizedBox(height: 3),
+              const SizedBox(height: 4),
               Text(
                 data.value,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF243022),
-                  height: 1.1,
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w700,
+                  color: kTextPrimary,
+                  height: 1.2,
                 ),
               ),
             ],
@@ -201,33 +250,43 @@ class _SectionPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFFFBFCF8),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE4E9DD)),
+        color: kSurface,
+        borderRadius: BorderRadius.circular(kRadiusLg),
+        border: Border.all(color: kBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: 18, color: const Color(0xFF6B7A62)),
-              const SizedBox(width: 8),
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: kBrandGreenSubtle,
+                  borderRadius: BorderRadius.circular(kRadiusSm),
+                ),
+                alignment: Alignment.center,
+                child: Icon(icon, size: 18, color: kBrandGreenDeep),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   title,
                   style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF2B3424),
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w700,
+                    color: kTextPrimary,
+                    letterSpacing: -0.1,
                   ),
                 ),
               ),
               ?trailing,
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           child,
         ],
       ),
@@ -245,7 +304,7 @@ class _InfoGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        const gap = 16.0;
+        const gap = 18.0;
         final columnCount =
             ((constraints.maxWidth + gap) / (minItemWidth + gap)).floor().clamp(
               1,
@@ -256,7 +315,7 @@ class _InfoGrid extends StatelessWidget {
 
         return Wrap(
           spacing: gap,
-          runSpacing: 14,
+          runSpacing: 16,
           children: fields.map((field) {
             return SizedBox(
               width: field.wide ? constraints.maxWidth : itemWidth,
@@ -298,19 +357,20 @@ class _InfoItem extends StatelessWidget {
           label,
           style: const TextStyle(
             fontSize: 12.5,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF6F7A68),
+            fontWeight: FontWeight.w600,
+            color: kTextTertiary,
+            letterSpacing: 0.2,
             height: 1.2,
           ),
         ),
-        const SizedBox(height: 5),
+        const SizedBox(height: 6),
         Text(
           value,
           style: TextStyle(
-            fontSize: 14.5,
-            fontWeight: FontWeight.w700,
-            color: isEmpty ? const Color(0xFF6F7A68) : const Color(0xFF243022),
-            height: 1.35,
+            fontSize: 15.5,
+            fontWeight: FontWeight.w600,
+            color: isEmpty ? kTextMuted : kTextPrimary,
+            height: 1.5,
           ),
         ),
       ],
@@ -328,11 +388,11 @@ class _InlineError extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF6F6),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFF1C9C9)),
+        color: kDangerBg,
+        borderRadius: BorderRadius.circular(kRadiusMd),
+        border: Border.all(color: kDangerBorder),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -340,14 +400,14 @@ class _InlineError extends StatelessWidget {
           const Icon(
             Icons.error_outline_rounded,
             size: 18,
-            color: Colors.redAccent,
+            color: kDanger,
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               message,
               style: const TextStyle(
-                color: Color(0xFFC43C33),
+                color: kDanger,
                 fontWeight: FontWeight.w600,
               ),
             ),

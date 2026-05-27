@@ -5,6 +5,7 @@ import '../models/ova_assigned_action.dart';
 import '../models/ova_ticket.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../theme/app_theme.dart';
 import 'ova_ticket_detail_screen.dart';
 import 'ova_ticket_wizard_screen.dart';
 
@@ -161,7 +162,7 @@ class _OvaActionDetailScreenState extends State<OvaActionDetailScreen> {
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFD32F2F),
+                backgroundColor: kDanger,
                 foregroundColor: Colors.white,
               ),
               child: const Text('Verwijderen'),
@@ -271,7 +272,7 @@ class _OvaActionDetailScreenState extends State<OvaActionDetailScreen> {
         _close();
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFF6F6F3),
+        backgroundColor: kBackground,
         body: LayoutBuilder(
           builder: (context, constraints) {
             final compact = constraints.maxWidth < 760;
@@ -285,35 +286,25 @@ class _OvaActionDetailScreenState extends State<OvaActionDetailScreen> {
                 Container(
                   width: double.infinity,
                   padding: compact
-                      ? const EdgeInsets.all(20)
-                      : const EdgeInsets.all(28),
+                      ? const EdgeInsets.all(22)
+                      : const EdgeInsets.fromLTRB(32, 28, 32, 32),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(compact ? 18 : 24),
-                    border: Border.all(color: const Color(0xFFE2E6DD)),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x12000000),
-                        blurRadius: 18,
-                        offset: Offset(0, 8),
-                      ),
-                    ],
+                    color: kSurface,
+                    borderRadius: BorderRadius.circular(
+                        compact ? kRadiusLg : kRadius2xl),
+                    border: Border.all(color: kBorder),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Dashboard > OVA > Acties',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFF7B8077),
-                        ),
+                      const _Breadcrumb(
+                        segments: ['Dashboard', 'OVA', 'Acties'],
                       ),
                       const SizedBox(height: 16),
                       _buildHeader(),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 22),
                       _buildSummaryStrip(),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 20),
                       _buildResponsiveContent(),
                     ],
                   ),
@@ -331,29 +322,40 @@ class _OvaActionDetailScreenState extends State<OvaActionDetailScreen> {
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 820;
         final title = Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            IconButton(
-              onPressed: _close,
-              icon: const Icon(Icons.arrow_back_rounded),
-              tooltip: 'Terug naar acties',
-              color: const Color(0xFF243022),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              visualDensity: VisualDensity.compact,
-            ),
-            const SizedBox(width: 12),
+            _BackButton(onTap: _close),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const Text(
+                        'Opvolgactie',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: kTextTertiary,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _StatusPill(isOk: _item.action.isOk),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
                   Text(
-                    'Opvolgactie #${_item.action.id.toString().padLeft(4, '0')}',
+                    '#${_item.action.id.toString().padLeft(4, '0')}',
                     style: const TextStyle(
                       fontSize: 30,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF243022),
+                      color: kTextPrimary,
                       height: 1.1,
+                      letterSpacing: -0.5,
                     ),
                   ),
                 ],
@@ -366,28 +368,33 @@ class _OvaActionDetailScreenState extends State<OvaActionDetailScreen> {
           spacing: 8,
           runSpacing: 8,
           alignment: compact ? WrapAlignment.start : WrapAlignment.end,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             _ActionStatusMenuButton(
               isOk: _item.action.isOk,
               isSaving: _isSaving,
               onChanged: _updateStatus,
             ),
-            _HeaderIconButton(
-              icon: Icons.edit_outlined,
-              tooltip: 'Bewerken',
+            OutlinedButton.icon(
               onPressed: _isDeleting ? null : _openEditWizard,
-              foregroundColor: const Color(0xFF5F8424),
-              borderColor: const Color(0xFF98C74D),
-              backgroundColor: Colors.white,
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: const Text('Bewerken'),
             ),
-            _HeaderIconButton(
-              icon: Icons.delete_outline_rounded,
-              tooltip: 'Verwijderen',
+            OutlinedButton.icon(
               onPressed: _isDeleting || _isSaving ? null : _deleteAction,
-              isLoading: _isDeleting,
-              foregroundColor: const Color(0xFFD32F2F),
-              borderColor: const Color(0xFFF1B5B5),
-              backgroundColor: Colors.white,
+              icon: _isDeleting
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: kDanger),
+                    )
+                  : const Icon(Icons.delete_outline_rounded, size: 18),
+              label: const Text('Verwijderen'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: kDanger,
+                side: const BorderSide(color: kDangerBorder),
+              ),
             ),
           ],
         );
@@ -395,7 +402,7 @@ class _OvaActionDetailScreenState extends State<OvaActionDetailScreen> {
         if (compact) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [title, const SizedBox(height: 16), actions],
+            children: [title, const SizedBox(height: 18), actions],
           );
         }
 
@@ -424,12 +431,12 @@ class _OvaActionDetailScreenState extends State<OvaActionDetailScreen> {
         value: _item.action.isOk ? 'OK' : 'NOK',
       ),
       _ActionMetricData(
-        icon: Icons.event_outlined,
+        icon: Icons.event_rounded,
         label: 'Deadline',
         value: _formatDate(_item.action.dueDate),
       ),
       _ActionMetricData(
-        icon: Icons.schedule_outlined,
+        icon: Icons.schedule_rounded,
         label: 'Timing',
         value: _deadlineStatusLabel(),
       ),
@@ -447,34 +454,35 @@ class _OvaActionDetailScreenState extends State<OvaActionDetailScreen> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFFFBFCF8),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE4E9DD)),
+        color: kSurfaceMuted,
+        borderRadius: BorderRadius.circular(kRadiusLg),
+        border: Border.all(color: kBorder),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           if (constraints.maxWidth >= 900) {
-            return Row(
-              children: metrics.map<Widget>((metric) {
-                return Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: _ActionMetric(data: metric),
-                  ),
-                );
-              }).toList(),
-            );
+            final widgets = <Widget>[];
+            for (var i = 0; i < metrics.length; i++) {
+              widgets.add(Expanded(child: _ActionMetric(data: metrics[i])));
+              if (i != metrics.length - 1) {
+                widgets.add(const SizedBox(
+                  height: 36,
+                  child: VerticalDivider(width: 24, color: kBorderSubtle),
+                ));
+              }
+            }
+            return Row(children: widgets);
           }
 
           final itemWidth = constraints.maxWidth >= 560
-              ? (constraints.maxWidth - 14) / 2
+              ? (constraints.maxWidth - 16) / 2
               : constraints.maxWidth;
 
           return Wrap(
-            spacing: 14,
-            runSpacing: 14,
+            spacing: 16,
+            runSpacing: 16,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               ...metrics.map(
@@ -509,7 +517,7 @@ class _OvaActionDetailScreenState extends State<OvaActionDetailScreen> {
                   ],
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 18),
               SizedBox(width: 460, child: _buildTicketContextPanel()),
             ],
           );
@@ -532,9 +540,9 @@ class _OvaActionDetailScreenState extends State<OvaActionDetailScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildActionPanel(),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         _buildResponsibilityPanel(),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         _buildMetaPanel(),
       ],
     );
@@ -542,7 +550,7 @@ class _OvaActionDetailScreenState extends State<OvaActionDetailScreen> {
 
   Widget _buildActionPanel() {
     return _SectionPanel(
-      title: 'Actie',
+      title: 'Beschrijving',
       icon: Icons.assignment_turned_in_outlined,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -550,10 +558,10 @@ class _OvaActionDetailScreenState extends State<OvaActionDetailScreen> {
           Text(
             _display(_item.action.description),
             style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF243022),
-              height: 1.35,
+              fontSize: 17,
+              fontWeight: FontWeight.w600,
+              color: kTextPrimary,
+              height: 1.55,
             ),
           ),
         ],
@@ -655,7 +663,7 @@ class _OvaActionDetailScreenState extends State<OvaActionDetailScreen> {
   Widget _buildMetaPanel() {
     return _SectionPanel(
       title: 'Historiek',
-      icon: Icons.history_outlined,
+      icon: Icons.history_rounded,
       child: _InfoGrid(
         minItemWidth: 150,
         fields: [

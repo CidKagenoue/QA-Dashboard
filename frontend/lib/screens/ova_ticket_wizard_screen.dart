@@ -6,6 +6,7 @@ import '../models/ova_ticket.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
+import '../theme/app_theme.dart';
 import 'ova_follow_up_action_components.dart';
 
 const List<String> kOvaTicketStepLabels = [
@@ -902,29 +903,32 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x0F000000),
-                        blurRadius: 20,
-                        offset: Offset(0, 6),
-                      ),
-                    ],
+                    color: kSurface,
+                    borderRadius: BorderRadius.circular(kRadius2xl),
+                    border: Border.all(color: kBorder),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Stappenplan OVA-ticket',
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 8),
                       const Text(
-                        'De flow volgt nu de volledige OVA-opbouw: oorzakenanalyse, concrete opvolgacties, effectiviteitscontrole en formele afsluiting.',
+                        'Stappenplan OVA-ticket',
+                        style: TextStyle(
+                          fontSize: 19,
+                          fontWeight: FontWeight.w700,
+                          color: kTextPrimary,
+                          letterSpacing: -0.2,
+                        ),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'De flow volgt de volledige OVA-opbouw: oorzakenanalyse, concrete opvolgacties, effectiviteitscontrole en formele afsluiting.',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: kTextSecondary,
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 22),
                       _WizardStepper(
                         currentStep: _currentStep,
                         storedStep:
@@ -935,35 +939,57 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(28),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x0D000000),
-                        blurRadius: 18,
-                        offset: Offset(0, 6),
-                      ),
-                    ],
+                    color: kSurface,
+                    borderRadius: BorderRadius.circular(kRadius2xl),
+                    border: Border.all(color: kBorder),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: kBrandGreenSoft,
+                              borderRadius: BorderRadius.circular(kRadiusPill),
+                            ),
+                            child: Text(
+                              'Stap ${_currentStep + 1} van ${kOvaTicketStepLabels.length}',
+                              style: const TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w800,
+                                color: kBrandGreenDeep,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
                       Text(
                         _stepLabel(_currentStep),
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.w700),
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: kTextPrimary,
+                          letterSpacing: -0.3,
+                          height: 1.2,
+                        ),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 8),
                       Text(
                         _stepDescription(_currentStep),
                         style: const TextStyle(
-                          color: Color(0xFF5D6656),
-                          height: 1.45,
+                          color: kTextSecondary,
+                          fontSize: 14.5,
+                          height: 1.55,
                         ),
                       ),
                       if (isClosed) ...[
@@ -1912,10 +1938,10 @@ class _WizardStepper extends StatelessWidget {
                       final isCurrent = index == currentStep;
                       final isReachable = locked || index <= accessibleStep;
                       final circleColor = isCurrent || isCompleted
-                          ? const Color(0xFF8CC63F)
+                          ? kBrandGreen
                           : Colors.white;
                       final borderColor = isReachable
-                          ? const Color(0xFF8CC63F)
+                          ? kBrandGreen
                           : const Color(0xFFD4D8CF);
 
                       return Expanded(
@@ -1968,7 +1994,7 @@ class _StepperConnectorPainter extends CustomPainter {
   final int activeProgressStep;
   final double circleRadius;
 
-  static const Color _activeColor = Color(0xFF8CC63F);
+  static const Color _activeColor = kBrandGreen;
   static const Color _inactiveColor = Color(0xFFDDE2D8);
 
   @override

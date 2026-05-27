@@ -7,6 +7,7 @@ import '../models/ova_sort_option.dart';
 import '../models/ova_ticket.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../widgets/design/design_system.dart';
 import 'ova_ticket_wizard_screen.dart';
 
 enum _TicketSection { open, closed }
@@ -480,33 +481,24 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
                 constraints: BoxConstraints(minHeight: minContentHeight),
                 padding: contentPadding,
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(isNarrowPage ? 18 : 24),
-                  border: Border.all(color: const Color(0xFFE2E6DD)),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x12000000),
-                      blurRadius: 18,
-                      offset: Offset(0, 8),
-                    ),
-                  ],
+                  color: kSurface,
+                  borderRadius:
+                      BorderRadius.circular(isNarrowPage ? kRadiusLg : kRadius2xl),
+                  border: Border.all(color: kBorder),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (widget.embedded && widget.onNavigateBack != null) ...[
-                      TextButton.icon(
-                        onPressed: widget.onNavigateBack,
-                        icon: const Icon(Icons.arrow_back_rounded),
-                        label: const Text('OVA overzicht'),
+                      AppBackLink(
+                        label: 'OVA overzicht',
+                        onTap: widget.onNavigateBack!,
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 14),
                     ],
-                    const Text(
-                      'Dashboard > OVA > Tickets',
-                      style: TextStyle(fontSize: 11, color: Color(0xFF7B8077)),
-                    ),
-                    const SizedBox(height: 18),
+                    const AppBreadcrumb(
+                        segments: ['Dashboard', 'OVA', 'Tickets']),
+                    const SizedBox(height: 16),
 
                     LayoutBuilder(
                       builder: (context, c) {
@@ -514,20 +506,23 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
                         final titleBlock = Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
+                            const Text(
                               'OVA Tickets',
-                              style: Theme.of(context).textTheme.headlineMedium
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    color: const Color(0xFF243022),
-                                  ),
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w800,
+                                color: kTextPrimary,
+                                letterSpacing: -0.4,
+                                height: 1.15,
+                              ),
                             ),
                             const SizedBox(height: 8),
                             const Text(
                               'Bekijk alle tickets per status en open elk ticket rechtstreeks voor detailopvolging.',
                               style: TextStyle(
-                                color: Color(0xFF586154),
-                                height: 1.45,
+                                fontSize: 14.5,
+                                color: kTextSecondary,
+                                height: 1.5,
                               ),
                             ),
                           ],
@@ -542,7 +537,7 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
                                 const SizedBox(height: 16),
                                 ElevatedButton.icon(
                                   onPressed: () => _openTicket(),
-                                  icon: const Icon(Icons.add_rounded),
+                                  icon: const Icon(Icons.add_rounded, size: 18),
                                   label: const Text('Nieuw ticket'),
                                 ),
                               ],
@@ -556,14 +551,14 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
                             if (canCreate)
                               ElevatedButton.icon(
                                 onPressed: () => _openTicket(),
-                                icon: const Icon(Icons.add_rounded),
+                                icon: const Icon(Icons.add_rounded, size: 18),
                                 label: const Text('Nieuw ticket'),
                               ),
                           ],
                         );
                       },
                     ),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 24),
 
                     _SectionTabs(
                       selectedSection: _selectedSection,
@@ -582,9 +577,14 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
                     const SizedBox(height: 24),
 
                     if (_isLoading)
-                      const SizedBox(
-                        height: 260,
-                        child: Center(child: CircularProgressIndicator()),
+                      Column(
+                        children: List.generate(
+                          5,
+                          (i) => Padding(
+                            padding: EdgeInsets.only(bottom: i == 4 ? 0 : 12),
+                            child: const AppListRowSkeleton(),
+                          ),
+                        ),
                       )
                     else if (_error != null)
                       _ErrorState(message: _error!, onRetry: _loadTickets)

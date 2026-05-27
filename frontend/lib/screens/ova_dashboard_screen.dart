@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../services/auth_service.dart';
+import '../theme/app_theme.dart';
 import 'ova_actions_screen.dart';
 import 'ova_ticket_list_screen.dart';
 import 'ova_ticket_wizard_screen.dart';
@@ -88,9 +89,9 @@ class _OvaOverviewRoute extends StatelessWidget {
               ),
             ),
           _OvaTileData(
-            icon: Icons.format_list_bulleted_rounded,
+            icon: Icons.checklist_rtl_rounded,
             title: 'Acties',
-            subtitle: 'Open jouw OVA-acties.',
+            subtitle: 'Open jouw OVA-opvolgacties.',
             pageBuilder: (context) => OvaActionsScreen(
               embedded: true,
               onNavigateBack: () => Navigator.of(context).pop(),
@@ -98,8 +99,8 @@ class _OvaOverviewRoute extends StatelessWidget {
           ),
           if (hasFullOvaAccess)
             _OvaTileData(
-              icon: Icons.add_rounded,
-              title: 'Nieuwe Ticket',
+              icon: Icons.add_circle_outline_rounded,
+              title: 'Nieuw ticket',
               subtitle: 'Maak een nieuw OVA-ticket aan.',
               pageBuilder: (context) => OvaTicketWizardScreen(
                 embedded: true,
@@ -132,95 +133,102 @@ class _OvaContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFFF6F6F3),
-      padding: const EdgeInsets.all(20),
+      color: kBackground,
+      padding: const EdgeInsets.fromLTRB(32, 28, 32, 32),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x12000000),
-              blurRadius: 12,
-              offset: Offset(0, 4),
-            ),
-          ],
+          color: kSurface,
+          borderRadius: BorderRadius.circular(kRadius2xl),
+          border: Border.all(color: kBorder),
         ),
         child: LayoutBuilder(
           builder: (context, constraints) {
             return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
+              padding: const EdgeInsets.fromLTRB(36, 32, 36, 36),
               child: ConstrainedBox(
                 constraints: BoxConstraints(minHeight: constraints.maxHeight),
                 child: hasOvaAccess
                     ? Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
+                          const _Breadcrumb(segments: ['Dashboard', 'OVA']),
+                          const SizedBox(height: 16),
+                          const Text(
                             'OVA',
-                            style: Theme.of(context).textTheme.headlineMedium
-                                ?.copyWith(fontWeight: FontWeight.w700),
+                            style: TextStyle(
+                              fontSize: 30,
+                              fontWeight: FontWeight.w800,
+                              color: kTextPrimary,
+                              letterSpacing: -0.4,
+                              height: 1.15,
+                            ),
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 10),
                           Text(
                             hasFullOvaAccess
-                                ? 'Kies snel tussen Tickets, Acties en Nieuwe Ticket. Drafts kunnen per stap opgeslagen worden zodat iemand anders later kan verderwerken.'
-                                : 'Je hebt Basis (OVA Acties) toegang. Daarom tonen we Tickets en Acties, maar Nieuwe Ticket blijft voorbehouden aan volledige OVA-toegang.',
-                            style: Theme.of(context).textTheme.bodyLarge,
+                                ? 'Beheer tickets, opvolg jouw acties en maak nieuwe OVA-dossiers aan. Drafts kunnen per stap opgeslagen worden zodat een collega later kan verderwerken.'
+                                : 'Je hebt Basis (OVA Acties) toegang. Tickets en Acties zijn beschikbaar; Nieuw ticket vereist volledige OVA-rechten.',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              color: kTextSecondary,
+                              height: 1.55,
+                            ),
                           ),
                           if (!hasFullOvaAccess) ...[
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 24),
                             Container(
-                              padding: const EdgeInsets.all(16),
+                              padding: const EdgeInsets.all(18),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF5FAEC),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: const Color(0xFFD5E4B4),
-                                ),
+                                color: kBrandGreenSubtle,
+                                borderRadius:
+                                    BorderRadius.circular(kRadiusLg),
+                                border: Border.all(color: kBrandGreenSoft),
                               ),
                               child: const Row(
                                 children: [
-                                  Icon(
-                                    Icons.info_outline_rounded,
-                                    color: Color(0xFF6B8F2A),
-                                  ),
-                                  SizedBox(width: 12),
+                                  Icon(Icons.info_outline_rounded,
+                                      color: kBrandGreenDeep, size: 22),
+                                  SizedBox(width: 14),
                                   Expanded(
                                     child: Text(
-                                      'Volledige OVA-rechten geven ook toegang tot Nieuwe Ticket. Bestaande drafts kun je hier wel al raadplegen en verder invullen.',
+                                      'Volledige OVA-rechten geven ook toegang tot Nieuw ticket. Bestaande drafts kun je hier wel al raadplegen en verder invullen.',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: kTextSecondary,
+                                        height: 1.5,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
                           ],
-                          const SizedBox(height: 56),
+                          const SizedBox(height: 36),
                           Center(
                             child: Wrap(
                               alignment: WrapAlignment.center,
-                              spacing: 28,
-                              runSpacing: 28,
+                              spacing: 20,
+                              runSpacing: 20,
                               children: tiles
                                   .map((tile) => _OvaTileCard(data: tile))
                                   .toList(),
                             ),
                           ),
-                          const SizedBox(height: 40),
+                          const SizedBox(height: 8),
                         ],
                       )
                     : SizedBox(
                         height: constraints.maxHeight,
                         child: Center(
                           child: Container(
-                            constraints: const BoxConstraints(maxWidth: 520),
-                            padding: const EdgeInsets.all(24),
+                            constraints:
+                                const BoxConstraints(maxWidth: 520),
+                            padding: const EdgeInsets.all(32),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF9F9F6),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: const Color(0xFFD7DBD2),
-                              ),
+                              color: kSurfaceMuted,
+                              borderRadius:
+                                  BorderRadius.circular(kRadiusXl),
+                              border: Border.all(color: kBorder),
                             ),
                             child: const Column(
                               mainAxisSize: MainAxisSize.min,
@@ -228,20 +236,26 @@ class _OvaContent extends StatelessWidget {
                                 Icon(
                                   Icons.lock_outline_rounded,
                                   size: 48,
-                                  color: Color(0xFF6C7566),
+                                  color: kTextTertiary,
                                 ),
-                                SizedBox(height: 16),
+                                SizedBox(height: 18),
                                 Text(
                                   'Geen OVA-toegang',
                                   style: TextStyle(
                                     fontSize: 22,
                                     fontWeight: FontWeight.w700,
+                                    color: kTextPrimary,
                                   ),
                                 ),
                                 SizedBox(height: 8),
                                 Text(
                                   'Je hebt Basis (OVA Acties) of OVA-rechten nodig om dit startscherm te openen.',
                                   textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: kTextTertiary,
+                                    fontSize: 14,
+                                    height: 1.5,
+                                  ),
                                 ),
                               ],
                             ),
@@ -257,50 +271,87 @@ class _OvaContent extends StatelessWidget {
   }
 }
 
-class _OvaTileCard extends StatelessWidget {
+class _OvaTileCard extends StatefulWidget {
   final _OvaTileData data;
 
   const _OvaTileCard({required this.data});
 
   @override
+  State<_OvaTileCard> createState() => _OvaTileCardState();
+}
+
+class _OvaTileCardState extends State<_OvaTileCard> {
+  bool _hovered = false;
+
+  @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: data.pageBuilder));
-      },
-      borderRadius: BorderRadius.circular(28),
-      child: Ink(
-        width: 220,
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: const Color(0xFFE0E3DA)),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x0D000000),
-              blurRadius: 12,
-              offset: Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(data.icon, size: 46, color: const Color(0xFF555555)),
-            const SizedBox(height: 18),
-            Text(
-              data.title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF444444),
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        transform: Matrix4.translationValues(0, _hovered ? -2 : 0, 0),
+        child: Material(
+          color: kSurface,
+          borderRadius: BorderRadius.circular(kRadiusXl),
+          child: InkWell(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: widget.data.pageBuilder),
+              );
+            },
+            borderRadius: BorderRadius.circular(kRadiusXl),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              width: 240,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 24, vertical: 28),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(kRadiusXl),
+                border: Border.all(
+                  color: _hovered ? kBrandGreenDark : kBorder,
+                  width: _hovered ? 1.4 : 1,
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 58,
+                    height: 58,
+                    decoration: BoxDecoration(
+                      color: kBrandGreenSoft,
+                      borderRadius: BorderRadius.circular(kRadiusLg),
+                    ),
+                    child: Icon(widget.data.icon,
+                        size: 28, color: kBrandGreenDeep),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    widget.data.title,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: kTextPrimary,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    widget.data.subtitle,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: kTextTertiary,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -319,4 +370,38 @@ class _OvaTileData {
     required this.subtitle,
     required this.pageBuilder,
   });
+}
+
+class _Breadcrumb extends StatelessWidget {
+  const _Breadcrumb({required this.segments});
+
+  final List<String> segments;
+
+  @override
+  Widget build(BuildContext context) {
+    final children = <Widget>[];
+    for (var i = 0; i < segments.length; i++) {
+      final isLast = i == segments.length - 1;
+      children.add(
+        Text(
+          segments[i],
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: isLast ? FontWeight.w700 : FontWeight.w500,
+            color: isLast ? kTextSecondary : kTextTertiary,
+            letterSpacing: 0.1,
+          ),
+        ),
+      );
+      if (!isLast) {
+        children.add(const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 8),
+          child: Icon(Icons.chevron_right_rounded,
+              size: 16, color: kTextMuted),
+        ));
+      }
+    }
+
+    return Row(mainAxisSize: MainAxisSize.min, children: children);
+  }
 }

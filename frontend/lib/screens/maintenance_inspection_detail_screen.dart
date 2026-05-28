@@ -38,6 +38,8 @@ class _MaintenanceInspectionDetailScreenState
   String? _equipmentError;
   String? _inspectionInstitutionError;
   String? _branchesError;
+  final GlobalKey _maintenancePrimaryColumnKey = GlobalKey();
+  double? _maintenancePrimaryColumnHeight;
 
   final TextEditingController _equipmentController = TextEditingController();
   final TextEditingController _inspectionInstitutionController =
@@ -320,9 +322,7 @@ class _MaintenanceInspectionDetailScreenState
     ];
 
     return [
-      ...types.map(
-        (type) => DropdownMenuItem(value: type, child: Text(type)),
-      ),
+      ...types.map((type) => DropdownMenuItem(value: type, child: Text(type))),
       const DropdownMenuItem(
         value: 'new',
         child: Text('+ Nieuw type toevoegen'),
@@ -347,8 +347,9 @@ class _MaintenanceInspectionDetailScreenState
         _equipmentError = missing.contains('Toestel / Installatie')
             ? 'Verplicht'
             : null;
-        _inspectionInstitutionError =
-            missing.contains('Naam keurinstelling') ? 'Verplicht' : null;
+        _inspectionInstitutionError = missing.contains('Naam keurinstelling')
+            ? 'Verplicht'
+            : null;
         _branchesError = missing.contains('Vestiging')
             ? 'Kies minstens één vestiging'
             : null;
@@ -468,15 +469,15 @@ class _MaintenanceInspectionDetailScreenState
           child: _isLoading || (inspection == null && _isLoadingBranches)
               ? const Center(child: CircularProgressIndicator())
               : _error != null && inspection == null
-                  ? _ErrorView(message: _error!, onRetry: _loadInspection)
-                  : inspection == null
-                      ? const Center(child: Text('Item niet beschikbaar'))
-                      : Padding(
-                          padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
-                          child: SizedBox.expand(
-                            child: _buildMainCard(context, inspection),
-                          ),
-                        ),
+              ? _ErrorView(message: _error!, onRetry: _loadInspection)
+              : inspection == null
+              ? const Center(child: Text('Item niet beschikbaar'))
+              : Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+                  child: SizedBox.expand(
+                    child: _buildMainCard(context, inspection),
+                  ),
+                ),
         ),
       ],
     );
@@ -496,16 +497,12 @@ class _MaintenanceInspectionDetailScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const AppBreadcrumb(
-            segments: ['Dashboard', 'Onderhoud & Keuringen'],
-          ),
+          const AppBreadcrumb(segments: ['Dashboard', 'Onderhoud & Keuringen']),
           const SizedBox(height: 16),
           _buildHeader(inspection),
           const SizedBox(height: 20),
           Expanded(
-            child: SingleChildScrollView(
-              child: _buildContent(inspection),
-            ),
+            child: SingleChildScrollView(child: _buildContent(inspection)),
           ),
         ],
       ),
@@ -581,7 +578,7 @@ class _MaintenanceInspectionDetailScreenState
         ),
         const SizedBox(height: 6),
         Text(
-          inspection.id.toString(),
+          '#${inspection.id.toString().padLeft(4, '0')}',
           style: const TextStyle(
             fontSize: 30,
             fontWeight: FontWeight.w800,
@@ -621,8 +618,7 @@ class _MaintenanceInspectionDetailScreenState
         label: Text(_editing ? 'Opslaan' : 'Bewerken'),
       ),
       OutlinedButton.icon(
-        onPressed:
-            (_isDeleting || _isSaving) ? null : _confirmDelete,
+        onPressed: (_isDeleting || _isSaving) ? null : _confirmDelete,
         icon: const Icon(Icons.delete_outline_rounded, size: 18),
         label: const Text('Verwijderen'),
         style: OutlinedButton.styleFrom(
@@ -649,8 +645,11 @@ class _MaintenanceInspectionDetailScreenState
             ),
             child: Row(
               children: [
-                const Icon(Icons.error_outline_rounded,
-                    color: kDanger, size: 20),
+                const Icon(
+                  Icons.error_outline_rounded,
+                  color: kDanger,
+                  size: 20,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -672,33 +671,95 @@ class _MaintenanceInspectionDetailScreenState
   Widget _buildResponsiveDetailLayout(MaintenanceInspection inspection) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final wide = constraints.maxWidth >= 980;
+        final wide = constraints.maxWidth >= 1040;
+        if (wide) {
+          _scheduleMaintenancePrimaryColumnHeightMeasure();
+
+          final sideColumnWidth = (constraints.maxWidth * 0.34).clamp(
+            420.0,
+            540.0,
+          );
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 7,
+                child: KeyedSubtree(
+                  key: _maintenancePrimaryColumnKey,
+                  child: _buildPrimaryColumn(inspection),
+                ),
+              ),
+              const SizedBox(width: 18),
+              SizedBox(
+                width: sideColumnWidth,
+                child: _buildSideColumn(fillHeight: true),
+              ),
+            ],
+          );
+        }
+
+        if (_maintenancePrimaryColumnHeight != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              setState(() => _maintenancePrimaryColumnHeight = null);
+            }
+          });
+        }
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildKeuringPanel(inspection),
-            const SizedBox(height: 16),
-            if (wide)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: _buildPlanningPanel(inspection)),
-                  const SizedBox(width: 16),
-                  Expanded(child: _buildContactPanel(inspection)),
-                ],
-              )
-            else ...[
-              _buildPlanningPanel(inspection),
-              const SizedBox(height: 16),
-              _buildContactPanel(inspection),
-            ],
-            const SizedBox(height: 16),
-            _buildNotesPanel(),
+            _buildPrimaryColumn(inspection),
+            const SizedBox(height: 18),
+            _buildSideColumn(),
           ],
         );
       },
     );
+  }
+
+  void _scheduleMaintenancePrimaryColumnHeightMeasure() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      final renderBox =
+          _maintenancePrimaryColumnKey.currentContext?.findRenderObject()
+              as RenderBox?;
+      final height = renderBox?.size.height;
+      if (height == null || height <= 0) return;
+
+      final current = _maintenancePrimaryColumnHeight;
+      if (current != null && (current - height).abs() < 0.5) return;
+
+      setState(() {
+        _maintenancePrimaryColumnHeight = height;
+      });
+    });
+  }
+
+  Widget _buildPrimaryColumn(MaintenanceInspection inspection) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildKeuringPanel(inspection),
+        const SizedBox(height: 16),
+        _buildPlanningPanel(inspection),
+        const SizedBox(height: 16),
+        _buildContactPanel(inspection),
+      ],
+    );
+  }
+
+  Widget _buildSideColumn({bool fillHeight = false}) {
+    final notesPanel = _buildNotesPanel();
+    final height = _maintenancePrimaryColumnHeight;
+
+    if (fillHeight && height != null && height > 0) {
+      return SizedBox(height: height, child: notesPanel);
+    }
+
+    return notesPanel;
   }
 
   // ───────────────────────────────────────────────────────────────────────
@@ -817,7 +878,11 @@ class _MaintenanceInspectionDetailScreenState
       title: 'Opmerkingen',
       icon: Icons.notes_outlined,
       child: _editing
-          ? _buildTextEditor(_notesController, maxLines: 5, hint: 'Voeg opmerkingen toe...')
+          ? _buildTextEditor(
+              _notesController,
+              maxLines: 5,
+              hint: 'Voeg opmerkingen toe...',
+            )
           : _buildNotesReadOnly(),
     );
   }
@@ -829,9 +894,9 @@ class _MaintenanceInspectionDetailScreenState
       isEmpty ? 'Geen opmerkingen toegevoegd.' : notes,
       style: TextStyle(
         fontSize: 14.5,
-        fontWeight: FontWeight.w500,
-        color: isEmpty ? kTextMuted : kTextPrimary,
-        height: 1.55,
+        fontWeight: FontWeight.w800,
+        color: isEmpty ? kTextMuted : Colors.black,
+        height: 1.5,
       ),
     );
   }
@@ -914,10 +979,7 @@ class _MaintenanceInspectionDetailScreenState
       decoration: _inputDecoration(),
       items: const [
         DropdownMenuItem(value: null, child: Text('Geen')),
-        DropdownMenuItem(
-          value: 'In uitvoering',
-          child: Text('In uitvoering'),
-        ),
+        DropdownMenuItem(value: 'In uitvoering', child: Text('In uitvoering')),
         DropdownMenuItem(
           value: 'Nog niet uitgevoerd',
           child: Text('Nog niet uitgevoerd'),
@@ -1064,9 +1126,7 @@ class _MaintenanceInspectionDetailScreenState
             selected: selected,
             selectedColor: kBrandGreenSoft,
             backgroundColor: kSurfaceMuted,
-            side: BorderSide(
-              color: selected ? kBrandGreenDark : kBorder,
-            ),
+            side: BorderSide(color: selected ? kBrandGreenDark : kBorder),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(kRadiusPill),
             ),
@@ -1074,8 +1134,7 @@ class _MaintenanceInspectionDetailScreenState
               setState(() {
                 if (isSelected) {
                   _selectedBranchIds.add(branch.id);
-                  if (_branchesError != null &&
-                      _selectedBranchIds.isNotEmpty) {
+                  if (_branchesError != null && _selectedBranchIds.isNotEmpty) {
                     _branchesError = null;
                   }
                 } else {
@@ -1157,8 +1216,7 @@ class _MaintenanceInspectionDetailScreenState
       fillColor: kSurface,
       hintText: hint,
       errorText: errorText,
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(kRadiusMd),
         borderSide: const BorderSide(color: kBorder),
@@ -1327,11 +1385,7 @@ class _DetailField {
 }
 
 class _LabeledField extends StatelessWidget {
-  const _LabeledField({
-    required this.label,
-    required this.child,
-    this.error,
-  });
+  const _LabeledField({required this.label, required this.child, this.error});
 
   final String label;
   final Widget child;
@@ -1345,7 +1399,7 @@ class _LabeledField extends StatelessWidget {
         Text(
           label,
           style: const TextStyle(
-            fontSize: 12.5,
+            fontSize: 15.5,
             fontWeight: FontWeight.w600,
             color: kTextTertiary,
             letterSpacing: 0.2,
@@ -1381,9 +1435,9 @@ class _ReadOnlyValue extends StatelessWidget {
     return Text(
       isEmpty ? '-' : value,
       style: TextStyle(
-        fontSize: 15.5,
-        fontWeight: FontWeight.w600,
-        color: isEmpty ? kTextMuted : kTextPrimary,
+        fontSize: 14.5,
+        fontWeight: FontWeight.w800,
+        color: isEmpty ? kTextMuted : Colors.black,
         height: 1.5,
       ),
     );

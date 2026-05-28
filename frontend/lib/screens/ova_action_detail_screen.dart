@@ -29,6 +29,10 @@ class _OvaActionDetailScreenState extends State<OvaActionDetailScreen> {
   bool _isDeleting = false;
   bool _changed = false;
   String? _ticketError;
+  final GlobalKey _primaryColumnKey = GlobalKey();
+  double? _widePrimaryColumnHeight;
+  static const double _headerActionWidth = 154;
+  static const double _headerActionHeight = 44;
 
   @override
   void initState() {
@@ -292,7 +296,8 @@ class _OvaActionDetailScreenState extends State<OvaActionDetailScreen> {
                   decoration: BoxDecoration(
                     color: kSurface,
                     borderRadius: BorderRadius.circular(
-                        compact ? kRadiusLg : kRadius2xl),
+                      compact ? kRadiusLg : kRadius2xl,
+                    ),
                     border: Border.all(color: kBorder),
                   ),
                   child: Column(
@@ -371,30 +376,66 @@ class _OvaActionDetailScreenState extends State<OvaActionDetailScreen> {
           alignment: compact ? WrapAlignment.start : WrapAlignment.end,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            _ActionStatusMenuButton(
-              isOk: _item.action.isOk,
-              isSaving: _isSaving,
-              onChanged: _updateStatus,
+            SizedBox(
+              width: _headerActionWidth,
+              height: _headerActionHeight,
+              child: _ActionStatusMenuButton(
+                isOk: _item.action.isOk,
+                isSaving: _isSaving,
+                onChanged: _updateStatus,
+              ),
             ),
-            OutlinedButton.icon(
-              onPressed: _isDeleting ? null : _openEditWizard,
-              icon: const Icon(Icons.edit_outlined, size: 18),
-              label: const Text('Bewerken'),
+            SizedBox(
+              width: _headerActionWidth,
+              height: _headerActionHeight,
+              child: ElevatedButton(
+                onPressed: _isDeleting ? null : _openEditWizard,
+                style: ElevatedButton.styleFrom(
+                  fixedSize: const Size(
+                    _headerActionWidth,
+                    _headerActionHeight,
+                  ),
+                  minimumSize: Size.zero,
+                  padding: EdgeInsets.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  alignment: Alignment.center,
+                ),
+                child: const _CenteredButtonContent(
+                  icon: Icons.edit_outlined,
+                  label: 'Bewerken',
+                ),
+              ),
             ),
-            OutlinedButton.icon(
-              onPressed: _isDeleting || _isSaving ? null : _deleteAction,
-              icon: _isDeleting
-                  ? const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: kDanger),
-                    )
-                  : const Icon(Icons.delete_outline_rounded, size: 18),
-              label: const Text('Verwijderen'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: kDanger,
-                side: const BorderSide(color: kDangerBorder),
+            SizedBox(
+              width: _headerActionWidth,
+              height: _headerActionHeight,
+              child: OutlinedButton(
+                onPressed: _isDeleting || _isSaving ? null : _deleteAction,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: kDanger,
+                  side: const BorderSide(color: kDangerBorder),
+                  fixedSize: const Size(
+                    _headerActionWidth,
+                    _headerActionHeight,
+                  ),
+                  minimumSize: Size.zero,
+                  padding: EdgeInsets.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  alignment: Alignment.center,
+                ),
+                child: _isDeleting
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: kDanger,
+                        ),
+                      )
+                    : const _CenteredButtonContent(
+                        icon: Icons.delete_outline_rounded,
+                        label: 'Verwijderen',
+                      ),
               ),
             ),
           ],
@@ -449,7 +490,7 @@ class _OvaActionDetailScreenState extends State<OvaActionDetailScreen> {
       _ActionMetricData(
         icon: Icons.confirmation_number_outlined,
         label: 'Ticket',
-        value: '#${_item.ticket.id}',
+        value: _formatNumber(_item.ticket.id),
       ),
     ];
 
@@ -468,10 +509,12 @@ class _OvaActionDetailScreenState extends State<OvaActionDetailScreen> {
             for (var i = 0; i < metrics.length; i++) {
               widgets.add(Expanded(child: _ActionMetric(data: metrics[i])));
               if (i != metrics.length - 1) {
-                widgets.add(const SizedBox(
-                  height: 36,
-                  child: VerticalDivider(width: 24, color: kBorderSubtle),
-                ));
+                widgets.add(
+                  const SizedBox(
+                    height: 36,
+                    child: VerticalDivider(width: 24, color: kBorderSubtle),
+                  ),
+                );
               }
             }
             return Row(children: widgets);
@@ -503,25 +546,37 @@ class _OvaActionDetailScreenState extends State<OvaActionDetailScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth >= 1040) {
+          _schedulePrimaryColumnHeightMeasure();
+
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildActionPanel(),
-                    const SizedBox(height: 16),
-                    _buildResponsibilityPanel(),
-                    const SizedBox(height: 16),
-                    _buildMetaPanel(),
-                  ],
+                child: KeyedSubtree(
+                  key: _primaryColumnKey,
+                  child: _buildPrimaryColumn(),
                 ),
               ),
               const SizedBox(width: 18),
-              SizedBox(width: 460, child: _buildTicketContextPanel()),
+              SizedBox(
+                width: 460,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: _widePrimaryColumnHeight ?? 0,
+                  ),
+                  child: _buildTicketContextPanel(),
+                ),
+              ),
             ],
           );
+        }
+
+        if (_widePrimaryColumnHeight != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              setState(() => _widePrimaryColumnHeight = null);
+            }
+          });
         }
 
         return Column(
@@ -534,6 +589,30 @@ class _OvaActionDetailScreenState extends State<OvaActionDetailScreen> {
         );
       },
     );
+  }
+
+  void _schedulePrimaryColumnHeightMeasure() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+
+      final renderBox =
+          _primaryColumnKey.currentContext?.findRenderObject() as RenderBox?;
+      final height = renderBox?.size.height;
+      if (height == null || height <= 0) {
+        return;
+      }
+
+      final current = _widePrimaryColumnHeight;
+      if (current != null && (current - height).abs() < 0.5) {
+        return;
+      }
+
+      setState(() {
+        _widePrimaryColumnHeight = height;
+      });
+    });
   }
 
   Widget _buildPrimaryColumn() {
@@ -559,10 +638,10 @@ class _OvaActionDetailScreenState extends State<OvaActionDetailScreen> {
           Text(
             _display(_item.action.description),
             style: const TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w600,
-              color: kTextPrimary,
-              height: 1.55,
+              fontSize: 15.5,
+              fontWeight: FontWeight.w800,
+              color: Colors.black,
+              height: 1.5,
             ),
           ),
         ],
@@ -627,7 +706,10 @@ class _OvaActionDetailScreenState extends State<OvaActionDetailScreen> {
           _InfoGrid(
             minItemWidth: 150,
             fields: [
-              _InfoField(label: 'Ticketnummer', value: '#${_item.ticket.id}'),
+              _InfoField(
+                label: 'Ticketnummer',
+                value: _formatNumber(_item.ticket.id),
+              ),
               _InfoField(
                 label: 'Status ticket',
                 value: ticket?.statusLabel ?? _item.ticket.statusLabel,
@@ -773,6 +855,10 @@ class _OvaActionDetailScreenState extends State<OvaActionDetailScreen> {
     final hour = local.hour.toString().padLeft(2, '0');
     final minute = local.minute.toString().padLeft(2, '0');
     return '${_formatDate(local)} $hour:$minute';
+  }
+
+  String _formatNumber(int value) {
+    return '#${value.toString().padLeft(4, '0')}';
   }
 
   String _display(String? value, {String fallback = '-'}) {

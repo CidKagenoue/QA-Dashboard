@@ -18,6 +18,8 @@ enum _ActionDeadlineFilter { all, overdue, thisWeek, later }
 
 enum _ActionTypeFilter { all, corrective, preventive }
 
+String _formatOvaTicketNumber(int id) => '#${id.toString().padLeft(4, '0')}';
+
 class OvaActionsScreen extends StatefulWidget {
   const OvaActionsScreen({
     super.key,
@@ -454,8 +456,9 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
                 padding: contentPadding,
                 decoration: BoxDecoration(
                   color: kSurface,
-                  borderRadius:
-                      BorderRadius.circular(isNarrowPage ? kRadiusLg : kRadius2xl),
+                  borderRadius: BorderRadius.circular(
+                    isNarrowPage ? kRadiusLg : kRadius2xl,
+                  ),
                   border: Border.all(color: kBorder),
                 ),
                 child: Column(
@@ -468,8 +471,7 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
                       ),
                       const SizedBox(height: 14),
                     ],
-                    const _Breadcrumb(
-                        segments: ['Dashboard', 'OVA', 'Acties']),
+                    const _Breadcrumb(segments: ['Dashboard', 'OVA', 'Acties']),
                     const SizedBox(height: 16),
                     LayoutBuilder(
                       builder: (context, c) {
@@ -541,8 +543,7 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
                     if (_isLoading)
                       const _ActionsLoadingSkeleton()
                     else if (_error != null)
-                      _ActionErrorState(
-                          message: _error!, onRetry: _loadActions)
+                      _ActionErrorState(message: _error!, onRetry: _loadActions)
                     else if (_filteredActions.isEmpty)
                       _ActionEmptyState(
                         scope: _selectedScope,
@@ -757,8 +758,11 @@ class _ActionFilters extends StatelessWidget {
         decoration: InputDecoration(
           hintText: 'Zoeken op actie of ticket…',
           hintStyle: const TextStyle(color: kTextMuted, fontSize: 14),
-          prefixIcon: const Icon(Icons.search_rounded,
-              size: 20, color: kTextTertiary),
+          prefixIcon: const Icon(
+            Icons.search_rounded,
+            size: 20,
+            color: kTextTertiary,
+          ),
           filled: true,
           fillColor: kSurfaceMuted,
           isDense: true,
@@ -792,15 +796,15 @@ class _ActionFilters extends StatelessWidget {
         foregroundColor: filtersExpanded || activeFilterCount > 0
             ? kBrandGreenDeep
             : kTextSecondary,
-        backgroundColor:
-            filtersExpanded ? kBrandGreenSubtle : kSurface,
+        backgroundColor: filtersExpanded ? kBrandGreenSubtle : kSurface,
         side: BorderSide(
           color: filtersExpanded || activeFilterCount > 0
               ? kBrandGreenSoft
               : kBorder,
         ),
         shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(kRadiusMd)),
+          borderRadius: BorderRadius.circular(kRadiusMd),
+        ),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       ),
     );
@@ -933,8 +937,7 @@ class _ActionFilters extends StatelessWidget {
         final counter = Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.view_list_rounded,
-                size: 16, color: kTextMuted),
+            const Icon(Icons.view_list_rounded, size: 16, color: kTextMuted),
             const SizedBox(width: 6),
             Text(
               '$visibleCount actie${visibleCount == 1 ? '' : 's'} zichtbaar',
@@ -1138,11 +1141,17 @@ class _ActionFilterPanel extends StatelessWidget {
                 value: selectedStatus,
                 options: const [
                   _ActionFilterOption(
-                      value: _ActionStatusFilter.nok, label: 'NOK'),
+                    value: _ActionStatusFilter.nok,
+                    label: 'NOK',
+                  ),
                   _ActionFilterOption(
-                      value: _ActionStatusFilter.ok, label: 'OK'),
+                    value: _ActionStatusFilter.ok,
+                    label: 'OK',
+                  ),
                   _ActionFilterOption(
-                      value: _ActionStatusFilter.all, label: 'Alles'),
+                    value: _ActionStatusFilter.all,
+                    label: 'Alles',
+                  ),
                 ],
                 onChanged: onStatusSelected,
               ),
@@ -1152,15 +1161,21 @@ class _ActionFilterPanel extends StatelessWidget {
                 value: selectedDeadline,
                 options: const [
                   _ActionFilterOption(
-                      value: _ActionDeadlineFilter.all,
-                      label: 'Alle deadlines'),
+                    value: _ActionDeadlineFilter.all,
+                    label: 'Alle deadlines',
+                  ),
                   _ActionFilterOption(
-                      value: _ActionDeadlineFilter.overdue, label: 'Te laat'),
+                    value: _ActionDeadlineFilter.overdue,
+                    label: 'Te laat',
+                  ),
                   _ActionFilterOption(
-                      value: _ActionDeadlineFilter.thisWeek,
-                      label: 'Deze week'),
+                    value: _ActionDeadlineFilter.thisWeek,
+                    label: 'Deze week',
+                  ),
                   _ActionFilterOption(
-                      value: _ActionDeadlineFilter.later, label: 'Later'),
+                    value: _ActionDeadlineFilter.later,
+                    label: 'Later',
+                  ),
                 ],
                 onChanged: onDeadlineSelected,
               ),
@@ -1170,13 +1185,17 @@ class _ActionFilterPanel extends StatelessWidget {
                 value: selectedType,
                 options: const [
                   _ActionFilterOption(
-                      value: _ActionTypeFilter.all, label: 'Alle types'),
+                    value: _ActionTypeFilter.all,
+                    label: 'Alle types',
+                  ),
                   _ActionFilterOption(
-                      value: _ActionTypeFilter.corrective,
-                      label: 'Corrigerend'),
+                    value: _ActionTypeFilter.corrective,
+                    label: 'Corrigerend',
+                  ),
                   _ActionFilterOption(
-                      value: _ActionTypeFilter.preventive,
-                      label: 'Preventief'),
+                    value: _ActionTypeFilter.preventive,
+                    label: 'Preventief',
+                  ),
                 ],
                 onChanged: onTypeSelected,
               ),
@@ -1215,8 +1234,7 @@ class _ActionFilterPanel extends StatelessWidget {
 }
 
 class _ActionActiveFilterChip extends StatelessWidget {
-  const _ActionActiveFilterChip(
-      {required this.label, required this.onRemove});
+  const _ActionActiveFilterChip({required this.label, required this.onRemove});
 
   final String label;
   final VoidCallback onRemove;
@@ -1248,8 +1266,11 @@ class _ActionActiveFilterChip extends StatelessWidget {
             borderRadius: BorderRadius.circular(999),
             child: const Padding(
               padding: EdgeInsets.all(5),
-              child: Icon(Icons.close_rounded,
-                  size: 14, color: kBrandGreenDeep),
+              child: Icon(
+                Icons.close_rounded,
+                size: 14,
+                color: kBrandGreenDeep,
+              ),
             ),
           ),
         ],
@@ -1282,10 +1303,15 @@ class _ActionFilterSelectField<T> extends StatelessWidget {
       child: DropdownButtonFormField<T>(
         initialValue: value,
         isExpanded: true,
-        icon: const Icon(Icons.keyboard_arrow_down_rounded,
-            color: kTextTertiary),
+        icon: const Icon(
+          Icons.keyboard_arrow_down_rounded,
+          color: kTextTertiary,
+        ),
         style: const TextStyle(
-            fontSize: 14, color: kTextPrimary, fontWeight: FontWeight.w500),
+          fontSize: 14,
+          color: kTextPrimary,
+          fontWeight: FontWeight.w500,
+        ),
         hint: hintText == null ? null : Text(hintText!),
         decoration: InputDecoration(
           labelText: label,
@@ -1361,22 +1387,17 @@ class _ActionsTable extends StatelessWidget {
           children: [
             Container(
               color: kSurfaceMuted,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
               child: const Row(
                 children: [
-                  Expanded(
-                      flex: 44, child: _TableHeaderLabel('Omschrijving')),
+                  Expanded(flex: 44, child: _TableHeaderLabel('Omschrijving')),
                   SizedBox(width: 12),
                   SizedBox(
                     width: 180,
                     child: _TableHeaderLabel('Verantwoordelijke'),
                   ),
                   SizedBox(width: 12),
-                  SizedBox(
-                    width: 110,
-                    child: _TableHeaderLabel('Ticket'),
-                  ),
+                  SizedBox(width: 110, child: _TableHeaderLabel('Ticket')),
                   SizedBox(width: 12),
                   SizedBox(width: 110, child: _TableHeaderLabel('Deadline')),
                   SizedBox(width: 12),
@@ -1391,22 +1412,21 @@ class _ActionsTable extends StatelessWidget {
               final item = actions[index];
               return _ActionsTableRow(
                 item: item,
+                striped: index.isOdd,
                 isSaving: savingActionIds.contains(item.action.id),
                 onOpenAction: () => onOpenAction(item),
                 onStatusChanged: (isOk) => onStatusChanged(item, isOk),
               );
             }),
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
               decoration: const BoxDecoration(
                 color: kSurfaceMuted,
                 border: Border(top: BorderSide(color: kBorder)),
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.info_outline_rounded,
-                      size: 14, color: kTextMuted),
+                  Icon(Icons.info_outline_rounded, size: 14, color: kTextMuted),
                   SizedBox(width: 6),
                   Expanded(
                     child: Text(
@@ -1431,12 +1451,14 @@ class _ActionsTable extends StatelessWidget {
 class _ActionsTableRow extends StatefulWidget {
   const _ActionsTableRow({
     required this.item,
+    required this.striped,
     required this.isSaving,
     required this.onOpenAction,
     required this.onStatusChanged,
   });
 
   final OvaAssignedAction item;
+  final bool striped;
   final bool isSaving;
   final VoidCallback onOpenAction;
   final ValueChanged<bool> onStatusChanged;
@@ -1450,19 +1472,20 @@ class _ActionsTableRowState extends State<_ActionsTableRow> {
 
   @override
   Widget build(BuildContext context) {
+    final baseColor = widget.striped ? const Color(0xFFF9FAF6) : Colors.white;
+
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: Material(
-        color: _hovered ? kSurfaceHover : kSurface,
+        color: _hovered ? kSurfaceHover : baseColor,
         child: InkWell(
           onTap: widget.onOpenAction,
           child: Container(
             decoration: const BoxDecoration(
               border: Border(top: BorderSide(color: kBorderSubtle)),
             ),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -1512,7 +1535,7 @@ class _ActionsTableRowState extends State<_ActionsTableRow> {
                 SizedBox(
                   width: 110,
                   child: Text(
-                    '#${widget.item.ticket.id.toString().padLeft(4, '0')}',
+                    _formatOvaTicketNumber(widget.item.ticket.id),
                     style: const TextStyle(
                       fontSize: 13.5,
                       fontWeight: FontWeight.w700,
@@ -1613,7 +1636,7 @@ class _ActionMobileTile extends StatelessWidget {
                 children: [
                   _InfoPill(
                     icon: Icons.confirmation_number_outlined,
-                    label: '#${item.ticket.id}',
+                    label: _formatOvaTicketNumber(item.ticket.id),
                   ),
                   _InfoPill(
                     icon: Icons.person_outline,
@@ -1715,10 +1738,7 @@ class _StatusDropdown extends StatelessWidget {
               SizedBox(
                 width: 12,
                 height: 12,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: fg,
-                ),
+                child: CircularProgressIndicator(strokeWidth: 2, color: fg),
               )
             else
               Icon(Icons.keyboard_arrow_down_rounded, size: 14, color: fg),
@@ -1744,8 +1764,7 @@ class _StatusDropdown extends StatelessWidget {
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
           const SizedBox(width: 10),
-          Text(label,
-              style: const TextStyle(fontWeight: FontWeight.w600)),
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -1845,13 +1864,13 @@ class _ActionEmptyState extends StatelessWidget {
       title: filtered
           ? 'Geen acties voor deze filters'
           : isAllScope
-              ? 'Geen openstaande OVA-acties'
-              : 'Je hebt geen openstaande acties',
+          ? 'Geen openstaande OVA-acties'
+          : 'Je hebt geen openstaande acties',
       message: filtered
           ? 'Pas je zoekterm of filters aan om opnieuw acties te tonen.'
           : isAllScope
-              ? 'Zodra er een opvolgactie op een open OVA-ticket staat, verschijnt ze hier automatisch.'
-              : 'Zodra een opvolgactie aan jou is toegewezen, verschijnt ze hier automatisch.',
+          ? 'Zodra er een opvolgactie op een open OVA-ticket staat, verschijnt ze hier automatisch.'
+          : 'Zodra een opvolgactie aan jou is toegewezen, verschijnt ze hier automatisch.',
       actionLabel: filtered ? 'Filters wissen' : null,
       onAction: filtered ? onClearFilters : null,
     );
@@ -1886,8 +1905,10 @@ class _ActionsLoadingSkeleton extends StatelessWidget {
           child: Column(
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 22,
+                  vertical: 14,
+                ),
                 decoration: const BoxDecoration(
                   color: kSurfaceMuted,
                   borderRadius: BorderRadius.only(
@@ -1907,11 +1928,11 @@ class _ActionsLoadingSkeleton extends StatelessWidget {
                 5,
                 (i) => Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 22, vertical: 18),
+                    horizontal: 22,
+                    vertical: 18,
+                  ),
                   decoration: const BoxDecoration(
-                    border: Border(
-                      top: BorderSide(color: kBorderSubtle),
-                    ),
+                    border: Border(top: BorderSide(color: kBorderSubtle)),
                   ),
                   child: const Row(
                     children: [
@@ -1936,8 +1957,7 @@ class _ActionsLoadingSkeleton extends StatelessWidget {
                       SizedBox(width: 24),
                       AppSkeleton(height: 12, width: 80),
                       SizedBox(width: 24),
-                      AppSkeleton(
-                          height: 22, width: 60, borderRadius: 999),
+                      AppSkeleton(height: 22, width: 60, borderRadius: 999),
                     ],
                   ),
                 ),
@@ -2014,8 +2034,11 @@ class _BackLink extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.arrow_back_rounded,
-                color: kBrandGreenDark, size: 18),
+            const Icon(
+              Icons.arrow_back_rounded,
+              color: kBrandGreenDark,
+              size: 18,
+            ),
             const SizedBox(width: 6),
             Text(
               label,

@@ -167,18 +167,15 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null && _ticket == null
-                    ? _ErrorView(message: _error!, onRetry: _loadTicket)
-                    : _ticket == null
-                        ? const Center(
-                            child: Text('Ticket niet beschikbaar'),
-                          )
-                        : Padding(
-                            padding:
-                                const EdgeInsets.fromLTRB(24, 20, 24, 24),
-                            child: SizedBox.expand(
-                              child: _buildMainCard(context, _ticket!),
-                            ),
-                          ),
+                ? _ErrorView(message: _error!, onRetry: _loadTicket)
+                : _ticket == null
+                ? const Center(child: Text('Ticket niet beschikbaar'))
+                : Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+                    child: SizedBox.expand(
+                      child: _buildMainCard(context, _ticket!),
+                    ),
+                  ),
           ),
         ],
       ),
@@ -327,8 +324,11 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.error_outline_rounded,
-                    color: kDanger, size: 20),
+                const Icon(
+                  Icons.error_outline_rounded,
+                  color: kDanger,
+                  size: 20,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -394,14 +394,14 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
           if (constraints.maxWidth >= 860) {
             final widgets = <Widget>[];
             for (var i = 0; i < metrics.length; i++) {
-              widgets.add(
-                Expanded(child: _SummaryMetric(data: metrics[i])),
-              );
+              widgets.add(Expanded(child: _SummaryMetric(data: metrics[i])));
               if (i != metrics.length - 1) {
-                widgets.add(const SizedBox(
-                  height: 36,
-                  child: VerticalDivider(width: 24, color: kBorderSubtle),
-                ));
+                widgets.add(
+                  const SizedBox(
+                    height: 36,
+                    child: VerticalDivider(width: 24, color: kBorderSubtle),
+                  ),
+                );
               }
             }
             return Row(
@@ -446,10 +446,7 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
             children: [
               Expanded(flex: 7, child: _buildPrimaryColumn(ticket)),
               const SizedBox(width: 18),
-              SizedBox(
-                width: sideColumnWidth,
-                child: _buildSideColumn(ticket),
-              ),
+              SizedBox(width: sideColumnWidth, child: _buildSideColumn(ticket)),
             ],
           );
         }
@@ -597,9 +594,9 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
         const gap = 20.0;
         final columnCount =
             ((constraints.maxWidth + gap) / (minItemWidth + gap)).floor().clamp(
-                  1,
-                  3,
-                );
+              1,
+              3,
+            );
         final itemWidth =
             (constraints.maxWidth - (gap * (columnCount - 1))) / columnCount;
 
@@ -647,8 +644,7 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
             ...List.generate(ticket.actions.length, (index) {
               final action = ticket.actions[index];
               return Padding(
-                padding: EdgeInsets.only(
-                    top: index == 0 ? 0 : 10),
+                padding: EdgeInsets.only(top: index == 0 ? 0 : 10),
                 child: _ActionCard(action: action),
               );
             }),
@@ -848,7 +844,7 @@ class _SummaryMetric extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  fontSize: 12.5,
+                  fontSize: 13.5,
                   fontWeight: FontWeight.w800,
                   color: Colors.black,
                   height: 1.2,
@@ -899,7 +895,7 @@ class _InfoItem extends StatelessWidget {
         Text(
           value,
           style: const TextStyle(
-            fontSize: 13.5,
+            fontSize: 14.5,
             fontWeight: FontWeight.w800,
             color: Colors.black,
             height: 1.5,
@@ -941,7 +937,9 @@ class _ActionCard extends StatelessWidget {
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 4),
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: kSurface,
                   borderRadius: BorderRadius.circular(kRadiusPill),
@@ -959,7 +957,9 @@ class _ActionCard extends StatelessWidget {
               const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 4),
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: statusBg,
                   borderRadius: BorderRadius.circular(kRadiusPill),
@@ -1069,8 +1069,11 @@ class _BackButton extends StatelessWidget {
               border: Border.all(color: kBorder),
             ),
             alignment: Alignment.center,
-            child: const Icon(Icons.arrow_back_rounded,
-                color: kTextPrimary, size: 20),
+            child: const Icon(
+              Icons.arrow_back_rounded,
+              color: kTextPrimary,
+              size: 20,
+            ),
           ),
         ),
       ),
@@ -1092,8 +1095,7 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline_rounded,
-                color: kDanger, size: 36),
+            const Icon(Icons.error_outline_rounded, color: kDanger, size: 36),
             const SizedBox(height: 14),
             Text(
               message,

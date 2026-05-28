@@ -144,7 +144,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 8),
                           const Text(
-                            'Log in om verder te gaan naar het QA Dashboard.',
+                            'Log in om verder te gaan naar het\nQA Dashboard.',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 14.5,
@@ -232,7 +232,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               },
                               style: TextButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 4),
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
                                 minimumSize: const Size(0, 32),
                               ),
                               child: const Text(
@@ -255,8 +257,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                       : _handleLogin,
                                   style: ElevatedButton.styleFrom(
                                     shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(kRadiusMd),
+                                      borderRadius: BorderRadius.circular(
+                                        kRadiusMd,
+                                      ),
                                     ),
                                   ),
                                   child: authService.isLoading

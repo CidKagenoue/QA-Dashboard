@@ -889,9 +889,9 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Opvolgactie verwijderd.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Opvolgactie verwijderd.')));
     } catch (error) {
       if (!mounted) {
         return;
@@ -941,7 +941,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
   Widget build(BuildContext context) {
     final title = _ticket == null
         ? 'Nieuw OVA-ticket'
-        : 'OVA-ticket #${_ticket!.id}';
+        : 'OVA-ticket #${_ticket!.id.toString().padLeft(4, '0')}';
     final isClosed = _ticket?.isClosed ?? false;
 
     Widget body;
@@ -1030,7 +1030,9 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
                         children: [
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: kBrandGreenSoft,
                               borderRadius: BorderRadius.circular(kRadiusPill),

@@ -745,26 +745,36 @@ class _JapGppScreenState extends State<JapGppScreen> {
 
     final saved = await showDialog<bool>(
       context: context,
+      barrierDismissible: true,
       builder: (dialogContext) {
         InputDecoration fieldDecoration(String hint) {
           return InputDecoration(
+            isDense: true,
             hintText: hint,
             filled: true,
-            fillColor: Colors.white,
+            fillColor: kSurface,
+            hintStyle: const TextStyle(
+              color: kTextMuted,
+              fontWeight: FontWeight.w500,
+            ),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFFDDE3D2)),
+              borderRadius: BorderRadius.circular(kRadiusMd),
+              borderSide: const BorderSide(color: kBorder),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFFDDE3D2)),
+              borderRadius: BorderRadius.circular(kRadiusMd),
+              borderSide: const BorderSide(color: kBorder),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(color: kBrandGreen),
+              borderRadius: BorderRadius.circular(kRadiusMd),
+              borderSide: const BorderSide(color: kBrandGreen, width: 1.6),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(kRadiusMd),
+              borderSide: const BorderSide(color: kDanger),
             ),
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
+              horizontal: 14,
               vertical: 12,
             ),
           );
@@ -774,49 +784,100 @@ class _JapGppScreenState extends State<JapGppScreen> {
           return Text(
             text,
             style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF6B7A62),
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: kTextSecondary,
+              letterSpacing: 0.1,
+              height: 1.25,
+            ),
+          );
+        }
+
+        Widget dialogHeader() {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(24, 20, 12, 18),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: kBrandGreenSubtle,
+                    borderRadius: BorderRadius.circular(kRadiusSm),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Icon(Icons.flag_outlined,
+                      color: kBrandGreenDeep, size: 20),
+                ),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Nieuwe GPP-regel aanmaken',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: kTextPrimary,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Vul de gegevens hieronder in om een nieuwe regel toe te voegen.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: kTextTertiary,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Sluiten',
+                  icon: const Icon(Icons.close_rounded, size: 20),
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                ),
+              ],
             ),
           );
         }
 
         return StatefulBuilder(
           builder: (buildContext, setDialogState) {
+            final mediaQuery = MediaQuery.of(dialogContext);
+            final maxHeight = mediaQuery.size.height * 0.9;
+
             return Dialog(
-              backgroundColor: Colors.transparent,
+              backgroundColor: kSurface,
+              surfaceTintColor: Colors.transparent,
               insetPadding: const EdgeInsets.symmetric(
                 horizontal: 20,
                 vertical: 12,
               ),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 760),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F2EA),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    padding: const EdgeInsets.all(16),
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Nieuwe GPP regel aanmaken',
-                            style: Theme.of(dialogContext)
-                                .textTheme
-                                .headlineMedium
-                                ?.copyWith(fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Vul de gegevens in om een nieuwe JAP/GPP-lijn toe te voegen.',
-                            style: Theme.of(dialogContext).textTheme.bodyMedium
-                                ?.copyWith(color: Colors.grey[700]),
-                          ),
-                          const SizedBox(height: 20),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(kRadiusLg),
+                side: const BorderSide(color: kBorder),
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: 760, maxHeight: maxHeight),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    dialogHeader(),
+                    const Divider(height: 1, color: kBorderSubtle),
+                    Flexible(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
                           LayoutBuilder(
                             builder: (context, constraints) {
                               final twoColumn = constraints.maxWidth > 560;
@@ -833,7 +894,9 @@ class _JapGppScreenState extends State<JapGppScreen> {
                                           const SizedBox(height: 8),
                                           TextField(
                                             controller: goalController,
-                                            decoration: fieldDecoration('...'),
+                                            decoration: fieldDecoration(
+                                              'Korte omschrijving doelstelling',
+                                            ),
                                           ),
                                           const SizedBox(height: 16),
                                           label('Domein *'),
@@ -947,30 +1010,40 @@ class _JapGppScreenState extends State<JapGppScreen> {
                                                           );
                                                       },
                                                       child: Container(
-                                                        height: 44,
+                                                        height: 48,
                                                         decoration: BoxDecoration(
-                                                          color: Colors.white,
+                                                          color: kSurface,
                                                           borderRadius:
                                                               BorderRadius.circular(
-                                                                10,
+                                                                kRadiusMd,
                                                               ),
                                                           border: Border.all(
-                                                            color: const Color(
-                                                              0xFFDDE3D2,
-                                                            ),
+                                                            color: kBorder,
                                                           ),
                                                         ),
                                                         padding:
                                                             const EdgeInsets.symmetric(
-                                                              horizontal: 12,
+                                                              horizontal: 14,
                                                               vertical: 12,
                                                             ),
-                                                        alignment: Alignment
-                                                            .centerLeft,
-                                                        child: Text(
-                                                          startDate
-                                                              .toIso8601String()
-                                                              .split('T')[0],
+                                                        child: Row(
+                                                          children: [
+                                                            Expanded(
+                                                              child: Text(
+                                                                '${startDate.day.toString().padLeft(2, '0')}/${startDate.month.toString().padLeft(2, '0')}/${startDate.year}',
+                                                                style: const TextStyle(
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w500,
+                                                                ),
+                                                              ),
+                                                            ),
+                                                            const Icon(
+                                                              Icons.calendar_today_outlined,
+                                                              size: 18,
+                                                              color: kTextTertiary,
+                                                            ),
+                                                          ],
                                                         ),
                                                       ),
                                                     ),
@@ -1009,30 +1082,40 @@ class _JapGppScreenState extends State<JapGppScreen> {
                                                           );
                                                       },
                                                       child: Container(
-                                                        height: 44,
+                                                        height: 48,
                                                         decoration: BoxDecoration(
-                                                          color: Colors.white,
+                                                          color: kSurface,
                                                           borderRadius:
                                                               BorderRadius.circular(
-                                                                10,
+                                                                kRadiusMd,
                                                               ),
                                                           border: Border.all(
-                                                            color: const Color(
-                                                              0xFFDDE3D2,
-                                                            ),
+                                                            color: kBorder,
                                                           ),
                                                         ),
                                                         padding:
                                                             const EdgeInsets.symmetric(
-                                                              horizontal: 12,
+                                                              horizontal: 14,
                                                               vertical: 12,
                                                             ),
-                                                        alignment: Alignment
-                                                            .centerLeft,
-                                                        child: Text(
-                                                          endDate
-                                                              .toIso8601String()
-                                                              .split('T')[0],
+                                                        child: Row(
+                                                          children: [
+                                                            Expanded(
+                                                              child: Text(
+                                                                '${endDate.day.toString().padLeft(2, '0')}/${endDate.month.toString().padLeft(2, '0')}/${endDate.year}',
+                                                                style: const TextStyle(
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w500,
+                                                                ),
+                                                              ),
+                                                            ),
+                                                            const Icon(
+                                                              Icons.calendar_today_outlined,
+                                                              size: 18,
+                                                              color: kTextTertiary,
+                                                            ),
+                                                          ],
                                                         ),
                                                       ),
                                                     ),
@@ -1103,7 +1186,9 @@ class _JapGppScreenState extends State<JapGppScreen> {
                                           const SizedBox(height: 8),
                                           TextField(
                                             controller: budgetController,
-                                            decoration: fieldDecoration('...'),
+                                            decoration: fieldDecoration(
+                                              'Bedrag of werkuren',
+                                            ),
                                           ),
                                           const SizedBox(height: 16),
                                           label('Prioriteit'),
@@ -1175,7 +1260,9 @@ class _JapGppScreenState extends State<JapGppScreen> {
                                   const SizedBox(height: 8),
                                   TextField(
                                     controller: goalController,
-                                    decoration: fieldDecoration('...'),
+                                    decoration: fieldDecoration(
+                                      'Korte omschrijving doelstelling',
+                                    ),
                                   ),
                                   const SizedBox(height: 16),
                                   label('Domein *'),
@@ -1268,23 +1355,33 @@ class _JapGppScreenState extends State<JapGppScreen> {
                                         );
                                     },
                                     child: Container(
-                                      height: 44,
+                                      height: 48,
                                       decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(
-                                          color: const Color(0xFFDDE3D2),
-                                        ),
+                                        color: kSurface,
+                                        borderRadius:
+                                            BorderRadius.circular(kRadiusMd),
+                                        border: Border.all(color: kBorder),
                                       ),
                                       padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
+                                        horizontal: 14,
                                         vertical: 12,
                                       ),
-                                      alignment: Alignment.centerLeft,
-                                      child: Text(
-                                        startDate.toIso8601String().split(
-                                          'T',
-                                        )[0],
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              '${startDate.day.toString().padLeft(2, '0')}/${startDate.month.toString().padLeft(2, '0')}/${startDate.year}',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ),
+                                          const Icon(
+                                            Icons.calendar_today_outlined,
+                                            size: 18,
+                                            color: kTextTertiary,
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ),
@@ -1303,21 +1400,33 @@ class _JapGppScreenState extends State<JapGppScreen> {
                                         setDialogState(() => endDate = picked);
                                     },
                                     child: Container(
-                                      height: 44,
+                                      height: 48,
                                       decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(
-                                          color: const Color(0xFFDDE3D2),
-                                        ),
+                                        color: kSurface,
+                                        borderRadius:
+                                            BorderRadius.circular(kRadiusMd),
+                                        border: Border.all(color: kBorder),
                                       ),
                                       padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
+                                        horizontal: 14,
                                         vertical: 12,
                                       ),
-                                      alignment: Alignment.centerLeft,
-                                      child: Text(
-                                        endDate.toIso8601String().split('T')[0],
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              '${endDate.day.toString().padLeft(2, '0')}/${endDate.month.toString().padLeft(2, '0')}/${endDate.year}',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ),
+                                          const Icon(
+                                            Icons.calendar_today_outlined,
+                                            size: 18,
+                                            color: kTextTertiary,
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ),
@@ -1373,7 +1482,9 @@ class _JapGppScreenState extends State<JapGppScreen> {
                                   const SizedBox(height: 8),
                                   TextField(
                                     controller: budgetController,
-                                    decoration: fieldDecoration('...'),
+                                    decoration: fieldDecoration(
+                                      'Bedrag of werkuren',
+                                    ),
                                   ),
                                   const SizedBox(height: 16),
                                   label('Prioriteit'),
@@ -1437,87 +1548,81 @@ class _JapGppScreenState extends State<JapGppScreen> {
                           TextField(
                             controller: remarkController,
                             maxLines: 3,
-                            decoration: fieldDecoration('...'),
+                            decoration: fieldDecoration(
+                              'Eventuele toelichting',
+                            ),
                           ),
-                          const SizedBox(height: 20),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              TextButton(
-                                onPressed: () =>
-                                    Navigator.pop(dialogContext, false),
-                                child: const Text('Annuleren'),
-                              ),
-                              const SizedBox(width: 12),
-                              ElevatedButton(
-                                onPressed: () async {
-                                  final goal = goalController.text.trim();
-                                  if (goal.isEmpty) return;
-                                  // Use full dates; also send startJaar/eindJaar as years for indexing
-                                  final startYear = startDate.year;
-                                  final endYear = endDate.year;
-                                  final startIso = startDate
-                                      .toIso8601String()
-                                      .split('T')[0];
-                                  final endIso = endDate
-                                      .toIso8601String()
-                                      .split('T')[0];
+                          ],
+                        ),
+                      ),
+                    ),
+                    const Divider(height: 1, color: kBorderSubtle),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 14, 24, 18),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          OutlinedButton(
+                            onPressed: () =>
+                                Navigator.pop(dialogContext, false),
+                            child: const Text('Annuleren'),
+                          ),
+                          const SizedBox(width: 10),
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.check_rounded, size: 18),
+                            label: const Text('Opslaan'),
+                            onPressed: () async {
+                              final goal = goalController.text.trim();
+                              if (goal.isEmpty) return;
+                              final startYear = startDate.year;
+                              final endYear = endDate.year;
+                              final startIso =
+                                  startDate.toIso8601String().split('T')[0];
+                              final endIso =
+                                  endDate.toIso8601String().split('T')[0];
 
-                                  try {
-                                    await JapApiService.createGppEntry(
-                                      token: widget.token,
-                                      payload: {
-                                        'doelstellingMaatregel': goal,
-                                        'domein': selectedDomain,
-                                        'risicoveld': riskController.text
-                                            .trim(),
-                                        'startJaar': startYear,
-                                        'eindJaar': endYear,
-                                        'prioriteit': priority,
-                                        'realisatie': realisation,
-                                        'uitvoerder': executorController.text
-                                            .trim(),
-                                        'middelenBudgetWerkuren':
-                                            budgetController.text.trim(),
-                                        'startdatum': startIso,
-                                        'einddatum': endIso,
-                                        'opmerking': remarkController.text
-                                            .trim(),
-                                      },
-                                    );
-                                    if (dialogContext.mounted)
-                                      Navigator.pop(dialogContext, true);
-                                  } catch (e) {
-                                    if (dialogContext.mounted) {
-                                      ScaffoldMessenger.of(
-                                        dialogContext,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text('Opslaan mislukt: $e'),
-                                        ),
-                                      );
-                                    }
-                                  }
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: kBrandGreen,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 18,
-                                    vertical: 14,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                ),
-                                child: const Text('Opslaan'),
-                              ),
-                            ],
+                              try {
+                                await JapApiService.createGppEntry(
+                                  token: widget.token,
+                                  payload: {
+                                    'doelstellingMaatregel': goal,
+                                    'domein': selectedDomain,
+                                    'risicoveld':
+                                        riskController.text.trim(),
+                                    'startJaar': startYear,
+                                    'eindJaar': endYear,
+                                    'prioriteit': priority,
+                                    'realisatie': realisation,
+                                    'uitvoerder':
+                                        executorController.text.trim(),
+                                    'middelenBudgetWerkuren':
+                                        budgetController.text.trim(),
+                                    'startdatum': startIso,
+                                    'einddatum': endIso,
+                                    'opmerking':
+                                        remarkController.text.trim(),
+                                  },
+                                );
+                                if (dialogContext.mounted) {
+                                  Navigator.pop(dialogContext, true);
+                                }
+                              } catch (e) {
+                                if (dialogContext.mounted) {
+                                  ScaffoldMessenger.of(dialogContext)
+                                      .showSnackBar(
+                                    SnackBar(
+                                      content:
+                                          Text('Opslaan mislukt: $e'),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
                           ),
                         ],
                       ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             );

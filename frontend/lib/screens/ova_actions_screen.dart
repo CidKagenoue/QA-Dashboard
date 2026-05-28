@@ -754,21 +754,33 @@ class _ActionFilters extends StatelessWidget {
       width: 340,
       child: TextField(
         controller: searchController,
-        style: const TextStyle(fontSize: 14, color: kTextPrimary),
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          color: kTextPrimary,
+        ),
         decoration: InputDecoration(
-          hintText: 'Zoeken op actie of ticket…',
-          hintStyle: const TextStyle(color: kTextMuted, fontSize: 14),
+          hintText: 'Zoeken op actie of ticket...',
+          hintStyle: const TextStyle(
+            color: kTextMuted,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
           prefixIcon: const Icon(
             Icons.search_rounded,
             size: 20,
             color: kTextTertiary,
+          ),
+          prefixIconConstraints: const BoxConstraints(
+            minWidth: 44,
+            minHeight: 46,
           ),
           filled: true,
           fillColor: kSurfaceMuted,
           isDense: true,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 14,
-            vertical: 12,
+            vertical: 13,
           ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(kRadiusMd),
@@ -788,7 +800,7 @@ class _ActionFilters extends StatelessWidget {
 
     final filterButton = OutlinedButton.icon(
       onPressed: onToggleFilters,
-      icon: const Icon(Icons.tune_rounded, size: 18),
+      icon: const Icon(Icons.filter_alt_rounded, size: 18),
       label: Text(
         activeFilterCount > 0 ? 'Filters · $activeFilterCount' : 'Filters',
       ),
@@ -805,7 +817,9 @@ class _ActionFilters extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(kRadiusMd),
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        minimumSize: const Size(0, 46),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
       ),
     );
 
@@ -1041,10 +1055,6 @@ class _ActionFilters extends StatelessWidget {
             label: 'Verantwoordelijke: $selectedAssignee',
             onRemove: () => onAssigneeSelected(null),
           ),
-        TextButton(
-          onPressed: onClearFilters,
-          child: const Text('Alle filters wissen'),
-        ),
       ],
     );
   }
@@ -1386,7 +1396,7 @@ class _ActionsTable extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Container(
-              color: kSurfaceMuted,
+              color: const Color(0xFFF6F7F2),
               padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
               child: const Row(
                 children: [
@@ -1835,10 +1845,9 @@ class _TableHeaderLabel extends StatelessWidget {
     return Text(
       label,
       style: const TextStyle(
-        fontSize: 11.5,
+        fontSize: 12,
         fontWeight: FontWeight.w700,
-        color: kTextTertiary,
-        letterSpacing: 0.6,
+        color: Color(0xFF545C50),
       ),
     );
   }

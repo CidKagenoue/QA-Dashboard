@@ -482,8 +482,9 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
                 padding: contentPadding,
                 decoration: BoxDecoration(
                   color: kSurface,
-                  borderRadius:
-                      BorderRadius.circular(isNarrowPage ? kRadiusLg : kRadius2xl),
+                  borderRadius: BorderRadius.circular(
+                    isNarrowPage ? kRadiusLg : kRadius2xl,
+                  ),
                   border: Border.all(color: kBorder),
                 ),
                 child: Column(
@@ -497,7 +498,8 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
                       const SizedBox(height: 14),
                     ],
                     const AppBreadcrumb(
-                        segments: ['Dashboard', 'OVA', 'Tickets']),
+                      segments: ['Dashboard', 'OVA', 'Tickets'],
+                    ),
                     const SizedBox(height: 16),
 
                     LayoutBuilder(
@@ -535,10 +537,9 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
                               titleBlock,
                               if (canCreate) ...[
                                 const SizedBox(height: 16),
-                                ElevatedButton.icon(
+                                AppToolbarPrimaryButton(
                                   onPressed: () => _openTicket(),
-                                  icon: const Icon(Icons.add_rounded, size: 18),
-                                  label: const Text('Nieuw ticket'),
+                                  label: 'Nieuw ticket',
                                 ),
                               ],
                             ],
@@ -549,10 +550,9 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
                           children: [
                             Expanded(child: titleBlock),
                             if (canCreate)
-                              ElevatedButton.icon(
+                              AppToolbarPrimaryButton(
                                 onPressed: () => _openTicket(),
-                                icon: const Icon(Icons.add_rounded, size: 18),
-                                label: const Text('Nieuw ticket'),
+                                label: 'Nieuw ticket',
                               ),
                           ],
                         );
@@ -918,57 +918,16 @@ class _TicketToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final searchField = SizedBox(
+    final searchField = AppToolbarSearchField(
+      controller: searchController,
+      hintText: 'Zoeken',
       width: 320,
-      child: TextField(
-        controller: searchController,
-        decoration: InputDecoration(
-          hintText: 'Zoeken',
-          prefixIcon: const Icon(Icons.search_rounded, size: 20),
-          filled: true,
-          fillColor: const Color(0xFFF4F4F0),
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(999),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(999),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(999),
-            borderSide: const BorderSide(color: Color(0xFF8CC63F)),
-          ),
-        ),
-      ),
     );
 
-    final filterButton = OutlinedButton.icon(
+    final filterButton = AppToolbarFilterButton(
       onPressed: onToggleFilters,
-      icon: const Icon(Icons.filter_alt_rounded, size: 18),
-      label: Text(
-        activeFilterCount > 0 ? 'Filters $activeFilterCount' : 'Filters',
-      ),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: filtersExpanded || activeFilterCount > 0
-            ? const Color(0xFF4E721C)
-            : const Color(0xFF3F473B),
-        backgroundColor: filtersExpanded
-            ? const Color(0xFFEAF4D9)
-            : Colors.white,
-        side: BorderSide(
-          color: filtersExpanded || activeFilterCount > 0
-              ? const Color(0xFF98C74D)
-              : const Color(0xFFD9DDD1),
-        ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-      ),
+      expanded: filtersExpanded,
+      activeCount: activeFilterCount,
     );
 
     final sortButton = PopupMenuButton<OvaSortOption>(
@@ -1152,10 +1111,6 @@ class _TicketToolbar extends StatelessWidget {
                       label: 'Aanleiding: $selectedReason',
                       onRemove: () => onReasonChanged(null),
                     ),
-                  TextButton(
-                    onPressed: onClearFilters,
-                    child: const Text('Filters wissen'),
-                  ),
                 ],
               ),
             ],
@@ -1542,8 +1497,7 @@ class _TicketTableRowState extends State<_TicketTableRow> {
 
   @override
   Widget build(BuildContext context) {
-    final baseColor =
-        widget.striped ? const Color(0xFFF9FAF6) : Colors.white;
+    final baseColor = widget.striped ? const Color(0xFFF9FAF6) : Colors.white;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
@@ -1556,8 +1510,7 @@ class _TicketTableRowState extends State<_TicketTableRow> {
             decoration: const BoxDecoration(
               border: Border(top: BorderSide(color: Color(0xFFE8ECE3))),
             ),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
             child: Row(
               children: _withTableColumnGaps(
                 widget.cells.map((cell) {
@@ -1796,11 +1749,7 @@ class _EmptyTicketState extends StatelessWidget {
           ),
           if (onCreate != null) ...[
             const SizedBox(height: 18),
-            ElevatedButton.icon(
-              onPressed: onCreate,
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Nieuw ticket'),
-            ),
+            AppToolbarPrimaryButton(onPressed: onCreate, label: 'Nieuw ticket'),
           ],
         ],
       ),

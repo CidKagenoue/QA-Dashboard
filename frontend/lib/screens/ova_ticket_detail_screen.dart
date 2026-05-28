@@ -287,7 +287,7 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
 
   List<Widget> _buildHeaderActions(OvaTicket ticket, bool isAdmin) {
     return [
-      if (!ticket.isClosed)
+      if (!ticket.isClosed || isAdmin)
         ElevatedButton.icon(
           onPressed: _isDeleting ? null : _openTicketWizard,
           icon: const Icon(Icons.edit_outlined, size: 18),

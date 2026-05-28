@@ -32,8 +32,15 @@ export class DomainService {
       throw new NotFoundException('Domain not found');
     }
 
-    return this.prisma.domain.delete({
-      where: { id },
+    return this.prisma.$transaction(async (tx) => {
+      await tx.japGppEntry.updateMany({
+        where: { domainId: id },
+        data: { domainId: null },
+      });
+
+      return tx.domain.delete({
+        where: { id },
+      });
     });
   }
 }

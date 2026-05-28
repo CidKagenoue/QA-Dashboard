@@ -5,6 +5,22 @@ import 'package:http/http.dart' as http;
 import '../models/jap_gpp_entry.dart';
 import 'api_service.dart';
 
+class _DomainRecord {
+  const _DomainRecord({required this.id, required this.name});
+
+  final int id;
+  final String name;
+
+  factory _DomainRecord.fromJson(Map<String, dynamic> json) {
+    final id = json['id'];
+    final name = json['name'];
+    if (id is! int || name is! String) {
+      throw Exception('Ongeldig domein ontvangen');
+    }
+    return _DomainRecord(id: id, name: name);
+  }
+}
+
 class JapApiService {
   static List<Map<String, dynamic>> _extractEntriesList(
     dynamic payload,
@@ -13,8 +29,8 @@ class JapApiService {
     final rawEntries = payload is List
         ? payload
         : payload is Map<String, dynamic>
-            ? payload['entries'] ?? payload['items'] ?? payload[label]
-            : null;
+        ? payload['entries'] ?? payload['items'] ?? payload[label]
+        : null;
 
     if (rawEntries is! List) {
       throw Exception('Ongeldige $label lijst');
@@ -28,7 +44,7 @@ class JapApiService {
 
   // ── Domains ──────────────────────────────────────────────────────────────
 
-  static Future<List<String>> fetchDomains({
+  static Future<List<_DomainRecord>> _fetchDomainRecords({
     required String token,
   }) async {
     final response = await http.get(
@@ -45,11 +61,16 @@ class JapApiService {
       if (domains is! List) throw Exception('Ongeldige domein lijst');
       return domains
           .whereType<Map>()
-          .map((e) => (e['name'] as String))
+          .map((e) => _DomainRecord.fromJson(Map<String, dynamic>.from(e)))
           .toList();
     }
     final error = jsonDecode(response.body);
     throw Exception(error['message'] ?? 'Domeinen ophalen mislukt');
+  }
+
+  static Future<List<String>> fetchDomains({required String token}) async {
+    final domains = await _fetchDomainRecords(token: token);
+    return domains.map((domain) => domain.name).toList();
   }
 
   static Future<String> createDomain({
@@ -79,13 +100,19 @@ class JapApiService {
     required String token,
     required String domainName,
   }) async {
-    // First fetch domains to get the ID
-    final domains = await fetchDomains(token: token);
-    final domainIndex = domains.indexOf(domainName);
-    if (domainIndex == -1) throw Exception('Domein niet gevonden');
+    final domains = await _fetchDomainRecords(token: token);
+    final normalizedName = domainName.trim().toLowerCase();
+    _DomainRecord? domain;
+    for (final candidate in domains) {
+      if (candidate.name.trim().toLowerCase() == normalizedName) {
+        domain = candidate;
+        break;
+      }
+    }
+    if (domain == null) throw Exception('Domein niet gevonden');
 
     final response = await http.delete(
-      Uri.parse('${ApiService.baseUrl}/domain/$domainIndex'),
+      Uri.parse('${ApiService.baseUrl}/domain/${domain.id}'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -93,15 +120,17 @@ class JapApiService {
     );
 
     if (response.statusCode != 204 && response.statusCode != 200) {
-      throw Exception('Domein verwijderen mislukt: ${response.statusCode}');
+      final error = jsonDecode(response.body);
+      throw Exception(
+        error['message'] ??
+            'Domein verwijderen mislukt: ${response.statusCode}',
+      );
     }
   }
 
   // ── Executors ───────────────────────────────────────────────────────────
 
-  static Future<List<String>> fetchExecutors({
-    required String token,
-  }) async {
+  static Future<List<String>> fetchExecutors({required String token}) async {
     final response = await http.get(
       Uri.parse('${ApiService.baseUrl}/executor'),
       headers: {
@@ -114,7 +143,10 @@ class JapApiService {
       final payload = jsonDecode(response.body);
       final executors = payload['executors'];
       if (executors is! List) throw Exception('Ongeldige uitvoerders lijst');
-      return executors.whereType<Map>().map((e) => (e['name'] as String)).toList();
+      return executors
+          .whereType<Map>()
+          .map((e) => (e['name'] as String))
+          .toList();
     }
     final error = jsonDecode(response.body);
     throw Exception(error['message'] ?? 'Uitvoerders ophalen mislukt');
@@ -148,7 +180,9 @@ class JapApiService {
     required String executorName,
   }) async {
     final response = await http.delete(
-      Uri.parse('${ApiService.baseUrl}/executor/${Uri.encodeComponent(executorName)}'),
+      Uri.parse(
+        '${ApiService.baseUrl}/executor/${Uri.encodeComponent(executorName)}',
+      ),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -175,16 +209,20 @@ class JapApiService {
       queryParameters: queryParameters.isEmpty ? null : queryParameters,
     );
 
-    final response = await http.get(uri, headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    });
+    final response = await http.get(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final payload = jsonDecode(response.body);
-      return _extractEntriesList(payload, 'gpp')
-          .map(GppEntry.fromJson)
-          .toList();
+      return _extractEntriesList(
+        payload,
+        'gpp',
+      ).map(GppEntry.fromJson).toList();
     }
     final error = jsonDecode(response.body);
     throw Exception(error['message'] ?? 'GPP ophalen mislukt');
@@ -197,7 +235,9 @@ class JapApiService {
       Uri.parse('${ApiService.baseUrl}/jap/recent-comments'),
       headers: {'Authorization': 'Bearer $token'},
     );
-    if (response.statusCode != 200) throw Exception('Fout bij ophalen commentaar');
+    if (response.statusCode != 200) {
+      throw Exception('Fout bij ophalen commentaar');
+    }
     final data = jsonDecode(response.body) as Map<String, dynamic>;
     return List<Map<String, dynamic>>.from(data['comments'] as List);
   }
@@ -278,7 +318,9 @@ class JapApiService {
 
     final request = http.MultipartRequest('POST', uri)
       ..headers['Authorization'] = 'Bearer $token'
-      ..files.add(http.MultipartFile.fromBytes('file', bytes, filename: fileName));
+      ..files.add(
+        http.MultipartFile.fromBytes('file', bytes, filename: fileName),
+      );
 
     final streamed = await request.send();
     final response = await http.Response.fromStream(streamed);
@@ -290,7 +332,6 @@ class JapApiService {
     throw Exception(body['message'] ?? 'GPP import mislukt');
   }
 
-
   // ── Comments ──────────────────────────────────────────────────────────────
 
   static Future<List<Map<String, dynamic>>> fetchJapComments({
@@ -299,7 +340,10 @@ class JapApiService {
   }) async {
     final response = await http.get(
       Uri.parse('${ApiService.baseUrl}/jap/$id/comments'),
-      headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
     );
     if (response.statusCode != 200) throw Exception('Ophalen mislukt');
     final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -314,7 +358,10 @@ class JapApiService {
   }) async {
     final response = await http.post(
       Uri.parse('${ApiService.baseUrl}/jap/$id/comments'),
-      headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
       body: jsonEncode({'author': author, 'text': text}),
     );
     if (response.statusCode != 201) throw Exception('Toevoegen mislukt');
@@ -328,7 +375,10 @@ class JapApiService {
   }) async {
     final response = await http.get(
       Uri.parse('${ApiService.baseUrl}/gpp/$id/comments'),
-      headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
     );
     if (response.statusCode != 200) throw Exception('Ophalen mislukt');
     final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -343,7 +393,10 @@ class JapApiService {
   }) async {
     final response = await http.post(
       Uri.parse('${ApiService.baseUrl}/gpp/$id/comments'),
-      headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
       body: jsonEncode({'author': author, 'text': text}),
     );
     if (response.statusCode != 201) throw Exception('Toevoegen mislukt');
@@ -390,16 +443,20 @@ class JapApiService {
       queryParameters: queryParameters.isEmpty ? null : queryParameters,
     );
 
-    final response = await http.get(uri, headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    });
+    final response = await http.get(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final payload = jsonDecode(response.body);
-      return _extractEntriesList(payload, 'jap')
-          .map(JapEntry.fromJson)
-          .toList();
+      return _extractEntriesList(
+        payload,
+        'jap',
+      ).map(JapEntry.fromJson).toList();
     }
     final error = jsonDecode(response.body);
     throw Exception(error['message'] ?? 'JAP ophalen mislukt');
@@ -434,7 +491,7 @@ class JapApiService {
     required String remark,
   }) async {
     final response = await http.patch(
-      Uri.parse('${ApiService.baseUrl}/jap/$id'),  // ← dit was $baseUrl
+      Uri.parse('${ApiService.baseUrl}/jap/$id'), // ← dit was $baseUrl
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',

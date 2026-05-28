@@ -436,10 +436,22 @@ class _DashboardBodyState extends State<_DashboardBody> {
           if (endCompare != 0) return endCompare;
           return b.startYear.compareTo(a.startYear);
         });
-      final maintenanceOverview = (results[4] as List<Map<String, dynamic>>)
+      final today = DateTime.now();
+      final startOfToday = DateTime(today.year, today.month, today.day);
+      final urgentCutoff = startOfToday.add(const Duration(days: 30));
+
+      final maintenanceOverview =
+          (results[4] as List<Map<String, dynamic>>).where((inspection) {
+        final dueDate = DateTime.tryParse(inspection['dueDate']?.toString() ?? '');
+        if (dueDate == null) return false;
+        return dueDate.isBefore(startOfToday) ||
+            !dueDate.isAfter(urgentCutoff);
+      }).toList()
         ..sort((a, b) {
-          final aDate = DateTime.tryParse(a['dueDate']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
-          final bDate = DateTime.tryParse(b['dueDate']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+          final aDate = DateTime.tryParse(a['dueDate']?.toString() ?? '') ??
+              DateTime.fromMillisecondsSinceEpoch(0);
+          final bDate = DateTime.tryParse(b['dueDate']?.toString() ?? '') ??
+              DateTime.fromMillisecondsSinceEpoch(0);
           return aDate.compareTo(bDate);
         });
 
@@ -468,7 +480,7 @@ class _DashboardBodyState extends State<_DashboardBody> {
                 ),
               ),
         ];
-        _upcomingMaintenance = maintenanceOverview.take(3).map((inspection) {
+        _upcomingMaintenance = maintenanceOverview.take(20).map((inspection) {
           final dueDate = DateTime.tryParse(inspection['dueDate']?.toString() ?? '');
           final formatted = dueDate == null
               ? (inspection['dueDate']?.toString() ?? '')
@@ -480,6 +492,7 @@ class _DashboardBodyState extends State<_DashboardBody> {
           return MaintenanceItem(
             title: '$title${locations.isEmpty ? '' : ' ($locations)'}',
             date: formatted,
+            dueDate: dueDate,
           );
         }).toList();
         _whsRecent = (results.length > 5 ? (results[5] as List<Map<String, dynamic>>) : <Map<String, dynamic>>[])
@@ -499,15 +512,33 @@ class _DashboardBodyState extends State<_DashboardBody> {
 
   List<OvaTicket> get _openTickets => _tickets.where((t) => t.isOpen).toList();
 
+  int get _incidentsThisMonth {
+    final now = DateTime.now();
+    return _tickets.where((t) {
+      final date = t.findingDate;
+      if (date == null) return false;
+      return date.year == now.year && date.month == now.month;
+    }).length;
+  }
+
   int get _nokActionsCount => _actions.where((a) => !a.action.isOk).length;
 
   Map<String, int> get _ticketsByType {
-    final map = <String, int>{};
+    const order = ['OVA 3', 'OVA 2', 'OVA 1', 'Near Miss'];
+    final counts = <String, int>{};
     for (final t in _openTickets) {
-      final type = t.ovaType?.trim() ?? 'NM';
-      map[type] = (map[type] ?? 0) + 1;
+      final type = t.ovaType?.trim();
+      if (type == null || type.isEmpty) continue;
+      counts[type] = (counts[type] ?? 0) + 1;
     }
-    return map;
+    final sorted = <String, int>{};
+    for (final key in order) {
+      if (counts.containsKey(key)) sorted[key] = counts[key]!;
+    }
+    for (final entry in counts.entries) {
+      if (!sorted.containsKey(entry.key)) sorted[entry.key] = entry.value;
+    }
+    return sorted;
   }
 
   @override
@@ -553,7 +584,7 @@ class _DashboardBodyState extends State<_DashboardBody> {
                     _StatCard(
                       title: 'Mijn OVA-acties',
                       value: _nokActionsCount.toString(),
-                      subtitle: 'open op NOK',
+                      subtitle: 'open acties',
                       accentColor: kBrandGreen,
                       icon: Icons.format_list_bulleted_rounded,
                       onTap: () => widget.onNavigateToOva(
@@ -562,8 +593,8 @@ class _DashboardBodyState extends State<_DashboardBody> {
                     ),
                     _StatCard(
                       title: 'OVA Incidenten',
-                      value: _openTickets.length.toString(),
-                      subtitle: 'open deze maand',
+                      value: _incidentsThisMonth.toString(),
+                      subtitle: 'incidenten deze maand',
                       accentColor: const Color(0xFFE08423),
                       icon: Icons.warning_amber_rounded,
                       onTap: () => widget.onNavigateToOva(
@@ -593,26 +624,31 @@ class _DashboardBodyState extends State<_DashboardBody> {
                   ),
                 ];
 
+                const cardHeight = 300.0;
                 return wide
                     ? Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: cards
-                            .map(
-                              (c) => Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.only(right: 16),
-                                  child: c,
+                        children: [
+                          for (var i = 0; i < cards.length; i++)
+                            Expanded(
+                              child: Padding(
+                                padding: EdgeInsets.only(
+                                  right: i == cards.length - 1 ? 0 : 16,
+                                ),
+                                child: SizedBox(
+                                  height: cardHeight,
+                                  child: cards[i],
                                 ),
                               ),
-                            )
-                            .toList(),
+                            ),
+                        ],
                       )
                     : Column(
                         children: cards
                             .map(
                               (c) => Padding(
                                 padding: const EdgeInsets.only(bottom: 16),
-                                child: c,
+                                child: SizedBox(height: cardHeight, child: c),
                               ),
                             )
                             .toList(),
@@ -863,6 +899,8 @@ class _OvaTicketsCard extends StatelessWidget {
         return (bg: const Color(0xFFFDEDD2), fg: const Color(0xFF9D5C0F));
       case 'ova 1':
         return (bg: const Color(0xFFFCF3D1), fg: const Color(0xFF8A6905));
+      case 'near miss':
+        return (bg: kInfoBg, fg: kInfo);
       default:
         return (bg: kSurfaceMuted, fg: kTextTertiary);
     }
@@ -1141,18 +1179,26 @@ class _JapGppOverviewCard extends StatelessWidget {
             title: 'JAP & GPP',
           ),
           const SizedBox(height: 4),
-          if (items.isEmpty)
-            const _EmptyHint(text: 'Nog geen JAP of GPP items beschikbaar.'),
-          ...items.map(
-            (item) => Padding(
-              padding: const EdgeInsets.only(top: 14),
-              child: _OverviewRow(
-                icon: Icons.flag_outlined,
-                title: item.title,
-                subtitle: item.author,
-                trailing: item.comment,
-              ),
-            ),
+          Expanded(
+            child: items.isEmpty
+                ? const _CenteredEmptyHint(
+                    text: 'Nog geen JAP of GPP items beschikbaar.',
+                  )
+                : _ScrollableCardBody(
+                    children: items
+                        .map(
+                          (item) => Padding(
+                            padding: const EdgeInsets.only(top: 14),
+                            child: _OverviewRow(
+                              icon: Icons.flag_outlined,
+                              title: item.title,
+                              subtitle: item.author,
+                              trailing: item.comment,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
           ),
         ],
       ),
@@ -1167,8 +1213,9 @@ class _JapGppOverviewCard extends StatelessWidget {
 class MaintenanceItem {
   final String title;
   final String date;
+  final DateTime? dueDate;
 
-  MaintenanceItem({required this.title, required this.date});
+  MaintenanceItem({required this.title, required this.date, this.dueDate});
 }
 
 class _UpcomingMaintenanceCard extends StatelessWidget {
@@ -1179,6 +1226,21 @@ class _UpcomingMaintenanceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final startOfToday = DateTime(now.year, now.month, now.day);
+
+    var overdueCount = 0;
+    var soonCount = 0;
+    for (final item in items) {
+      final due = item.dueDate;
+      if (due == null) continue;
+      if (due.isBefore(startOfToday)) {
+        overdueCount++;
+      } else {
+        soonCount++;
+      }
+    }
+
     return _BaseCard(
       onTap: onTap,
       child: Column(
@@ -1188,21 +1250,105 @@ class _UpcomingMaintenanceCard extends StatelessWidget {
             icon: Icons.event_available_outlined,
             title: 'Onderhoud & Keuringen',
           ),
-          const SizedBox(height: 4),
-          if (items.isEmpty)
-            const _EmptyHint(
-                text: 'Nog geen onderhouds- of keuringsitems beschikbaar.'),
-          ...items.map(
-            (item) => Padding(
-              padding: const EdgeInsets.only(top: 14),
-              child: _OverviewRow(
-                icon: Icons.calendar_today_rounded,
-                title: item.title,
-                subtitle: item.date,
-              ),
+          if (overdueCount > 0 || soonCount > 0) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                if (overdueCount > 0)
+                  _UrgencyChip(
+                    label: '$overdueCount verlopen',
+                    bg: kDangerBg,
+                    fg: kDanger,
+                    border: kDangerBorder,
+                  ),
+                if (soonCount > 0)
+                  _UrgencyChip(
+                    label: '$soonCount binnen 30d',
+                    bg: kWarningBg,
+                    fg: kWarning,
+                    border: kWarningBorder,
+                  ),
+              ],
             ),
+          ],
+          const SizedBox(height: 4),
+          Expanded(
+            child: items.isEmpty
+                ? const _CenteredEmptyHint(
+                    text: 'Geen urgente onderhouds- of keuringsitems.',
+                  )
+                : _ScrollableCardBody(
+                    children: items.map((item) {
+                      final due = item.dueDate;
+                      final isOverdue =
+                          due != null && due.isBefore(startOfToday);
+                      final iconColor = due == null
+                          ? kBrandGreenDark
+                          : (isOverdue ? kDanger : kWarning);
+                      final subtitle = due == null
+                          ? item.date
+                          : '${item.date} · ${_urgencyLabel(due, startOfToday)}';
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 14),
+                        child: _OverviewRow(
+                          icon: Icons.calendar_today_rounded,
+                          iconColor: iconColor,
+                          title: item.title,
+                          subtitle: subtitle,
+                        ),
+                      );
+                    }).toList(),
+                  ),
           ),
         ],
+      ),
+    );
+  }
+
+  static String _urgencyLabel(DateTime due, DateTime startOfToday) {
+    final diffDays = due.difference(startOfToday).inDays;
+    if (diffDays < 0) {
+      final abs = -diffDays;
+      return abs == 1 ? 'verlopen sinds 1 dag' : 'verlopen sinds $abs dagen';
+    }
+    if (diffDays == 0) return 'vandaag';
+    if (diffDays == 1) return 'morgen';
+    return 'binnen $diffDays dagen';
+  }
+}
+
+class _UrgencyChip extends StatelessWidget {
+  const _UrgencyChip({
+    required this.label,
+    required this.bg,
+    required this.fg,
+    required this.border,
+  });
+
+  final String label;
+  final Color bg;
+  final Color fg;
+  final Color border;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(kRadiusPill),
+        border: Border.all(color: border),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11.5,
+          fontWeight: FontWeight.w700,
+          color: fg,
+          letterSpacing: 0.2,
+        ),
       ),
     );
   }
@@ -1226,34 +1372,104 @@ class _WhsToursOverviewCard extends StatelessWidget {
             title: 'WHS-Tours',
           ),
           const SizedBox(height: 4),
-          if (items.isEmpty)
-            const _EmptyHint(text: 'Nog geen WHS tours beschikbaar.'),
-          ...items.map((item) {
-            final location = item['vestiging'] is Map
-                ? (item['vestiging']['address'] ?? item['vestiging']['name'])
-                : (item['vestiging']?.toString() ?? 'Onbekend');
-            final rawDate = item['datum'] ?? item['date'];
-            String dateLabel = '';
-            if (rawDate != null) {
-              final parsed = DateTime.tryParse(rawDate.toString());
-              if (parsed != null) {
-                dateLabel =
-                    '${parsed.day.toString().padLeft(2, '0')}/${parsed.month.toString().padLeft(2, '0')}/${parsed.year}';
-              } else {
-                dateLabel = rawDate.toString();
-              }
-            }
+          Expanded(
+            child: items.isEmpty
+                ? const _CenteredEmptyHint(
+                    text: 'Nog geen WHS-tours gekoppeld.',
+                  )
+                : _ScrollableCardBody(
+                    children: items.map((item) {
+                      final location = item['vestiging'] is Map
+                          ? (item['vestiging']['address'] ??
+                              item['vestiging']['name'])
+                          : (item['vestiging']?.toString() ?? 'Onbekend');
+                      final rawDate = item['datum'] ?? item['date'];
+                      String dateLabel = '';
+                      if (rawDate != null) {
+                        final parsed = DateTime.tryParse(rawDate.toString());
+                        if (parsed != null) {
+                          dateLabel =
+                              '${parsed.day.toString().padLeft(2, '0')}/${parsed.month.toString().padLeft(2, '0')}/${parsed.year}';
+                        } else {
+                          dateLabel = rawDate.toString();
+                        }
+                      }
 
-            return Padding(
-              padding: const EdgeInsets.only(top: 14),
-              child: _OverviewRow(
-                icon: Icons.place_outlined,
-                title: location.toString(),
-                subtitle: dateLabel,
-              ),
-            );
-          }),
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 14),
+                        child: _OverviewRow(
+                          icon: Icons.place_outlined,
+                          title: location.toString(),
+                          subtitle: dateLabel,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+/// Vertically centered empty hint — used inside an [Expanded] so the message
+/// floats in the middle of the card instead of sticking to the top.
+class _CenteredEmptyHint extends StatelessWidget {
+  const _CenteredEmptyHint({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 13,
+            color: kTextTertiary,
+            height: 1.4,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Scrollable container for the body of an overview card. Shows a hover
+/// scrollbar on desktop/web when content overflows the fixed card height.
+class _ScrollableCardBody extends StatefulWidget {
+  const _ScrollableCardBody({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  State<_ScrollableCardBody> createState() => _ScrollableCardBodyState();
+}
+
+class _ScrollableCardBodyState extends State<_ScrollableCardBody> {
+  final ScrollController _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scrollbar(
+      controller: _controller,
+      thumbVisibility: false,
+      child: SingleChildScrollView(
+        controller: _controller,
+        padding: const EdgeInsets.only(right: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: widget.children,
+        ),
       ),
     );
   }
@@ -1303,19 +1519,21 @@ class _OverviewRow extends StatelessWidget {
     required this.title,
     required this.subtitle,
     this.trailing,
+    this.iconColor,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
   final String? trailing;
+  final Color? iconColor;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 16, color: kBrandGreenDark),
+        Icon(icon, size: 16, color: iconColor ?? kBrandGreenDark),
         const SizedBox(width: 10),
         Expanded(
           child: Column(
@@ -1352,25 +1570,6 @@ class _OverviewRow extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _EmptyHint extends StatelessWidget {
-  const _EmptyHint({required this.text});
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 14),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 13,
-          color: kTextTertiary,
-        ),
-      ),
     );
   }
 }

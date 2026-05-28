@@ -889,9 +889,9 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Opvolgactie verwijderd.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Opvolgactie verwijderd.')));
     } catch (error) {
       if (!mounted) {
         return;
@@ -941,8 +941,11 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
   Widget build(BuildContext context) {
     final title = _ticket == null
         ? 'Nieuw OVA-ticket'
-        : 'OVA-ticket #${_ticket!.id}';
+        : 'OVA-ticket #${_ticket!.id.toString().padLeft(4, '0')}';
     final isClosed = _ticket?.isClosed ?? false;
+    final isAdmin = context.watch<AuthService>().user?.isAdmin == true;
+    final isReadOnlyClosed = isClosed && !isAdmin;
+    final canEditClosed = isClosed && isAdmin;
 
     Widget body;
     if (_isLoading || _isLoadingFormData) {
@@ -971,7 +974,10 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
                   const SizedBox(height: 18),
                 ],
                 if (isClosed) ...[
-                  _ClosedTicketBanner(ticket: _ticket!),
+                  _ClosedTicketBanner(
+                    ticket: _ticket!,
+                    editable: canEditClosed,
+                  ),
                   const SizedBox(height: 24),
                 ],
                 Container(
@@ -1009,7 +1015,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
                         storedStep:
                             (_ticket?.currentStep ?? (_currentStep + 1)),
                         onTap: _jumpToStep,
-                        locked: isClosed,
+                        locked: isReadOnlyClosed,
                       ),
                     ],
                   ),
@@ -1030,7 +1036,9 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
                         children: [
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: kBrandGreenSoft,
                               borderRadius: BorderRadius.circular(kRadiusPill),
@@ -1067,7 +1075,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
                           height: 1.55,
                         ),
                       ),
-                      if (isClosed) ...[
+                      if (isReadOnlyClosed) ...[
                         const SizedBox(height: 14),
                         Container(
                           width: double.infinity,
@@ -1088,7 +1096,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
                       ],
                       const SizedBox(height: 28),
                       IgnorePointer(
-                        ignoring: isClosed,
+                        ignoring: isReadOnlyClosed,
                         child: _buildCurrentStep(),
                       ),
                       if (_error != null) ...[
@@ -1102,7 +1110,10 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
                         ),
                       ],
                       const SizedBox(height: 28),
-                      _buildActionBar(),
+                      _buildActionBar(
+                        readOnlyClosed: isReadOnlyClosed,
+                        canEditClosed: canEditClosed,
+                      ),
                     ],
                   ),
                 ),
@@ -1134,10 +1145,11 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
     );
   }
 
-  Widget _buildActionBar() {
-    final isClosed = _ticket?.isClosed ?? false;
-
-    if (isClosed) {
+  Widget _buildActionBar({
+    required bool readOnlyClosed,
+    required bool canEditClosed,
+  }) {
+    if (readOnlyClosed) {
       return Row(
         children: [
           if (_currentStep > 0)
@@ -1190,7 +1202,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
             style: _wizardOutlineButtonStyle,
           ),
         const Spacer(),
-        if (_currentStep >= 2) ...[
+        if (_currentStep >= 2 || canEditClosed) ...[
           OutlinedButton.icon(
             onPressed: _isSaving ? null : _saveDraft,
             icon: const Icon(Icons.save_outlined),
@@ -1202,6 +1214,8 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
         ElevatedButton.icon(
           onPressed: _isSaving
               ? null
+              : canEditClosed && _currentStep == 6
+              ? _saveDraft
               : _currentStep == 6
               ? _finishTicket
               : _goToNextStep,
@@ -1215,11 +1229,19 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
                   ),
                 )
               : Icon(
-                  _currentStep == 6
+                  canEditClosed && _currentStep == 6
+                      ? Icons.save_outlined
+                      : _currentStep == 6
                       ? Icons.check_rounded
                       : Icons.arrow_forward_rounded,
                 ),
-          label: Text(_currentStep == 6 ? 'Ticket afsluiten' : 'Volgende'),
+          label: Text(
+            canEditClosed && _currentStep == 6
+                ? 'Opslaan'
+                : _currentStep == 6
+                ? 'Ticket afsluiten'
+                : 'Volgende',
+          ),
         ),
       ],
     );
@@ -1872,9 +1894,10 @@ class _EmbeddedWizardHeader extends StatelessWidget {
 }
 
 class _ClosedTicketBanner extends StatelessWidget {
-  const _ClosedTicketBanner({required this.ticket});
+  const _ClosedTicketBanner({required this.ticket, required this.editable});
 
   final OvaTicket ticket;
+  final bool editable;
 
   @override
   Widget build(BuildContext context) {
@@ -1892,7 +1915,9 @@ class _ClosedTicketBanner extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Dit ticket is afgesloten op ${ticket.closedAt == null ? '-' : formatOvaDateTime(ticket.closedAt!)} door ${ticket.closedBy?.displayName ?? 'onbekend'}. Alle stappen blijven hieronder raadpleegbaar in alleen-lezen modus.',
+              editable
+                  ? 'Dit ticket is afgesloten op ${ticket.closedAt == null ? '-' : formatOvaDateTime(ticket.closedAt!)} door ${ticket.closedBy?.displayName ?? 'onbekend'}. Als admin kun je dit ticket nog aanpassen.'
+                  : 'Dit ticket is afgesloten op ${ticket.closedAt == null ? '-' : formatOvaDateTime(ticket.closedAt!)} door ${ticket.closedBy?.displayName ?? 'onbekend'}. Alle stappen blijven hieronder raadpleegbaar in alleen-lezen modus.',
             ),
           ),
         ],

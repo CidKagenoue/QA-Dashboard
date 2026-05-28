@@ -28,7 +28,10 @@ class _ActionStatusMenuButton extends StatelessWidget {
         PopupMenuItem(value: true, child: Text('OK')),
       ],
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        width: double.infinity,
+        height: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(kRadiusPill),
@@ -36,6 +39,7 @@ class _ActionStatusMenuButton extends StatelessWidget {
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
               isOk ? 'Status OK' : 'Status NOK',
@@ -44,6 +48,7 @@ class _ActionStatusMenuButton extends StatelessWidget {
                 fontSize: 13,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 0.2,
+                height: 1,
               ),
             ),
             const SizedBox(width: 8),
@@ -51,19 +56,35 @@ class _ActionStatusMenuButton extends StatelessWidget {
               SizedBox(
                 width: 14,
                 height: 14,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: fg,
-                ),
+                child: CircularProgressIndicator(strokeWidth: 2, color: fg),
               )
             else
-              Icon(
-                Icons.keyboard_arrow_down_rounded,
-                size: 18,
-                color: fg,
-              ),
+              Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: fg),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _CenteredButtonContent extends StatelessWidget {
+  const _CenteredButtonContent({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(icon, size: 18),
+          const SizedBox(width: 8),
+          Text(label, style: const TextStyle(height: 1)),
+        ],
       ),
     );
   }
@@ -123,8 +144,11 @@ class _BackButton extends StatelessWidget {
               border: Border.all(color: kBorder),
             ),
             alignment: Alignment.center,
-            child: const Icon(Icons.arrow_back_rounded,
-                color: kTextPrimary, size: 20),
+            child: const Icon(
+              Icons.arrow_back_rounded,
+              color: kTextPrimary,
+              size: 20,
+            ),
           ),
         ),
       ),
@@ -171,7 +195,7 @@ class _ActionMetric extends StatelessWidget {
               Text(
                 data.label,
                 style: const TextStyle(
-                  fontSize: 11.5,
+                  fontSize: 14.5,
                   fontWeight: FontWeight.w600,
                   color: kTextTertiary,
                   height: 1.2,
@@ -184,9 +208,9 @@ class _ActionMetric extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w700,
-                  color: kTextPrimary,
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.black,
                   height: 1.2,
                 ),
               ),
@@ -333,7 +357,7 @@ class _InfoItem extends StatelessWidget {
         Text(
           label,
           style: const TextStyle(
-            fontSize: 12.5,
+            fontSize: 15.5,
             fontWeight: FontWeight.w600,
             color: kTextTertiary,
             letterSpacing: 0.2,
@@ -344,9 +368,9 @@ class _InfoItem extends StatelessWidget {
         Text(
           value,
           style: TextStyle(
-            fontSize: 15.5,
-            fontWeight: FontWeight.w600,
-            color: isEmpty ? kTextMuted : kTextPrimary,
+            fontSize: 14.5,
+            fontWeight: FontWeight.w800,
+            color: isEmpty ? kTextMuted : Colors.black,
             height: 1.5,
           ),
         ),
@@ -374,11 +398,7 @@ class _InlineError extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
-            Icons.error_outline_rounded,
-            size: 18,
-            color: kDanger,
-          ),
+          const Icon(Icons.error_outline_rounded, size: 18, color: kDanger),
           const SizedBox(width: 10),
           Expanded(
             child: Text(

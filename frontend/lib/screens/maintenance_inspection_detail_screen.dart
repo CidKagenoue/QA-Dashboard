@@ -38,6 +38,8 @@ class _MaintenanceInspectionDetailScreenState
   String? _equipmentError;
   String? _inspectionInstitutionError;
   String? _branchesError;
+  final GlobalKey _maintenancePrimaryColumnKey = GlobalKey();
+  double? _maintenancePrimaryColumnHeight;
 
   final TextEditingController _equipmentController = TextEditingController();
   final TextEditingController _inspectionInstitutionController =
@@ -89,6 +91,10 @@ class _MaintenanceInspectionDetailScreenState
     super.dispose();
   }
 
+  // ───────────────────────────────────────────────────────────────────────
+  // Data loading / persistence
+  // ───────────────────────────────────────────────────────────────────────
+
   Future<void> _loadInspection() async {
     final inspectionId = widget.inspectionId;
     if (inspectionId == null) {
@@ -107,19 +113,14 @@ class _MaintenanceInspectionDetailScreenState
         id: inspectionId,
       );
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       setState(() {
         _inspection = inspection;
         _syncFromInspection(inspection);
       });
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
-
+      if (!mounted) return;
       setState(() {
         _error = error.toString().replaceFirst('Exception: ', '');
       });
@@ -143,9 +144,7 @@ class _MaintenanceInspectionDetailScreenState
         token: token,
       );
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       setState(() {
         _branches = branches;
@@ -154,9 +153,7 @@ class _MaintenanceInspectionDetailScreenState
         }
       });
     } catch (_) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() {
         _branches = const [];
       });
@@ -178,7 +175,6 @@ class _MaintenanceInspectionDetailScreenState
         ? inspection.inspectionType
         : 'Kalibratie';
     _selfContact = inspection.selfContact;
-    // Map backend status to frontend Dutch values
     _status = _mapBackendStatusToFrontend(inspection.status);
     _lastInspectionDate = inspection.lastInspectionDate;
     _dueDate = inspection.dueDate;
@@ -203,9 +199,7 @@ class _MaintenanceInspectionDetailScreenState
 
   void _startEditing() {
     final inspection = _inspection;
-    if (inspection == null) {
-      return;
-    }
+    if (inspection == null) return;
 
     setState(() {
       _editing = true;
@@ -218,9 +212,7 @@ class _MaintenanceInspectionDetailScreenState
 
   void _cancelEditing() {
     final inspection = _inspection;
-    if (inspection == null) {
-      return;
-    }
+    if (inspection == null) return;
 
     setState(() {
       _editing = false;
@@ -246,7 +238,6 @@ class _MaintenanceInspectionDetailScreenState
     form.selectedBranchIds = _resolvedBranchIds();
     form.lastInspectionDate = _lastInspectionDate;
     form.nextInspectionDate = _dueDate;
-    // Map frontend Dutch status back to backend English values
     form.status = _mapFrontendStatusToBackend(_status);
     form.notes = _notesController.text.trim().isEmpty
         ? null
@@ -260,9 +251,7 @@ class _MaintenanceInspectionDetailScreenState
     }
 
     final inspection = _inspection;
-    if (inspection == null) {
-      return <int>[];
-    }
+    if (inspection == null) return <int>[];
 
     return _branches
         .where((branch) => inspection.locations.contains(branch.name))
@@ -309,10 +298,6 @@ class _MaintenanceInspectionDetailScreenState
                 Navigator.pop(context, value);
               }
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kBrandGreen,
-              foregroundColor: Colors.white,
-            ),
             child: const Text('Toevoegen'),
           ),
         ],
@@ -337,9 +322,7 @@ class _MaintenanceInspectionDetailScreenState
     ];
 
     return [
-      ...types.map(
-        (type) => DropdownMenuItem(value: type, child: Text(type)),
-      ),
+      ...types.map((type) => DropdownMenuItem(value: type, child: Text(type))),
       const DropdownMenuItem(
         value: 'new',
         child: Text('+ Nieuw type toevoegen'),
@@ -349,9 +332,7 @@ class _MaintenanceInspectionDetailScreenState
 
   Future<void> _save() async {
     final inspection = _inspection;
-    if (inspection == null) {
-      return;
-    }
+    if (inspection == null) return;
 
     final equipment = _equipmentController.text.trim();
     final inspectionInstitution = _inspectionInstitutionController.text.trim();
@@ -388,9 +369,7 @@ class _MaintenanceInspectionDetailScreenState
         form: _buildForm(),
       );
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       setState(() {
         _inspection = updated;
@@ -398,9 +377,7 @@ class _MaintenanceInspectionDetailScreenState
         _syncFromInspection(updated);
       });
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(error.toString().replaceFirst('Exception: ', '')),
@@ -417,9 +394,7 @@ class _MaintenanceInspectionDetailScreenState
 
   Future<void> _confirmDelete() async {
     final inspection = _inspection;
-    if (inspection == null) {
-      return;
-    }
+    if (inspection == null) return;
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -436,7 +411,7 @@ class _MaintenanceInspectionDetailScreenState
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFD32F2F),
+              backgroundColor: kDanger,
               foregroundColor: Colors.white,
             ),
             child: const Text('Verwijderen'),
@@ -445,9 +420,8 @@ class _MaintenanceInspectionDetailScreenState
       ),
     );
 
-    if (confirmed != true) {
-      return;
-    }
+    if (confirmed != true) return;
+    if (!mounted) return;
 
     setState(() {
       _isDeleting = true;
@@ -459,17 +433,13 @@ class _MaintenanceInspectionDetailScreenState
         token: token,
         id: inspection.id,
       );
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       widget.onClose();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Onderhoud/keuring verwijderd.')),
       );
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(error.toString().replaceFirst('Exception: ', '')),
@@ -484,56 +454,32 @@ class _MaintenanceInspectionDetailScreenState
     }
   }
 
+  // ───────────────────────────────────────────────────────────────────────
+  // Build
+  // ───────────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     final inspection = _inspection;
 
-    return Theme(
-      data: Theme.of(context).copyWith(
-        highlightColor: const Color(0xFFEAF4D9),
-        splashColor: const Color(0x338CC63F),
-        hoverColor: const Color(0x228CC63F),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _isLoadingBranches
-                ? const Center(child: CircularProgressIndicator())
-                : _error != null
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _error!,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.red[700]),
-                          ),
-                          const SizedBox(height: 12),
-                          ElevatedButton(
-                            onPressed: _loadInspection,
-                            child: const Text('Opnieuw proberen'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                : inspection == null
-                ? const Center(child: Text('Pagina nog niet zichtbaar'))
-                : Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
-                    child: SizedBox.expand(
-                      child: _buildMainCard(context, inspection),
-                    ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: _isLoading || (inspection == null && _isLoadingBranches)
+              ? const Center(child: CircularProgressIndicator())
+              : _error != null && inspection == null
+              ? _ErrorView(message: _error!, onRetry: _loadInspection)
+              : inspection == null
+              ? const Center(child: Text('Item niet beschikbaar'))
+              : Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+                  child: SizedBox.expand(
+                    child: _buildMainCard(context, inspection),
                   ),
-          ),
-        ],
-      ),
+                ),
+        ),
+      ],
     );
   }
 
@@ -551,335 +497,468 @@ class _MaintenanceInspectionDetailScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const AppBreadcrumb(
-              segments: ['Dashboard', 'Onderhoud & Keuringen']),
+          const AppBreadcrumb(segments: ['Dashboard', 'Onderhoud & Keuringen']),
           const SizedBox(height: 16),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              AppBackButton(onTap: widget.onClose),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Onderhoud / Keuring',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: kTextTertiary,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.2,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '#${inspection.id.toString().padLeft(4, '0')}',
-                      style: const TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.w800,
-                        color: kTextPrimary,
-                        height: 1.1,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                alignment: WrapAlignment.end,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  if (_editing)
-                    OutlinedButton(
-                      onPressed: _isSaving ? null : _cancelEditing,
-                      child: const Text('Annuleren'),
-                    ),
-                  ElevatedButton.icon(
-                    onPressed: _isDeleting
-                        ? null
-                        : (_editing ? _save : _startEditing),
-                    icon: _isSaving
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : Icon(
-                            _editing ? Icons.save_rounded : Icons.edit_outlined,
-                            size: 18,
-                          ),
-                    label: Text(_editing ? 'Opslaan' : 'Bewerken'),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed:
-                        (_isDeleting || _isSaving) ? null : _confirmDelete,
-                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                    label: const Text('Verwijderen'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: kDanger,
-                      side: const BorderSide(color: kDangerBorder),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+          _buildHeader(inspection),
           const SizedBox(height: 20),
           Expanded(
-            child: SingleChildScrollView(
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFBFCF8),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xFFE4E9DD)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Toestel / Installatie',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF6B7A62),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        _buildEditableField(_equipmentController),
-                        const SizedBox(height: 10),
-                        _Pill(
-                          label: _statusLabel(inspection),
-                          background: _statusColor(
-                            inspection,
-                          ).withValues(alpha: 0.12),
-                          foreground: _statusColor(inspection),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    const Divider(color: Color(0xFFE4E9DD), height: 1),
-                    const SizedBox(height: 12),
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final wide = constraints.maxWidth >= 760;
-                        // On wide screens show three fields per row, otherwise full width
-                        final columnWidth = wide
-                            ? (constraints.maxWidth - 40) / 3
-                            : constraints.maxWidth;
-
-                        Widget field(
-                          String label,
-                          Widget child, {
-                          double? width,
-                        }) {
-                          return SizedBox(
-                            width: width ?? columnWidth,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  label,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w500,
-                                    color: Color(0xFF9CA39A),
-                                    height: 1.2,
-                                  ),
-                                ),
-                                const SizedBox(height: 3),
-                                child,
-                                if (label == 'Vestigingen' &&
-                                    _branchesError != null)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 6.0),
-                                    child: Text(
-                                      _branchesError!,
-                                      style: const TextStyle(
-                                        color: Colors.redAccent,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ),
-                                const SizedBox(height: 8),
-                              ],
-                            ),
-                          );
-                        }
-
-                        return Wrap(
-                          spacing: 20,
-                          runSpacing: 6,
-                          children: [
-                            // First row: Keurinstelling | Vestigingen | Frequentie
-                            field(
-                              'Keurinstelling',
-                              _buildEditableField(
-                                _inspectionInstitutionController,
-                              ),
-                              width: columnWidth,
-                            ),
-                            field(
-                              'Vestigingen',
-                              _buildBranchField(),
-                              width: columnWidth,
-                            ),
-                            field(
-                              'Frequentie',
-                              _buildFrequencyField(),
-                              width: columnWidth,
-                            ),
-
-                            // Second row: Laatste keuring | Keuren voor | Keurtype
-                            field(
-                              'Laatste keuring',
-                              _buildDateField(
-                                value: _lastInspectionDate,
-                                onChanged: (date) =>
-                                    setState(() => _lastInspectionDate = date),
-                              ),
-                              width: columnWidth,
-                            ),
-                            field(
-                              'Keuren voor',
-                              _buildDateField(
-                                value: _dueDate,
-                                onChanged: (date) =>
-                                    setState(() => _dueDate = date),
-                              ),
-                              width: columnWidth,
-                            ),
-                            field(
-                              'Keurtype',
-                              _buildInspectionTypeField(),
-                              width: columnWidth,
-                            ),
-
-                            // Third row: Contactinfo | Zelf contact | Status
-                            field(
-                              'Contactinfo',
-                              _buildEditableField(_contactInfoController),
-                              width: columnWidth,
-                            ),
-                            field(
-                              'Zelf contact',
-                              _buildSelfContactField(),
-                              width: columnWidth,
-                            ),
-                            field(
-                              'Status',
-                              _buildStatusField(),
-                              width: columnWidth,
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Opmerkingen',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF9CA39A),
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    _buildNotesField(),
-                  ],
-                ),
-              ),
-            ),
+            child: SingleChildScrollView(child: _buildContent(inspection)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildEditableField(
-    TextEditingController controller, {
-    int maxLines = 1,
-  }) {
-    if (!_editing) {
-      return _buildReadOnlyBox(controller.text);
-    }
+  Widget _buildHeader(MaintenanceInspection inspection) {
+    final actions = _buildHeaderActions();
 
-    return TextField(
-      controller: controller,
-      maxLines: maxLines,
-      decoration:
-          InputDecoration(
-            isDense: true,
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFFDDE3D2)),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 760;
+        final title = Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AppBackButton(onTap: widget.onClose),
+            const SizedBox(width: 14),
+            Expanded(child: _buildHeaderTitleBlock(inspection)),
+          ],
+        );
+
+        if (compact) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              title,
+              if (actions.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Wrap(spacing: 8, runSpacing: 8, children: actions),
+              ],
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: title),
+            const SizedBox(width: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.end,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: actions,
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: kBrandGreen),
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 12,
-            ),
-          ).copyWith(
-            errorText: controller == _equipmentController
-                ? _equipmentError
-                : (controller == _inspectionInstitutionController
-                      ? _inspectionInstitutionError
-                      : null),
-          ),
+          ],
+        );
+      },
     );
   }
 
-  Widget _buildInspectionTypeField() {
-    if (!_editing) {
-      return _buildReadOnlyBox(_inspectionType);
+  Widget _buildHeaderTitleBlock(MaintenanceInspection inspection) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const Text(
+              'Onderhoud / Keuring',
+              style: TextStyle(
+                fontSize: 13,
+                color: kTextTertiary,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.2,
+              ),
+            ),
+            const SizedBox(width: 8),
+            _buildStatusBadge(inspection),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          '#${inspection.id.toString().padLeft(4, '0')}',
+          style: const TextStyle(
+            fontSize: 30,
+            fontWeight: FontWeight.w800,
+            color: kTextPrimary,
+            height: 1.1,
+            letterSpacing: -0.5,
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<Widget> _buildHeaderActions() {
+    return [
+      if (_editing)
+        OutlinedButton(
+          onPressed: _isSaving ? null : _cancelEditing,
+          child: const Text('Annuleren'),
+        ),
+      ElevatedButton.icon(
+        onPressed: (_isDeleting || _isSaving)
+            ? null
+            : (_editing ? _save : _startEditing),
+        icon: _isSaving
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : Icon(
+                _editing ? Icons.save_rounded : Icons.edit_outlined,
+                size: 18,
+              ),
+        label: Text(_editing ? 'Opslaan' : 'Bewerken'),
+      ),
+      OutlinedButton.icon(
+        onPressed: (_isDeleting || _isSaving) ? null : _confirmDelete,
+        icon: const Icon(Icons.delete_outline_rounded, size: 18),
+        label: const Text('Verwijderen'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: kDanger,
+          side: const BorderSide(color: kDangerBorder),
+        ),
+      ),
+    ];
+  }
+
+  Widget _buildContent(MaintenanceInspection inspection) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildResponsiveDetailLayout(inspection),
+        if (_error != null && _inspection != null) ...[
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: kDangerBg,
+              borderRadius: BorderRadius.circular(kRadiusMd),
+              border: Border.all(color: kDangerBorder),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.error_outline_rounded,
+                  color: kDanger,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(
+                      color: kDanger,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildResponsiveDetailLayout(MaintenanceInspection inspection) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 1040;
+        if (wide) {
+          _scheduleMaintenancePrimaryColumnHeightMeasure();
+
+          final sideColumnWidth = (constraints.maxWidth * 0.34).clamp(
+            420.0,
+            540.0,
+          );
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 7,
+                child: KeyedSubtree(
+                  key: _maintenancePrimaryColumnKey,
+                  child: _buildPrimaryColumn(inspection),
+                ),
+              ),
+              const SizedBox(width: 18),
+              SizedBox(
+                width: sideColumnWidth,
+                child: _buildSideColumn(fillHeight: true),
+              ),
+            ],
+          );
+        }
+
+        if (_maintenancePrimaryColumnHeight != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              setState(() => _maintenancePrimaryColumnHeight = null);
+            }
+          });
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildPrimaryColumn(inspection),
+            const SizedBox(height: 18),
+            _buildSideColumn(),
+          ],
+        );
+      },
+    );
+  }
+
+  void _scheduleMaintenancePrimaryColumnHeightMeasure() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      final renderBox =
+          _maintenancePrimaryColumnKey.currentContext?.findRenderObject()
+              as RenderBox?;
+      final height = renderBox?.size.height;
+      if (height == null || height <= 0) return;
+
+      final current = _maintenancePrimaryColumnHeight;
+      if (current != null && (current - height).abs() < 0.5) return;
+
+      setState(() {
+        _maintenancePrimaryColumnHeight = height;
+      });
+    });
+  }
+
+  Widget _buildPrimaryColumn(MaintenanceInspection inspection) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildKeuringPanel(inspection),
+        const SizedBox(height: 16),
+        _buildPlanningPanel(inspection),
+        const SizedBox(height: 16),
+        _buildContactPanel(inspection),
+      ],
+    );
+  }
+
+  Widget _buildSideColumn({bool fillHeight = false}) {
+    final notesPanel = _buildNotesPanel();
+    final height = _maintenancePrimaryColumnHeight;
+
+    if (fillHeight && height != null && height > 0) {
+      return SizedBox(height: height, child: notesPanel);
     }
 
+    return notesPanel;
+  }
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Section panels
+  // ───────────────────────────────────────────────────────────────────────
+
+  Widget _buildKeuringPanel(MaintenanceInspection inspection) {
+    return AppSectionPanel(
+      title: 'Keuring',
+      icon: Icons.fact_check_outlined,
+      child: _detailGrid([
+        _DetailField(
+          label: 'Toestel / installatie',
+          readValue: _displayValue(_equipmentController.text),
+          editor: _buildTextEditor(
+            _equipmentController,
+            error: _equipmentError,
+            hint: 'Bijv. Heftruck, compressor',
+          ),
+          wide: true,
+        ),
+        _DetailField(
+          label: 'Keurtype',
+          readValue: _displayValue(_inspectionType),
+          editor: _buildInspectionTypeEditor(),
+        ),
+        _DetailField(
+          label: 'Keurinstelling',
+          readValue: _displayValue(_inspectionInstitutionController.text),
+          editor: _buildTextEditor(
+            _inspectionInstitutionController,
+            error: _inspectionInstitutionError,
+            hint: 'Bijv. SGS, Vinçotte',
+          ),
+        ),
+        _DetailField(
+          label: 'Status',
+          readValue: _getStatusLabel(_status),
+          editor: _buildStatusEditor(),
+        ),
+      ]),
+    );
+  }
+
+  Widget _buildPlanningPanel(MaintenanceInspection inspection) {
+    return AppSectionPanel(
+      title: 'Planning',
+      icon: Icons.event_outlined,
+      child: _detailGrid([
+        _DetailField(
+          label: 'Frequentie',
+          readValue: _formatFrequencyLabel(),
+          editor: _buildFrequencyEditor(),
+        ),
+        _DetailField(
+          label: 'Laatste keuring',
+          readValue: _formatDate(_lastInspectionDate),
+          editor: _buildDateEditor(
+            value: _lastInspectionDate,
+            onChanged: (date) => setState(() => _lastInspectionDate = date),
+            hint: 'Niet ingevuld',
+          ),
+        ),
+        _DetailField(
+          label: 'Keuren voor',
+          readValue: _formatDate(_dueDate),
+          editor: _buildDateEditor(
+            value: _dueDate,
+            onChanged: (date) => setState(() => _dueDate = date),
+            hint: 'Niet ingevuld',
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _buildContactPanel(MaintenanceInspection inspection) {
+    return AppSectionPanel(
+      title: 'Contact & vestigingen',
+      icon: Icons.business_outlined,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _LabeledField(
+            label: 'Vestigingen',
+            error: _editing ? _branchesError : null,
+            child: _editing
+                ? _buildBranchEditor()
+                : _buildBranchReadOnly(inspection),
+          ),
+          const SizedBox(height: 16),
+          _detailGrid([
+            _DetailField(
+              label: 'Contactinfo',
+              readValue: _displayValue(_contactInfoController.text),
+              editor: _buildTextEditor(
+                _contactInfoController,
+                hint: 'Naam, e-mail of telefoon',
+              ),
+              wide: true,
+            ),
+            _DetailField(
+              label: 'Zelf contact opnemen',
+              readValue: _selfContact ? 'Ja' : 'Nee',
+              editor: _buildSelfContactEditor(),
+              wide: true,
+            ),
+          ]),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotesPanel() {
+    return AppSectionPanel(
+      title: 'Opmerkingen',
+      icon: Icons.notes_outlined,
+      child: _editing
+          ? _buildTextEditor(
+              _notesController,
+              maxLines: 5,
+              hint: 'Voeg opmerkingen toe...',
+            )
+          : _buildNotesReadOnly(),
+    );
+  }
+
+  Widget _buildNotesReadOnly() {
+    final notes = _notesController.text.trim();
+    final isEmpty = notes.isEmpty;
+    return Text(
+      isEmpty ? 'Geen opmerkingen toegevoegd.' : notes,
+      style: TextStyle(
+        fontSize: 14.5,
+        fontWeight: FontWeight.w800,
+        color: isEmpty ? kTextMuted : Colors.black,
+        height: 1.5,
+      ),
+    );
+  }
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Field editors / read-only renderers
+  // ───────────────────────────────────────────────────────────────────────
+
+  Widget _detailGrid(List<_DetailField> fields) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const gap = 20.0;
+        const minItemWidth = 220.0;
+        final columns = ((constraints.maxWidth + gap) / (minItemWidth + gap))
+            .floor()
+            .clamp(1, 3);
+        final itemWidth =
+            (constraints.maxWidth - gap * (columns - 1)) / columns;
+
+        return Wrap(
+          spacing: gap,
+          runSpacing: 16,
+          children: fields.map((field) {
+            final width = field.wide ? constraints.maxWidth : itemWidth;
+            return SizedBox(
+              width: width,
+              child: _LabeledField(
+                label: field.label,
+                child: _editing
+                    ? field.editor
+                    : _ReadOnlyValue(value: field.readValue),
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildTextEditor(
+    TextEditingController controller, {
+    int maxLines = 1,
+    String? hint,
+    String? error,
+  }) {
+    return TextField(
+      controller: controller,
+      maxLines: maxLines,
+      decoration: _inputDecoration(hint: hint, errorText: error),
+    );
+  }
+
+  Widget _buildInspectionTypeEditor() {
     return DropdownButtonFormField<String>(
       initialValue: _inspectionType,
       isExpanded: true,
-      borderRadius: BorderRadius.circular(16),
-      dropdownColor: Colors.white,
-      decoration: InputDecoration(
-        isDense: true,
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: kBrandGreen),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: kBrandGreen),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 12,
-        ),
-      ),
+      borderRadius: BorderRadius.circular(kRadiusMd),
+      dropdownColor: kSurface,
+      decoration: _inputDecoration(),
       items: _inspectionTypeItems(),
       onChanged: (value) {
-        if (value == null) {
-          return;
-        }
+        if (value == null) return;
         if (value == 'new') {
           _showAddInspectionTypeDialog();
           return;
@@ -891,11 +970,31 @@ class _MaintenanceInspectionDetailScreenState
     );
   }
 
-  Widget _buildFrequencyField() {
-    if (!_editing) {
-      return _buildReadOnlyBox(_formatFrequencyLabel());
-    }
+  Widget _buildStatusEditor() {
+    return DropdownButtonFormField<String?>(
+      initialValue: _status,
+      isExpanded: true,
+      borderRadius: BorderRadius.circular(kRadiusMd),
+      dropdownColor: kSurface,
+      decoration: _inputDecoration(),
+      items: const [
+        DropdownMenuItem(value: null, child: Text('Geen')),
+        DropdownMenuItem(value: 'In uitvoering', child: Text('In uitvoering')),
+        DropdownMenuItem(
+          value: 'Nog niet uitgevoerd',
+          child: Text('Nog niet uitgevoerd'),
+        ),
+        DropdownMenuItem(value: 'Uitgevoerd', child: Text('Uitgevoerd')),
+      ],
+      onChanged: (value) {
+        setState(() {
+          _status = value;
+        });
+      },
+    );
+  }
 
+  Widget _buildFrequencyEditor() {
     return Row(
       children: [
         Expanded(
@@ -903,26 +1002,8 @@ class _MaintenanceInspectionDetailScreenState
           child: TextField(
             controller: _frequencyValueController,
             keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              isDense: true,
-              filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: Color(0xFFDDE3D2)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: kBrandGreen),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 12,
-              ),
-            ),
+            decoration: _inputDecoration(),
+            onChanged: (_) => setState(() {}),
           ),
         ),
         const SizedBox(width: 8),
@@ -931,28 +1012,9 @@ class _MaintenanceInspectionDetailScreenState
           child: DropdownButtonFormField<String>(
             initialValue: _frequencyUnit,
             isExpanded: true,
-            borderRadius: BorderRadius.circular(16),
-            dropdownColor: Colors.white,
-            decoration: InputDecoration(
-              isDense: true,
-              filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: Color(0xFFDDE3D2)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: kBrandGreen),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 12,
-              ),
-            ),
+            borderRadius: BorderRadius.circular(kRadiusMd),
+            dropdownColor: kSurface,
+            decoration: _inputDecoration(),
             items: const [
               DropdownMenuItem(value: 'Jaar', child: Text('Jaar')),
               DropdownMenuItem(value: 'Maand', child: Text('Maand')),
@@ -960,9 +1022,7 @@ class _MaintenanceInspectionDetailScreenState
               DropdownMenuItem(value: 'Dag', child: Text('Dag')),
             ],
             onChanged: (value) {
-              if (value == null) {
-                return;
-              }
+              if (value == null) return;
               setState(() {
                 _frequencyUnit = value;
               });
@@ -973,16 +1033,11 @@ class _MaintenanceInspectionDetailScreenState
     );
   }
 
-  Widget _buildDateField({
+  Widget _buildDateEditor({
     required DateTime? value,
     required ValueChanged<DateTime> onChanged,
+    String? hint,
   }) {
-    final displayValue = _formatDate(value);
-
-    if (!_editing) {
-      return _buildReadOnlyBox(displayValue);
-    }
-
     return InkWell(
       onTap: () async {
         final picked = await showDatePicker(
@@ -995,47 +1050,71 @@ class _MaintenanceInspectionDetailScreenState
           onChanged(picked);
         }
       },
+      borderRadius: BorderRadius.circular(kRadiusMd),
       child: InputDecorator(
-        decoration: InputDecoration(
-          isDense: true,
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: Color(0xFFDDE3D2)),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: kBrandGreen),
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 12,
+        decoration: _inputDecoration().copyWith(
+          suffixIcon: const Icon(
+            Icons.calendar_today_outlined,
+            size: 18,
+            color: kTextTertiary,
           ),
         ),
-        child: Text(displayValue),
+        child: Text(
+          value != null ? _formatDate(value) : (hint ?? 'Kies datum'),
+          style: TextStyle(
+            fontSize: 14.5,
+            fontWeight: FontWeight.w500,
+            color: value == null ? kTextMuted : kTextPrimary,
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildBranchField() {
-    if (!_editing) {
-      return _buildReadOnlyBox(
-        _inspection == null ? '-' : _inspection!.locations.join(', '),
+  Widget _buildBranchEditor() {
+    if (_isLoadingBranches) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: kSurfaceMuted,
+          borderRadius: BorderRadius.circular(kRadiusMd),
+          border: Border.all(color: kBorder),
+        ),
+        child: const Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 10),
+            Text('Vestigingen laden...'),
+          ],
+        ),
       );
     }
 
     if (_branches.isEmpty) {
-      return _buildReadOnlyBox('Geen vestigingen geladen');
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: kSurfaceMuted,
+          borderRadius: BorderRadius.circular(kRadiusMd),
+          border: Border.all(color: kBorder),
+        ),
+        child: const Text(
+          'Geen vestigingen beschikbaar.',
+          style: TextStyle(color: kTextMuted, fontWeight: FontWeight.w500),
+        ),
+      );
     }
 
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFDDE3D2)),
+        color: kSurface,
+        borderRadius: BorderRadius.circular(kRadiusMd),
+        border: Border.all(color: kBorder),
       ),
       child: Wrap(
         spacing: 8,
@@ -1045,10 +1124,11 @@ class _MaintenanceInspectionDetailScreenState
           return FilterChip(
             label: Text(branch.name),
             selected: selected,
-            selectedColor: const Color(0xFFEAF4D9),
-            backgroundColor: Colors.white,
+            selectedColor: kBrandGreenSoft,
+            backgroundColor: kSurfaceMuted,
+            side: BorderSide(color: selected ? kBrandGreenDark : kBorder),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(999),
+              borderRadius: BorderRadius.circular(kRadiusPill),
             ),
             onSelected: (isSelected) {
               setState(() {
@@ -1068,66 +1148,58 @@ class _MaintenanceInspectionDetailScreenState
     );
   }
 
-  Widget _buildStatusField() {
-    if (!_editing) {
-      return _buildReadOnlyBox(_getStatusLabel(_status));
+  Widget _buildBranchReadOnly(MaintenanceInspection inspection) {
+    if (inspection.locations.isEmpty) {
+      return const _ReadOnlyValue(value: '-');
     }
 
-    return DropdownButtonFormField<String?>(
-      initialValue: _status,
-      isExpanded: true,
-      decoration: InputDecoration(
-        isDense: true,
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFFDDE3D2)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: kBrandGreen),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 12,
-        ),
-      ),
-      items: const [
-        DropdownMenuItem(value: null, child: Text('Geen')),
-        DropdownMenuItem(value: 'In uitvoering', child: Text('In uitvoering')),
-        DropdownMenuItem(
-          value: 'Nog niet uitgevoerd',
-          child: Text('Nog niet uitgevoerd'),
-        ),
-        DropdownMenuItem(value: 'Uitgevoerd', child: Text('Uitgevoerd')),
-      ],
-      onChanged: (value) {
-        setState(() {
-          _status = value;
-        });
-      },
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: inspection.locations
+          .map(
+            (location) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: kBrandGreenSubtle,
+                borderRadius: BorderRadius.circular(kRadiusPill),
+                border: Border.all(color: kBrandGreenSoft),
+              ),
+              child: Text(
+                location,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: kBrandGreenDeep,
+                ),
+              ),
+            ),
+          )
+          .toList(),
     );
   }
 
-  Widget _buildSelfContactField() {
-    if (!_editing) {
-      return _buildReadOnlyBox(_selfContact ? 'Ja' : 'Nee');
-    }
-
+  Widget _buildSelfContactEditor() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFDDE3D2)),
+        color: kSurface,
+        borderRadius: BorderRadius.circular(kRadiusMd),
+        border: Border.all(color: kBorder),
       ),
       child: SwitchListTile.adaptive(
         value: _selfContact,
         contentPadding: EdgeInsets.zero,
-        title: const Text('Zelf contact opnemen'),
+        title: const Text(
+          'Zelf contact opnemen',
+          style: TextStyle(
+            fontSize: 14.5,
+            fontWeight: FontWeight.w600,
+            color: kTextPrimary,
+          ),
+        ),
+        activeThumbColor: kBrandGreen,
         onChanged: (value) {
           setState(() {
             _selfContact = value;
@@ -1137,36 +1209,47 @@ class _MaintenanceInspectionDetailScreenState
     );
   }
 
-  Widget _buildNotesField() {
-    if (!_editing) {
-      final notes = _notesController.text.trim();
-      return _buildReadOnlyBox(
-        notes.isEmpty ? 'Geen opmerkingen toegevoegd.' : notes,
-      );
-    }
-
-    return TextField(
-      controller: _notesController,
-      maxLines: 4,
-      decoration: InputDecoration(
-        isDense: true,
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFFDDE3D2)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: kBrandGreen),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 12,
-        ),
+  InputDecoration _inputDecoration({String? errorText, String? hint}) {
+    return InputDecoration(
+      isDense: true,
+      filled: true,
+      fillColor: kSurface,
+      hintText: hint,
+      errorText: errorText,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(kRadiusMd),
+        borderSide: const BorderSide(color: kBorder),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(kRadiusMd),
+        borderSide: const BorderSide(color: kBorder),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(kRadiusMd),
+        borderSide: const BorderSide(color: kBrandGreen, width: 1.6),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(kRadiusMd),
+        borderSide: const BorderSide(color: kDanger),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(kRadiusMd),
+        borderSide: const BorderSide(color: kDanger, width: 1.6),
       ),
     );
+  }
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Formatting & status helpers
+  // ───────────────────────────────────────────────────────────────────────
+
+  String _displayValue(String? value) {
+    final normalized = value?.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (normalized == null || normalized.isEmpty) {
+      return '-';
+    }
+    return normalized;
   }
 
   String _formatFrequencyLabel() {
@@ -1175,26 +1258,8 @@ class _MaintenanceInspectionDetailScreenState
     return 'Elke $parsedValue $_frequencyUnit';
   }
 
-  Widget _buildReadOnlyBox(String value) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 2),
-      child: Text(
-        value.isEmpty ? '-' : value,
-        style: const TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.w500,
-          color: Color(0xFF243022),
-          height: 1.3,
-        ),
-      ),
-    );
-  }
-
   String _formatDate(DateTime? value) {
-    if (value == null) {
-      return 'Niet ingevuld';
-    }
+    if (value == null) return 'Niet ingevuld';
 
     final localValue = value.toLocal();
     final day = localValue.day.toString().padLeft(2, '0');
@@ -1202,21 +1267,12 @@ class _MaintenanceInspectionDetailScreenState
     return '$day/$month/${localValue.year}';
   }
 
-  String _statusLabel(MaintenanceInspection inspection) {
-    // Map backend English status to Dutch for display
-    final mappedStatus = _mapBackendStatusToFrontend(inspection.status);
-    if (mappedStatus != null && mappedStatus.isNotEmpty) {
-      return mappedStatus;
-    }
-    return 'Geen';
-  }
-
   String _getStatusLabel(String? status) {
-    if (status?.trim().isEmpty ?? true) {
+    if (status == null || status.trim().isEmpty) {
       return 'Geen';
     }
 
-    switch (status!.trim().toLowerCase()) {
+    switch (status.trim().toLowerCase()) {
       case 'none':
       case 'geen':
         return 'Geen';
@@ -1235,13 +1291,12 @@ class _MaintenanceInspectionDetailScreenState
     }
   }
 
-  /// Map English backend status to Dutch frontend values
   String? _mapBackendStatusToFrontend(String? status) {
-    if (status?.trim().isEmpty ?? true) {
+    if (status == null || status.trim().isEmpty) {
       return null;
     }
 
-    final trimmedStatus = status!.trim().toLowerCase();
+    final trimmedStatus = status.trim().toLowerCase();
     switch (trimmedStatus) {
       case 'none':
       case 'geen':
@@ -1257,18 +1312,16 @@ class _MaintenanceInspectionDetailScreenState
       case 'nog niet uitgevoerd':
         return 'Nog niet uitgevoerd';
       default:
-        // If it's already a Dutch value, return it as is
         return status;
     }
   }
 
-  /// Map Dutch frontend status to English backend values
   String? _mapFrontendStatusToBackend(String? status) {
-    if (status?.trim().isEmpty ?? true) {
+    if (status == null || status.trim().isEmpty) {
       return null;
     }
 
-    final trimmedStatus = status!.trim();
+    final trimmedStatus = status.trim();
     switch (trimmedStatus) {
       case 'In uitvoering':
         return 'Open';
@@ -1283,51 +1336,145 @@ class _MaintenanceInspectionDetailScreenState
     }
   }
 
-  Color _statusColor(MaintenanceInspection inspection) {
-    // Map backend English status to Dutch for color assignment
+  Widget _buildStatusBadge(MaintenanceInspection inspection) {
     final mappedStatus = _mapBackendStatusToFrontend(inspection.status);
-    if (mappedStatus == null || mappedStatus == 'Geen') {
-      return Colors.grey;
+    if (mappedStatus == null ||
+        mappedStatus.isEmpty ||
+        mappedStatus == 'Geen') {
+      return const AppStatusPill(
+        label: 'Geen status',
+        tone: AppStatusTone.neutral,
+      );
     }
-    if (mappedStatus == 'Uitgevoerd') {
-      return Colors.green;
+
+    AppStatusTone tone;
+    switch (mappedStatus) {
+      case 'Uitgevoerd':
+        tone = AppStatusTone.success;
+        break;
+      case 'In uitvoering':
+        tone = AppStatusTone.info;
+        break;
+      case 'Nog niet uitgevoerd':
+        tone = AppStatusTone.danger;
+        break;
+      default:
+        tone = AppStatusTone.neutral;
     }
-    if (mappedStatus == 'In uitvoering') {
-      return Colors.blue;
-    }
-    if (mappedStatus == 'Nog niet uitgevoerd') {
-      return Colors.red;
-    }
-    return Colors.grey;
+
+    return AppStatusPill(label: mappedStatus, tone: tone);
   }
 }
 
-class _Pill extends StatelessWidget {
-  const _Pill({
+// ─────────────────────────────────────────────────────────────────────────────
+// Sub-widgets
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _DetailField {
+  const _DetailField({
     required this.label,
-    required this.background,
-    required this.foreground,
+    required this.readValue,
+    required this.editor,
+    this.wide = false,
   });
 
   final String label;
-  final Color background;
-  final Color foreground;
+  final String readValue;
+  final Widget editor;
+  final bool wide;
+}
+
+class _LabeledField extends StatelessWidget {
+  const _LabeledField({required this.label, required this.child, this.error});
+
+  final String label;
+  final Widget child;
+  final String? error;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: foreground.withValues(alpha: 0.24)),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 15.5,
+            fontWeight: FontWeight.w600,
+            color: kTextTertiary,
+            letterSpacing: 0.2,
+            height: 1.2,
+          ),
+        ),
+        const SizedBox(height: 6),
+        child,
+        if (error != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            error!,
+            style: const TextStyle(
+              fontSize: 12,
+              color: kDanger,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _ReadOnlyValue extends StatelessWidget {
+  const _ReadOnlyValue({required this.value});
+
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final isEmpty = value.trim() == '-' || value.trim().isEmpty;
+    return Text(
+      isEmpty ? '-' : value,
+      style: TextStyle(
+        fontSize: 14.5,
+        fontWeight: FontWeight.w800,
+        color: isEmpty ? kTextMuted : Colors.black,
+        height: 1.5,
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 11.5,
-          fontWeight: FontWeight.w700,
-          color: foreground,
+    );
+  }
+}
+
+class _ErrorView extends StatelessWidget {
+  const _ErrorView({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline_rounded, color: kDanger, size: 36),
+            const SizedBox(height: 14),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 14.5,
+                fontWeight: FontWeight.w600,
+                color: kTextPrimary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: onRetry,
+              child: const Text('Opnieuw proberen'),
+            ),
+          ],
         ),
       ),
     );

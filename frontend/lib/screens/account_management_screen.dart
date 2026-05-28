@@ -104,59 +104,70 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        SizedBox(
-                          width: 420,
-                          child: TextField(
-                            controller: _searchController,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: kTextPrimary,
-                              fontWeight: FontWeight.w500,
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final searchWidth =
+                            constraints.maxWidth.clamp(0.0, 420.0).toDouble();
+
+                        return Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: searchWidth,
+                              child: TextField(
+                                controller: _searchController,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: kTextPrimary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                decoration: InputDecoration(
+                                  prefixIcon: const Icon(Icons.search_rounded,
+                                      color: kTextTertiary, size: 20),
+                                  hintText: 'Zoeken op naam of e-mail',
+                                  filled: true,
+                                  fillColor: kSurfaceMuted,
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 12,
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius:
+                                        BorderRadius.circular(kRadiusMd),
+                                    borderSide:
+                                        const BorderSide(color: kBorder),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius:
+                                        BorderRadius.circular(kRadiusMd),
+                                    borderSide:
+                                        const BorderSide(color: kBorder),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius:
+                                        BorderRadius.circular(kRadiusMd),
+                                    borderSide: const BorderSide(
+                                        color: kBrandGreen, width: 1.4),
+                                  ),
+                                ),
+                                onChanged: (_) => setState(() {}),
+                              ),
                             ),
-                            decoration: InputDecoration(
-                              prefixIcon: const Icon(Icons.search_rounded,
-                                  color: kTextTertiary, size: 20),
-                              hintText: 'Zoeken op naam of e-mail',
-                              filled: true,
-                              fillColor: kSurfaceMuted,
-                              isDense: true,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 12,
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(kRadiusMd),
-                                borderSide:
-                                    const BorderSide(color: kBorder),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(kRadiusMd),
-                                borderSide:
-                                    const BorderSide(color: kBorder),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(kRadiusMd),
-                                borderSide: const BorderSide(
-                                    color: kBrandGreen, width: 1.4),
-                              ),
+                            ElevatedButton.icon(
+                              onPressed:
+                                  accountManagementService.canManageAccounts
+                                      ? _showCreateAccountDialog
+                                      : null,
+                              icon: const Icon(Icons.person_add_alt_1_rounded,
+                                  size: 18),
+                              label: const Text('Nieuw account'),
                             ),
-                            onChanged: (_) => setState(() {}),
-                          ),
-                        ),
-                        ElevatedButton.icon(
-                          onPressed: accountManagementService.canManageAccounts
-                              ? _showCreateAccountDialog
-                              : null,
-                          icon: const Icon(Icons.person_add_alt_1_rounded,
-                              size: 18),
-                          label: const Text('Nieuw account'),
-                        ),
-                      ],
+                          ],
+                        );
+                      },
                     ),
                 const SizedBox(height: 28),
                 _AccountSection(
@@ -533,23 +544,28 @@ class _AccountGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final cardWidth = _calculateCardWidth(constraints.maxWidth);
+        final layout = _resolveLayout(constraints.maxWidth);
+        final isCompact = layout.width < 320;
 
         return Wrap(
-          spacing: 18,
-          runSpacing: 18,
+          spacing: _gridSpacing,
+          runSpacing: _gridSpacing,
+          alignment: layout.columns == 1
+              ? WrapAlignment.center
+              : WrapAlignment.start,
           children: accounts.map((account) {
             final updating = isUpdating(account.id);
             final deleting = isDeleting(account.id);
             final isCurrentUser = currentUserId == account.id;
 
             return SizedBox(
-              width: cardWidth,
+              width: layout.width,
               child: _AccountCard(
                 account: account,
                 isCurrentUser: isCurrentUser,
                 isUpdating: updating,
                 isDeleting: deleting,
+                isCompact: isCompact,
                 onAccessChanged: onAccessChanged,
                 onEdit: isCurrentUser ? null : onEdit,
                 onDelete: isCurrentUser ? null : onDelete,
@@ -561,15 +577,22 @@ class _AccountGrid extends StatelessWidget {
     );
   }
 
-  double _calculateCardWidth(double availableWidth) {
-    if (availableWidth >= 1260) {
-      return (availableWidth - 36) / 3;
-    }
-    if (availableWidth >= 860) {
-      return (availableWidth - 18) / 2;
+  static const double _gridSpacing = 18;
+  static const int _preferredColumns = 3;
+  static const double _minCardWidth = 260;
+  static const double _singleColumnMaxWidth = 460;
+
+  ({int columns, double width}) _resolveLayout(double availableWidth) {
+    for (var columns = _preferredColumns; columns > 1; columns--) {
+      final totalSpacing = _gridSpacing * (columns - 1);
+      final cardWidth = (availableWidth - totalSpacing) / columns;
+      if (cardWidth >= _minCardWidth) {
+        return (columns: columns, width: cardWidth);
+      }
     }
 
-    return availableWidth.clamp(260.0, 420.0).toDouble();
+    final width = availableWidth.clamp(0.0, _singleColumnMaxWidth).toDouble();
+    return (columns: 1, width: width);
   }
 }
 
@@ -580,6 +603,7 @@ class _AccountCard extends StatelessWidget {
     required this.isUpdating,
     required this.isDeleting,
     required this.onAccessChanged,
+    this.isCompact = false,
     this.onEdit,
     this.onDelete,
   });
@@ -588,6 +612,7 @@ class _AccountCard extends StatelessWidget {
   final bool isCurrentUser;
   final bool isUpdating;
   final bool isDeleting;
+  final bool isCompact;
   final Future<void> Function(User account, bool isAdmin, AccountAccess access)
   onAccessChanged;
   final Future<void> Function(User account)? onEdit;
@@ -596,6 +621,10 @@ class _AccountCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isBusy = isUpdating || isDeleting;
+    final horizontalPadding = isCompact ? 14.0 : 18.0;
+    final avatarRadius = isCompact ? 32.0 : 38.0;
+    final avatarIconSize = isCompact ? 36.0 : 42.0;
+    final nameSize = isCompact ? 18.0 : 21.0;
 
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 180),
@@ -606,7 +635,12 @@ class _AccountCard extends StatelessWidget {
             IgnorePointer(
               ignoring: isBusy,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+                padding: EdgeInsets.fromLTRB(
+                  horizontalPadding,
+                  16,
+                  horizontalPadding,
+                  18,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -668,10 +702,10 @@ class _AccountCard extends StatelessWidget {
                     ),
                     Center(
                       child: CircleAvatar(
-                        radius: 38,
+                        radius: avatarRadius,
                         backgroundColor: const Color(0xFFE3E5DE),
                         foregroundColor: const Color(0xFF80857B),
-                        child: const Icon(Icons.person_rounded, size: 42),
+                        child: Icon(Icons.person_rounded, size: avatarIconSize),
                       ),
                     ),
                     const SizedBox(height: 14),
@@ -681,16 +715,20 @@ class _AccountCard extends StatelessWidget {
                           Text(
                             account.displayName,
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 21,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: nameSize,
                               fontWeight: FontWeight.w700,
-                              color: Color(0xFF2B3424),
+                              color: const Color(0xFF2B3424),
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             account.email,
                             textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               fontSize: 13,
                               color: Color(0xFF6A7266),
@@ -985,6 +1023,7 @@ class _InfoChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      constraints: const BoxConstraints(maxWidth: 220),
       decoration: BoxDecoration(
         color: const Color(0xFFF1F4EC),
         borderRadius: BorderRadius.circular(999),
@@ -994,12 +1033,16 @@ class _InfoChip extends StatelessWidget {
         children: [
           Icon(icon, size: 14, color: const Color(0xFF5C7A2F)),
           const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF475145),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF475145),
+              ),
             ),
           ),
         ],

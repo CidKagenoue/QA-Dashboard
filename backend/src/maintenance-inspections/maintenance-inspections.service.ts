@@ -110,12 +110,15 @@ export class MaintenanceInspectionsService {
     return this.maintenanceInspectionModel.maintenanceInspection.delete({ where: { id } });
   }
 
-  async findUpcoming(limit = 3) {
+  async findUpcoming(limit = 20) {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
+    const cutoff = new Date(now);
+    cutoff.setDate(cutoff.getDate() + 30);
+
     const records = await this.maintenanceInspectionModel.maintenanceInspection.findMany({
       where: {
-        dueDate: { gte: now },
+        dueDate: { lte: cutoff },
         NOT: { status: 'Closed' },
       },
       orderBy: { dueDate: 'asc' },

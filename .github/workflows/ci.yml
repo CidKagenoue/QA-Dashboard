@@ -24,5 +24,3 @@ jobs:
       - name: Run tests
         working-directory: backend
         run: npm test --silent
-
-      

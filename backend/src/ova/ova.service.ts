@@ -445,7 +445,7 @@ export class OvaService {
     actorId: number,
     dto: UpdateOvaTicketDto,
   ) {
-    await this.assertCanAccessOva(actorId);
+    const actor = await this.assertCanAccessOva(actorId);
 
     const existingTicket = await this.prisma.ovaTicket.findUnique({
       where: { id: ticketId },
@@ -467,6 +467,15 @@ export class OvaService {
 
     if (!existingTicket) {
       throw new NotFoundException('OVA-ticket niet gevonden');
+    }
+
+    if (
+      existingTicket.status.trim().toLowerCase() === 'closed' &&
+      !actor.isAdmin
+    ) {
+      throw new ForbiddenException(
+        'Adminrechten zijn vereist om een gesloten OVA-ticket te bewerken',
+      );
     }
 
     const mutation = this.normalizeUpdateInput(dto, actorId);

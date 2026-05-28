@@ -12,6 +12,8 @@ import '../services/maintenance_api_service.dart';
 import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/design/app_breadcrumb.dart';
+import '../widgets/design/app_inline_filter_panel.dart';
+import '../widgets/design/app_toolbar_controls.dart';
 import 'maintenance_inspection_detail_screen.dart';
 
 class MaintenanceInspectionsScreen extends StatefulWidget {
@@ -50,6 +52,7 @@ class _MaintenanceInspectionsScreenState
   Set<int> selectedFilterBranches = {};
   DateTime? filterDateFrom;
   DateTime? filterDateTo;
+  bool _filtersExpanded = false;
 
   @override
   void didChangeDependencies() {
@@ -313,8 +316,7 @@ class _MaintenanceInspectionsScreenState
     final types = {
       ...customInspectionTypes.map((type) => type.trim()),
       trimmedType,
-    }.where((type) => type.isNotEmpty).toList()
-      ..sort();
+    }.where((type) => type.isNotEmpty).toList()..sort();
 
     await _persistCustomInspectionTypes(types);
   }
@@ -334,20 +336,20 @@ class _MaintenanceInspectionsScreenState
         (type) => type.trim() == trimmedOldType ? trimmedNewType : type.trim(),
       ),
       trimmedNewType,
-    }.where((type) => type.isNotEmpty).toList()
-      ..sort();
+    }.where((type) => type.isNotEmpty).toList()..sort();
 
     await _persistCustomInspectionTypes(types);
   }
 
   Future<void> _deleteCustomInspectionType(String type) async {
     final trimmedType = type.trim();
-    final types = customInspectionTypes
-        .map((type) => type.trim())
-        .where((type) => type.isNotEmpty && type != trimmedType)
-        .toSet()
-        .toList()
-      ..sort();
+    final types =
+        customInspectionTypes
+            .map((type) => type.trim())
+            .where((type) => type.isNotEmpty && type != trimmedType)
+            .toSet()
+            .toList()
+          ..sort();
 
     await _persistCustomInspectionTypes(types);
   }
@@ -364,199 +366,166 @@ class _MaintenanceInspectionsScreenState
     });
   }
 
-  void _showFilterSheet() {
+  int get _activeFilterCount {
+    var count = 0;
+    if (selectedStatus != null && selectedStatus != 'all') count++;
+    if (selectedInspectionType != null) count++;
+    if (selectedFilterBranches.isNotEmpty) count++;
+    if (filterDateFrom != null || filterDateTo != null) count++;
+    return count;
+  }
+
+  void _clearFilters() {
+    setState(() {
+      selectedStatus = null;
+      selectedInspectionType = null;
+      selectedFilterBranches.clear();
+      filterDateFrom = null;
+      filterDateTo = null;
+    });
+    _filterInspections();
+  }
+
+  Widget _buildInlineFilters() {
+    final showActiveFilters = _activeFilterCount > 0;
+    if (!showActiveFilters && !_filtersExpanded) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (showActiveFilters) ...[
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if ((selectedStatus ?? '').isNotEmpty)
+                AppActiveFilterChip(
+                  label: 'Status: $selectedStatus',
+                  onRemove: () {
+                    setState(() => selectedStatus = null);
+                    _filterInspections();
+                  },
+                ),
+              if ((selectedInspectionType ?? '').isNotEmpty)
+                AppActiveFilterChip(
+                  label: 'Type: $selectedInspectionType',
+                  onRemove: () {
+                    setState(() => selectedInspectionType = null);
+                    _filterInspections();
+                  },
+                ),
+              ...selectedFilterBranches.map((branchId) {
+                final branch = availableBranches.where((b) => b.id == branchId);
+                final label = branch.isEmpty ? '$branchId' : branch.first.name;
+                return AppActiveFilterChip(
+                  label: 'Vestiging: $label',
+                  onRemove: () {
+                    setState(() => selectedFilterBranches.remove(branchId));
+                    _filterInspections();
+                  },
+                );
+              }),
+            ],
+          ),
+        ],
+        if (_filtersExpanded) ...[
+          const SizedBox(height: 14),
+          _buildInlineFilterPanel(),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildInlineFilterPanel() {
     final inspectionTypes = _inspectionTypes();
+    final selectedBranchId = selectedFilterBranches.length == 1
+        ? selectedFilterBranches.first
+        : null;
 
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            void syncAndApply() {
-              setState(() {});
-              _filterInspections();
-              setSheetState(() {});
-            }
+    return AppInlineFilterPanel(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final fieldWidth = constraints.maxWidth < 760
+              ? constraints.maxWidth
+              : (constraints.maxWidth - 42) / 4;
 
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Filteren',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF243022),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          setState(() {
-                            selectedStatus = null;
-                            selectedInspectionType = null;
-                            selectedFilterBranches.clear();
-                            filterDateFrom = null;
-                            filterDateTo = null;
-                          });
-                          _filterInspections();
-                          setSheetState(() {});
-                        },
-                        child: const Text(
-                          'Wis filters',
-                          style: TextStyle(color: Color(0xFF6B7A62)),
-                        ),
-                      ),
-                    ],
+          return Wrap(
+            spacing: 14,
+            runSpacing: 14,
+            crossAxisAlignment: WrapCrossAlignment.end,
+            children: [
+              AppInlineFilterSelectField<String>(
+                width: fieldWidth,
+                label: 'Status',
+                value: selectedStatus,
+                options: const [
+                  AppInlineFilterOption(value: null, label: 'Alle statussen'),
+                  AppInlineFilterOption(
+                    value: 'In uitvoering',
+                    label: 'In uitvoering',
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Status',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF4D5548),
-                    ),
+                  AppInlineFilterOption(
+                    value: 'Nog niet uitgevoerd',
+                    label: 'Nog niet uitgevoerd',
                   ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _FilterChip(
-                        label: 'Geen',
-                        selected: selectedStatus == 'Geen',
-                        onTap: () {
-                          setState(
-                            () => selectedStatus =
-                                selectedStatus == 'Geen' ? null : 'Geen',
-                          );
-                          syncAndApply();
-                        },
-                      ),
-                      _FilterChip(
-                        label: 'In uitvoering',
-                        selected: selectedStatus == 'In uitvoering',
-                        onTap: () {
-                          setState(() {
-                            selectedStatus = selectedStatus == 'In uitvoering' ? null : 'In uitvoering';
-                          });
-                          syncAndApply();
-                        },
-                      ),
-                      _FilterChip(
-                        label: 'Nog niet uitgevoerd',
-                        selected: selectedStatus == 'Nog niet uitgevoerd',
-                        onTap: () {
-                          setState(() {
-                            selectedStatus = selectedStatus == 'Nog niet uitgevoerd' ? null : 'Nog niet uitgevoerd';
-                          });
-                          syncAndApply();
-                        },
-                      ),
-                      _FilterChip(
-                        label: 'Uitgevoerd',
-                        selected: selectedStatus == 'Uitgevoerd',
-                        onTap: () {
-                          setState(
-                            () => selectedStatus =
-                                selectedStatus == 'Uitgevoerd'
-                                ? null
-                                : 'Uitgevoerd',
-                          );
-                          syncAndApply();
-                        },
-                      ),
-                    ],
+                  AppInlineFilterOption(
+                    value: 'Uitgevoerd',
+                    label: 'Uitgevoerd',
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Keuringstype',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF4D5548),
-                    ),
+                ],
+                onChanged: (value) {
+                  setState(() => selectedStatus = value);
+                  _filterInspections();
+                },
+              ),
+              AppInlineFilterSelectField<String>(
+                width: fieldWidth,
+                label: 'Keuringstype',
+                value: selectedInspectionType,
+                options: [
+                  const AppInlineFilterOption(value: null, label: 'Alle types'),
+                  ...inspectionTypes.map(
+                    (type) => AppInlineFilterOption(value: type, label: type),
                   ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: inspectionTypes.map((type) {
-                      return _FilterChip(
-                        label: type,
-                        selected: selectedInspectionType == type,
-                        onTap: () {
-                          setState(
-                            () => selectedInspectionType =
-                                selectedInspectionType == type ? null : type,
-                          );
-                          syncAndApply();
-                        },
-                      );
-                    }).toList(),
+                ],
+                onChanged: (value) {
+                  setState(() => selectedInspectionType = value);
+                  _filterInspections();
+                },
+              ),
+              AppInlineFilterSelectField<int>(
+                width: fieldWidth,
+                label: 'Vestiging',
+                value: selectedBranchId,
+                options: [
+                  const AppInlineFilterOption(
+                    value: null,
+                    label: 'Alle vestigingen',
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Vestigingen',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF4D5548),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: availableBranches.map((branch) {
-                      return _FilterChip(
-                        label: branch.name,
-                        selected: selectedFilterBranches.contains(branch.id),
-                        onTap: () {
-                          setState(() {
-                            if (selectedFilterBranches.contains(branch.id)) {
-                              selectedFilterBranches.remove(branch.id);
-                            } else {
-                              selectedFilterBranches.add(branch.id);
-                            }
-                          });
-                          syncAndApply();
-                        },
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: kBrandGreen,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                      ),
-                      child: const Text('Toepassen'),
+                  ...availableBranches.map(
+                    (branch) => AppInlineFilterOption(
+                      value: branch.id,
+                      label: branch.name,
                     ),
                   ),
                 ],
+                onChanged: (value) {
+                  setState(() {
+                    selectedFilterBranches.clear();
+                    if (value != null) selectedFilterBranches.add(value);
+                  });
+                  _filterInspections();
+                },
               ),
-            );
-          },
-        );
-      },
+              if (_activeFilterCount > 0)
+                AppInlineFilterClearButton(onPressed: _clearFilters),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -588,8 +557,9 @@ class _MaintenanceInspectionsScreenState
         borderRadius: BorderRadius.circular(18),
         child: LayoutBuilder(
           builder: (context, c) {
-            final width =
-                math.max(c.maxWidth, _minMaintenanceTableWidth).toDouble();
+            final width = math
+                .max(c.maxWidth, _minMaintenanceTableWidth)
+                .toDouble();
 
             return SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -742,76 +712,30 @@ class _MaintenanceInspectionsScreenState
                     Row(
                       children: [
                         const Spacer(),
-                        SizedBox(
+                        AppToolbarSearchField(
+                          hintText: 'Zoeken',
                           width: 260,
-                          child: TextField(
-                            decoration: InputDecoration(
-                              hintText: 'Zoeken',
-                              hintStyle: const TextStyle(fontSize: 14),
-                              prefixIcon: const Icon(Icons.search, size: 20),
-                              isDense: true,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 10,
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(999),
-                                borderSide: const BorderSide(
-                                  color: Color(0xFFD7DBD2),
-                                ),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(999),
-                                borderSide: const BorderSide(
-                                  color: Color(0xFFD7DBD2),
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(999),
-                                borderSide: const BorderSide(
-                                  color: kBrandGreen,
-                                  width: 1.5,
-                                ),
-                              ),
-                              filled: true,
-                              fillColor: Colors.white,
-                            ),
-                            onChanged: (value) {
-                              searchQuery = value;
-                              _filterInspections();
-                            },
-                          ),
+                          onChanged: (value) {
+                            searchQuery = value;
+                            _filterInspections();
+                          },
                         ),
                         const SizedBox(width: 8),
-                        IconButton(
-                          onPressed: _showFilterSheet,
-                          icon: const Icon(Icons.filter_alt_outlined),
-                          tooltip: 'Filteren',
-                          color: const Color(0xFF6B7A62),
-                        ),
-                        const SizedBox(width: 4),
-                        ElevatedButton.icon(
-                          onPressed: isLoading ? null : _showAddDialog,
-                          icon: const Icon(Icons.add, size: 18),
-                          label: const Text('Nieuw'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: kBrandGreen,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                            textStyle: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(999),
-                            ),
+                        AppToolbarFilterButton(
+                          onPressed: () => setState(
+                            () => _filtersExpanded = !_filtersExpanded,
                           ),
+                          expanded: _filtersExpanded,
+                          activeCount: _activeFilterCount,
+                        ),
+                        const SizedBox(width: 8),
+                        AppToolbarPrimaryButton(
+                          onPressed: isLoading ? null : _showAddDialog,
+                          label: 'Nieuw',
                         ),
                       ],
                     ),
+                    _buildInlineFilters(),
                     const SizedBox(height: 20),
                     Expanded(
                       child: loadError != null
@@ -860,37 +784,35 @@ class _MaintenanceTableHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: kSurfaceMuted,
+      color: const Color(0xFFF6F7F2),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
-        children: _withMaintenanceTableColumnGaps(
-          const [
-            _MaintenanceHeaderColumn(
-              label: 'Toestel/Instalatie',
-              flex: _MaintenanceInspectionsScreenState._equipmentFlex,
-            ),
-            _MaintenanceHeaderColumn(
-              label: 'Keurinstelling',
-              flex: _MaintenanceInspectionsScreenState._institutionFlex,
-            ),
-            _MaintenanceHeaderColumn(
-              label: 'Vestigingen',
-              flex: _MaintenanceInspectionsScreenState._locationsFlex,
-            ),
-            _MaintenanceHeaderColumn(
-              label: 'Frequentie',
-              flex: _MaintenanceInspectionsScreenState._frequencyFlex,
-            ),
-            _MaintenanceHeaderColumn(
-              label: 'Status',
-              flex: _MaintenanceInspectionsScreenState._statusFlex,
-            ),
-            _MaintenanceHeaderColumn(
-              label: 'Keuren voor',
-              flex: _MaintenanceInspectionsScreenState._dueDateFlex,
-            ),
-          ],
-        ),
+        children: _withMaintenanceTableColumnGaps(const [
+          _MaintenanceHeaderColumn(
+            label: 'Toestel/Instalatie',
+            flex: _MaintenanceInspectionsScreenState._equipmentFlex,
+          ),
+          _MaintenanceHeaderColumn(
+            label: 'Keurinstelling',
+            flex: _MaintenanceInspectionsScreenState._institutionFlex,
+          ),
+          _MaintenanceHeaderColumn(
+            label: 'Vestigingen',
+            flex: _MaintenanceInspectionsScreenState._locationsFlex,
+          ),
+          _MaintenanceHeaderColumn(
+            label: 'Frequentie',
+            flex: _MaintenanceInspectionsScreenState._frequencyFlex,
+          ),
+          _MaintenanceHeaderColumn(
+            label: 'Status',
+            flex: _MaintenanceInspectionsScreenState._statusFlex,
+          ),
+          _MaintenanceHeaderColumn(
+            label: 'Keuren voor',
+            flex: _MaintenanceInspectionsScreenState._dueDateFlex,
+          ),
+        ]),
       ),
     );
   }
@@ -940,7 +862,7 @@ class _MaintenanceTableRowState extends State<_MaintenanceTableRow> {
 
   @override
   Widget build(BuildContext context) {
-    final baseColor = widget.striped ? const Color(0xFFF9FAF6) : kSurface;
+    final baseColor = widget.striped ? const Color(0xFFF9FAF6) : Colors.white;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
@@ -959,10 +881,7 @@ class _MaintenanceTableRowState extends State<_MaintenanceTableRow> {
                 widget.cells.map((cell) {
                   return Expanded(
                     flex: cell.flex,
-                    child: Align(
-                      alignment: cell.alignment,
-                      child: cell.child,
-                    ),
+                    child: Align(alignment: cell.alignment, child: cell.child),
                   );
                 }).toList(),
               ),
@@ -994,7 +913,7 @@ List<Widget> _withMaintenanceTableColumnGaps(List<Widget> children) {
 
 class _MaintenanceCellData {
   const _MaintenanceCellData({required this.flex, required this.child})
-      : alignment = Alignment.centerLeft;
+    : alignment = Alignment.centerLeft;
 
   final int flex;
   final Widget child;
@@ -1025,9 +944,8 @@ class _MaintenanceCellText extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: color ?? const Color(0xFF2F382E),
-          fontSize: 13.5,
-          fontWeight: weight ?? (emphasized ? FontWeight.w600 : FontWeight.w500),
-          height: 1.3,
+          fontWeight:
+              weight ?? (emphasized ? FontWeight.w600 : FontWeight.w500),
         ),
       ),
     );
@@ -1082,44 +1000,6 @@ class _MaintenanceStatusChip extends StatelessWidget {
   }
 }
 
-class _FilterChip extends StatelessWidget {
-  const _FilterChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: selected ? kBrandGreen : Colors.white,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: selected ? kBrandGreen : const Color(0xFFD7DBD2),
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-            color: selected ? Colors.white : const Color(0xFF4D5548),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _MaintenanceInspectionDialog extends StatefulWidget {
   const _MaintenanceInspectionDialog({
     required this.availableBranches,
@@ -1135,7 +1015,7 @@ class _MaintenanceInspectionDialog extends StatefulWidget {
   final List<String> customInspectionTypes;
   final Future<void> Function(String type) onInspectionTypeAdded;
   final Future<void> Function(String oldType, String newType)
-      onInspectionTypeRenamed;
+  onInspectionTypeRenamed;
   final Future<void> Function(String type) onInspectionTypeDeleted;
 
   @override
@@ -1516,523 +1396,538 @@ class _MaintenanceInspectionDialogState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                  Text(
-                    'Nieuwe Onderhoud/Keuring Aanmaken',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
+                    Text(
+                      'Nieuwe Onderhoud/Keuring Aanmaken',
+                      style: Theme.of(context).textTheme.headlineMedium
+                          ?.copyWith(fontWeight: FontWeight.w700),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Vul de onderstaande gegevens in om een nieuwe onderhouds- of keuringslijn toe te voegen.',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(color: Colors.grey[700]),
-                  ),
-                  const SizedBox(height: 20),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final twoColumn = constraints.maxWidth > 560;
-                      if (twoColumn) {
-                        return Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _buildLabel('Toestel/Instalatie *'),
-                                  const SizedBox(height: 8),
-                                  TextField(
-                                    controller: equipmentController,
-                                    decoration: _inputDecoration(
-                                      'Drukvat compressor',
-                                    ).copyWith(errorText: _equipmentError),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  _buildLabel('Naam Keurinstelling *'),
-                                  const SizedBox(height: 8),
-                                  TextField(
-                                    controller: institutionController,
-                                    decoration: _inputDecoration(
-                                      'Vinçotte',
-                                    ).copyWith(errorText: _institutionError),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  _buildLabel('Contactgegevens'),
-                                  const SizedBox(height: 8),
-                                  TextField(
-                                    controller: contactController,
-                                    decoration: _inputDecoration(
-                                      'buildingsalesnorth@vincotte.be',
+                    const SizedBox(height: 8),
+                    Text(
+                      'Vul de onderstaande gegevens in om een nieuwe onderhouds- of keuringslijn toe te voegen.',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(color: Colors.grey[700]),
+                    ),
+                    const SizedBox(height: 20),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final twoColumn = constraints.maxWidth > 560;
+                        if (twoColumn) {
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildLabel('Toestel/Instalatie *'),
+                                    const SizedBox(height: 8),
+                                    TextField(
+                                      controller: equipmentController,
+                                      decoration: _inputDecoration(
+                                        'Drukvat compressor',
+                                      ).copyWith(errorText: _equipmentError),
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(height: 16),
+                                    _buildLabel('Naam Keurinstelling *'),
+                                    const SizedBox(height: 8),
+                                    TextField(
+                                      controller: institutionController,
+                                      decoration: _inputDecoration(
+                                        'Vinçotte',
+                                      ).copyWith(errorText: _institutionError),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    _buildLabel('Contactgegevens'),
+                                    const SizedBox(height: 8),
+                                    TextField(
+                                      controller: contactController,
+                                      decoration: _inputDecoration(
+                                        'buildingsalesnorth@vincotte.be',
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 20),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _buildLabel('Type Keuring *'),
-                                  const SizedBox(height: 8),
-                                  DropdownButtonFormField<String>(
-                                    initialValue: inspectionType,
-                                    isExpanded: true,
-                                    focusColor: const Color(0xFFEAF4D9),
-                                    borderRadius: BorderRadius.circular(16),
-                                    dropdownColor: Colors.white,
-                                    items: _inspectionTypeItems(),
-                                    selectedItemBuilder: (_) =>
-                                        _inspectionTypeSelectedItems(),
-                                    onChanged: (value) {
-                                      if (value == 'new') {
-                                        _showAddInspectionTypeDialog();
-                                      } else if (value != null) {
-                                        setState(() => inspectionType = value);
-                                      }
-                                    },
-                                    decoration: _dropdownDecoration(),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  _buildLabel('Frequentie'),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      ConstrainedBox(
-                                        constraints: const BoxConstraints(
-                                          minWidth: 64,
-                                          maxWidth: 120,
+                              const SizedBox(width: 20),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildLabel('Type Keuring *'),
+                                    const SizedBox(height: 8),
+                                    DropdownButtonFormField<String>(
+                                      initialValue: inspectionType,
+                                      isExpanded: true,
+                                      focusColor: const Color(0xFFEAF4D9),
+                                      borderRadius: BorderRadius.circular(16),
+                                      dropdownColor: Colors.white,
+                                      items: _inspectionTypeItems(),
+                                      selectedItemBuilder: (_) =>
+                                          _inspectionTypeSelectedItems(),
+                                      onChanged: (value) {
+                                        if (value == 'new') {
+                                          _showAddInspectionTypeDialog();
+                                        } else if (value != null) {
+                                          setState(
+                                            () => inspectionType = value,
+                                          );
+                                        }
+                                      },
+                                      decoration: _dropdownDecoration(),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    _buildLabel('Frequentie'),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        ConstrainedBox(
+                                          constraints: const BoxConstraints(
+                                            minWidth: 64,
+                                            maxWidth: 120,
+                                          ),
+                                          child: DropdownButtonFormField<int>(
+                                            isExpanded: true,
+                                            initialValue: frequencyValue,
+                                            focusColor: const Color(0xFFEAF4D9),
+                                            borderRadius: BorderRadius.circular(
+                                              16,
+                                            ),
+                                            dropdownColor: Colors.white,
+                                            items: List.generate(
+                                              12,
+                                              (index) => DropdownMenuItem(
+                                                value: index + 1,
+                                                child: Text('${index + 1}'),
+                                              ),
+                                            ),
+                                            onChanged: (value) {
+                                              if (value != null) {
+                                                setState(
+                                                  () => frequencyValue = value,
+                                                );
+                                              }
+                                            },
+                                            decoration: _dropdownDecoration(),
+                                          ),
                                         ),
-                                        child: DropdownButtonFormField<int>(
-                                          isExpanded: true,
-                                          initialValue: frequencyValue,
-                                          focusColor: const Color(0xFFEAF4D9),
-                                          borderRadius:
-                                              BorderRadius.circular(16),
-                                          dropdownColor: Colors.white,
-                                          items: List.generate(
-                                            12,
-                                            (index) => DropdownMenuItem(
-                                              value: index + 1,
-                                              child: Text('${index + 1}'),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child:
+                                              DropdownButtonFormField<String>(
+                                                isExpanded: true,
+                                                initialValue: frequencyUnit,
+                                                focusColor: const Color(
+                                                  0xFFEAF4D9,
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(16),
+                                                dropdownColor: Colors.white,
+                                                items: const [
+                                                  DropdownMenuItem(
+                                                    value: 'Jaar',
+                                                    child: Text('Jaar'),
+                                                  ),
+                                                  DropdownMenuItem(
+                                                    value: 'Maand',
+                                                    child: Text('Maand'),
+                                                  ),
+                                                  DropdownMenuItem(
+                                                    value: 'Dag',
+                                                    child: Text('Dag'),
+                                                  ),
+                                                ],
+                                                onChanged: (value) {
+                                                  if (value != null) {
+                                                    setState(
+                                                      () =>
+                                                          frequencyUnit = value,
+                                                    );
+                                                  }
+                                                },
+                                                decoration:
+                                                    _dropdownDecoration(),
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    _buildLabel('Zelf Contacteren?'),
+                                    const SizedBox(height: 8),
+                                    Wrap(
+                                      spacing: 12,
+                                      runSpacing: 8,
+                                      children: [
+                                        ChoiceChip(
+                                          label: const Text('Ja'),
+                                          selected: selfContact,
+                                          selectedColor: const Color(
+                                            0xFFEAF4D9,
+                                          ),
+                                          backgroundColor: Colors.white,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              999,
                                             ),
                                           ),
-                                          onChanged: (value) {
-                                            if (value != null) {
-                                              setState(
-                                                () => frequencyValue = value,
-                                              );
-                                            }
-                                          },
-                                          decoration: _dropdownDecoration(),
+                                          onSelected: (_) => setState(
+                                            () => selfContact = true,
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: DropdownButtonFormField<String>(
-                                          isExpanded: true,
-                                          initialValue: frequencyUnit,
-                                          focusColor: const Color(0xFFEAF4D9),
-                                          borderRadius:
-                                              BorderRadius.circular(16),
-                                          dropdownColor: Colors.white,
-                                          items: const [
-                                            DropdownMenuItem(
-                                              value: 'Jaar',
-                                              child: Text('Jaar'),
+                                        ChoiceChip(
+                                          label: const Text('Nee'),
+                                          selected: !selfContact,
+                                          selectedColor: const Color(
+                                            0xFFEAF4D9,
+                                          ),
+                                          backgroundColor: Colors.white,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              999,
                                             ),
-                                            DropdownMenuItem(
-                                              value: 'Maand',
-                                              child: Text('Maand'),
-                                            ),
-                                            DropdownMenuItem(
-                                              value: 'Dag',
-                                              child: Text('Dag'),
-                                            ),
-                                          ],
-                                          onChanged: (value) {
-                                            if (value != null) {
-                                              setState(
-                                                () => frequencyUnit = value,
-                                              );
-                                            }
-                                          },
-                                          decoration: _dropdownDecoration(),
+                                          ),
+                                          onSelected: (_) => setState(
+                                            () => selfContact = false,
+                                          ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 16),
-                                  _buildLabel('Zelf Contacteren?'),
-                                  const SizedBox(height: 8),
-                                  Wrap(
-                                    spacing: 12,
-                                    runSpacing: 8,
-                                    children: [
-                                      ChoiceChip(
-                                        label: const Text('Ja'),
-                                        selected: selfContact,
-                                        selectedColor:
-                                            const Color(0xFFEAF4D9),
-                                        backgroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(999),
-                                        ),
-                                        onSelected: (_) =>
-                                            setState(() => selfContact = true),
-                                      ),
-                                      ChoiceChip(
-                                        label: const Text('Nee'),
-                                        selected: !selfContact,
-                                        selectedColor:
-                                            const Color(0xFFEAF4D9),
-                                        backgroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(999),
-                                        ),
-                                        onSelected: (_) =>
-                                            setState(() => selfContact = false),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+
+                        // single column layout for narrow widths
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildLabel('Toestel/Instalatie *'),
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: equipmentController,
+                              decoration: _inputDecoration(
+                                'Drukvat compressor',
+                              ).copyWith(errorText: _equipmentError),
+                            ),
+                            const SizedBox(height: 16),
+                            _buildLabel('Type Keuring *'),
+                            const SizedBox(height: 8),
+                            DropdownButtonFormField<String>(
+                              initialValue: inspectionType,
+                              isExpanded: true,
+                              focusColor: const Color(0xFFEAF4D9),
+                              borderRadius: BorderRadius.circular(16),
+                              dropdownColor: Colors.white,
+                              items: _inspectionTypeItems(),
+                              selectedItemBuilder: (_) =>
+                                  _inspectionTypeSelectedItems(),
+                              onChanged: (value) {
+                                if (value == 'new') {
+                                  _showAddInspectionTypeDialog();
+                                } else if (value != null) {
+                                  setState(() => inspectionType = value);
+                                }
+                              },
+                              decoration: _dropdownDecoration(),
+                            ),
+                            const SizedBox(height: 16),
+                            _buildLabel('Naam Keurinstelling *'),
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: institutionController,
+                              decoration: _inputDecoration(
+                                'Vinçotte',
+                              ).copyWith(errorText: _institutionError),
+                            ),
+                            const SizedBox(height: 16),
+                            _buildLabel('Contactgegevens'),
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: contactController,
+                              decoration: _inputDecoration(
+                                'buildingsalesnorth@vincotte.be',
                               ),
                             ),
+                            const SizedBox(height: 16),
                           ],
                         );
-                      }
-
-                      // single column layout for narrow widths
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildLabel('Toestel/Instalatie *'),
-                          const SizedBox(height: 8),
-                          TextField(
-                            controller: equipmentController,
-                            decoration: _inputDecoration(
-                              'Drukvat compressor',
-                            ).copyWith(errorText: _equipmentError),
-                          ),
-                          const SizedBox(height: 16),
-                          _buildLabel('Type Keuring *'),
-                          const SizedBox(height: 8),
-                          DropdownButtonFormField<String>(
-                            initialValue: inspectionType,
-                            isExpanded: true,
-                            focusColor: const Color(0xFFEAF4D9),
-                            borderRadius: BorderRadius.circular(16),
-                            dropdownColor: Colors.white,
-                            items: _inspectionTypeItems(),
-                            selectedItemBuilder: (_) =>
-                                _inspectionTypeSelectedItems(),
-                            onChanged: (value) {
-                              if (value == 'new') {
-                                _showAddInspectionTypeDialog();
-                              } else if (value != null) {
-                                setState(() => inspectionType = value);
-                              }
-                            },
-                            decoration: _dropdownDecoration(),
-                          ),
-                          const SizedBox(height: 16),
-                          _buildLabel('Naam Keurinstelling *'),
-                          const SizedBox(height: 8),
-                          TextField(
-                            controller: institutionController,
-                            decoration: _inputDecoration(
-                              'Vinçotte',
-                            ).copyWith(errorText: _institutionError),
-                          ),
-                          const SizedBox(height: 16),
-                          _buildLabel('Contactgegevens'),
-                          const SizedBox(height: 8),
-                          TextField(
-                            controller: contactController,
-                            decoration: _inputDecoration(
-                              'buildingsalesnorth@vincotte.be',
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  _buildLabel('Status'),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    initialValue: status,
-                    isExpanded: true,
-                    focusColor: const Color(0xFFEAF4D9),
-                    borderRadius: BorderRadius.circular(16),
-                    dropdownColor: Colors.white,
-                    items: const [
-                      DropdownMenuItem(value: null, child: Text('Geen')),
-                      DropdownMenuItem(
-                        value: 'In uitvoering',
-                        child: Text('In uitvoering'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'Nog niet uitgevoerd',
-                        child: Text('Nog niet uitgevoerd'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'Uitgevoerd',
-                        child: Text('Uitgevoerd'),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() => status = value);
-                      } else {
-                        setState(() => status = null);
-                      }
-                    },
-                    decoration: _dropdownDecoration(),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildLabel('Vestigingen *'),
-                  const SizedBox(height: 8),
-                  Container(
-                    height: 140,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border.all(color: const Color(0xFFD8D8D8)),
-                      borderRadius: BorderRadius.circular(10),
+                      },
                     ),
-                    child: branches.isEmpty
-                        ? const Center(
-                            child: Text('Geen vestigingen beschikbaar.'),
-                          )
-                        : Scrollbar(
-                            controller: _locationsScrollController,
-                            child: ListView(
+                    const SizedBox(height: 12),
+                    _buildLabel('Status'),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      initialValue: status,
+                      isExpanded: true,
+                      focusColor: const Color(0xFFEAF4D9),
+                      borderRadius: BorderRadius.circular(16),
+                      dropdownColor: Colors.white,
+                      items: const [
+                        DropdownMenuItem(value: null, child: Text('Geen')),
+                        DropdownMenuItem(
+                          value: 'In uitvoering',
+                          child: Text('In uitvoering'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Nog niet uitgevoerd',
+                          child: Text('Nog niet uitgevoerd'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Uitgevoerd',
+                          child: Text('Uitgevoerd'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() => status = value);
+                        } else {
+                          setState(() => status = null);
+                        }
+                      },
+                      decoration: _dropdownDecoration(),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildLabel('Vestigingen *'),
+                    const SizedBox(height: 8),
+                    Container(
+                      height: 140,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border.all(color: const Color(0xFFD8D8D8)),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: branches.isEmpty
+                          ? const Center(
+                              child: Text('Geen vestigingen beschikbaar.'),
+                            )
+                          : Scrollbar(
                               controller: _locationsScrollController,
-                              padding: EdgeInsets.zero,
-                              children: branches.map((branch) {
-                                final selected = selectedLocationIds.contains(
-                                  branch.id,
-                                );
-                                return CheckboxListTile(
-                                  dense: true,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                  ),
-                                  title: Text(
-                                    branch.name,
-                                    style: TextStyle(
-                                      fontWeight: selected
-                                          ? FontWeight.w700
-                                          : FontWeight.w400,
+                              child: ListView(
+                                controller: _locationsScrollController,
+                                padding: EdgeInsets.zero,
+                                children: branches.map((branch) {
+                                  final selected = selectedLocationIds.contains(
+                                    branch.id,
+                                  );
+                                  return CheckboxListTile(
+                                    dense: true,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
                                     ),
-                                  ),
-                                  value: selected,
-                                  onChanged: (isChecked) {
-                                    setState(() {
-                                      if (isChecked == true) {
-                                        selectedLocationIds.add(branch.id);
-                                        if (_branchesError != null &&
-                                            selectedLocationIds.isNotEmpty) {
-                                          _branchesError = null;
+                                    title: Text(
+                                      branch.name,
+                                      style: TextStyle(
+                                        fontWeight: selected
+                                            ? FontWeight.w700
+                                            : FontWeight.w400,
+                                      ),
+                                    ),
+                                    value: selected,
+                                    onChanged: (isChecked) {
+                                      setState(() {
+                                        if (isChecked == true) {
+                                          selectedLocationIds.add(branch.id);
+                                          if (_branchesError != null &&
+                                              selectedLocationIds.isNotEmpty) {
+                                            _branchesError = null;
+                                          }
+                                        } else {
+                                          selectedLocationIds.remove(branch.id);
                                         }
-                                      } else {
-                                        selectedLocationIds.remove(branch.id);
-                                      }
-                                    });
-                                  },
-                                );
-                              }).toList(),
+                                      });
+                                    },
+                                  );
+                                }).toList(),
+                              ),
                             ),
+                    ),
+                    Visibility(
+                      visible: _branchesError != null,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 8.0, left: 4.0),
+                        child: Text(
+                          _branchesError ?? '',
+                          style: const TextStyle(
+                            color: Colors.redAccent,
+                            fontSize: 12,
                           ),
-                  ),
-                  Visibility(
-                    visible: _branchesError != null,
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 8.0, left: 4.0),
-                      child: Text(
-                        _branchesError ?? '',
-                        style: const TextStyle(
-                          color: Colors.redAccent,
-                          fontSize: 12,
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildLabel('Opmerkingen'),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: notesController,
-                    maxLines: 4,
-                    minLines: 3,
-                    decoration: _inputDecoration(
-                      'Extra opmerkingen of aandachtspunten',
-                    ).copyWith(alignLabelWithHint: true),
-                  ),
-                  const SizedBox(height: 18),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildLabel('Datum laatste keuring'),
-                            const SizedBox(height: 8),
-                            TextField(
-                              controller: lastInspectionController,
-                              readOnly: true,
-                              decoration: _dateDecoration(
-                                onTap: () =>
-                                    _pickDate(lastInspectionController),
+                    const SizedBox(height: 16),
+                    _buildLabel('Opmerkingen'),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: notesController,
+                      maxLines: 4,
+                      minLines: 3,
+                      decoration: _inputDecoration(
+                        'Extra opmerkingen of aandachtspunten',
+                      ).copyWith(alignLabelWithHint: true),
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildLabel('Datum laatste keuring'),
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: lastInspectionController,
+                                readOnly: true,
+                                decoration: _dateDecoration(
+                                  onTap: () =>
+                                      _pickDate(lastInspectionController),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 20),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildLabel('Keuren vóór'),
-                            const SizedBox(height: 8),
-                            TextField(
-                              controller: dueDateController,
-                              readOnly: true,
-                              decoration: _dateDecoration(
-                                onTap: () => _pickDate(dueDateController),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildLabel('Keuren vóór'),
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: dueDateController,
+                                readOnly: true,
+                                decoration: _dateDecoration(
+                                  onTap: () => _pickDate(dueDateController),
+                                ),
                               ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 22),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            foregroundColor: kBrandGreen,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 14,
                             ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 22),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        style: TextButton.styleFrom(
-                          foregroundColor: kBrandGreen,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 14,
                           ),
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Annuleren'),
                         ),
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Annuleren'),
-                      ),
-                      const SizedBox(width: 12),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: kBrandGreen,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 14,
+                        const SizedBox(width: 12),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: kBrandGreen,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 14,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(28),
+                            ),
                           ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(28),
-                          ),
+                          onPressed: () {
+                            // Parse dates from text fields if not already set
+                            DateTime? parsedLastInspection = lastInspectionDate;
+                            DateTime? parsedDueDate = dueDate;
+
+                            if (parsedLastInspection == null &&
+                                lastInspectionController.text
+                                    .trim()
+                                    .isNotEmpty) {
+                              try {
+                                final parts = lastInspectionController.text
+                                    .split('/');
+                                if (parts.length == 3) {
+                                  parsedLastInspection = DateTime(
+                                    int.parse(parts[2]),
+                                    int.parse(parts[1]),
+                                    int.parse(parts[0]),
+                                  );
+                                }
+                              } catch (_) {}
+                            }
+
+                            if (parsedDueDate == null &&
+                                dueDateController.text.trim().isNotEmpty) {
+                              try {
+                                final parts = dueDateController.text.split('/');
+                                if (parts.length == 3) {
+                                  parsedDueDate = DateTime(
+                                    int.parse(parts[2]),
+                                    int.parse(parts[1]),
+                                    int.parse(parts[0]),
+                                  );
+                                }
+                              } catch (_) {}
+                            }
+
+                            final missing = <String>[];
+                            if (equipmentController.text.trim().isEmpty) {
+                              missing.add('Toestel/Installatie');
+                            }
+                            if (institutionController.text.trim().isEmpty) {
+                              missing.add('Naam keurinstelling');
+                            }
+                            if (selectedLocationIds.isEmpty) {
+                              missing.add('Vestiging');
+                            }
+
+                            if (missing.isNotEmpty) {
+                              setState(() {
+                                _equipmentError =
+                                    missing.contains('Toestel/Installatie')
+                                    ? 'Verplicht'
+                                    : null;
+                                _institutionError =
+                                    missing.contains('Naam keurinstelling')
+                                    ? 'Verplicht'
+                                    : null;
+                                _branchesError = missing.contains('Vestiging')
+                                    ? 'Kies minstens één vestiging'
+                                    : null;
+                              });
+                              return;
+                            }
+                            final form = MaintenanceInspectionForm()
+                              ..equipment = equipmentController.text.trim()
+                              ..inspectionType = inspectionType
+                              ..inspectionInstitution = institutionController
+                                  .text
+                                  .trim()
+                              ..contactInfo = contactController.text.trim()
+                              ..notes = notesController.text.trim().isEmpty
+                                  ? null
+                                  : notesController.text.trim()
+                              ..frequencyValue = frequencyValue
+                              ..frequencyUnit = frequencyUnit
+                              ..selfContact = selfContact
+                              ..status = _mapFrontendStatusToBackend(status)
+                              ..selectedBranchIds = selectedLocationIds.toList()
+                              ..lastInspectionDate = parsedLastInspection
+                              ..nextInspectionDate = parsedDueDate;
+
+                            Navigator.pop(context, form);
+                          },
+                          child: const Text('Aanmaken'),
                         ),
-                        onPressed: () {
-                          // Parse dates from text fields if not already set
-                          DateTime? parsedLastInspection = lastInspectionDate;
-                          DateTime? parsedDueDate = dueDate;
-
-                          if (parsedLastInspection == null &&
-                              lastInspectionController.text.trim().isNotEmpty) {
-                            try {
-                              final parts = lastInspectionController.text.split(
-                                '/',
-                              );
-                              if (parts.length == 3) {
-                                parsedLastInspection = DateTime(
-                                  int.parse(parts[2]),
-                                  int.parse(parts[1]),
-                                  int.parse(parts[0]),
-                                );
-                              }
-                            } catch (_) {}
-                          }
-
-                          if (parsedDueDate == null &&
-                              dueDateController.text.trim().isNotEmpty) {
-                            try {
-                              final parts = dueDateController.text.split('/');
-                              if (parts.length == 3) {
-                                parsedDueDate = DateTime(
-                                  int.parse(parts[2]),
-                                  int.parse(parts[1]),
-                                  int.parse(parts[0]),
-                                );
-                              }
-                            } catch (_) {}
-                          }
-
-                          final missing = <String>[];
-                          if (equipmentController.text.trim().isEmpty) {
-                            missing.add('Toestel/Installatie');
-                          }
-                          if (institutionController.text.trim().isEmpty) {
-                            missing.add('Naam keurinstelling');
-                          }
-                          if (selectedLocationIds.isEmpty) {
-                            missing.add('Vestiging');
-                          }
-
-                          if (missing.isNotEmpty) {
-                            setState(() {
-                              _equipmentError =
-                                  missing.contains('Toestel/Installatie')
-                                  ? 'Verplicht'
-                                  : null;
-                              _institutionError =
-                                  missing.contains('Naam keurinstelling')
-                                  ? 'Verplicht'
-                                  : null;
-                              _branchesError = missing.contains('Vestiging')
-                                  ? 'Kies minstens één vestiging'
-                                  : null;
-                            });
-                            return;
-                          }
-                          final form = MaintenanceInspectionForm()
-                            ..equipment = equipmentController.text.trim()
-                            ..inspectionType = inspectionType
-                            ..inspectionInstitution = institutionController.text
-                                .trim()
-                            ..contactInfo = contactController.text.trim()
-                            ..notes = notesController.text.trim().isEmpty
-                                ? null
-                                : notesController.text.trim()
-                            ..frequencyValue = frequencyValue
-                            ..frequencyUnit = frequencyUnit
-                            ..selfContact = selfContact
-                            ..status = _mapFrontendStatusToBackend(status)
-                            ..selectedBranchIds = selectedLocationIds.toList()
-                            ..lastInspectionDate = parsedLastInspection
-                            ..nextInspectionDate = parsedDueDate;
-
-                          Navigator.pop(context, form);
-                        },
-                        child: const Text('Aanmaken'),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
       ),
-    ),
     );
   }
 

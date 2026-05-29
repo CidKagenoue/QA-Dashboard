@@ -351,13 +351,7 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
     return '-';
   }
 
-  String _sectionStatusLabel(OvaTicket ticket) {
-    if (ticket.isClosed) {
-      return 'Gesloten';
-    }
-
-    return 'Open';
-  }
+  String _sectionStatusLabel(OvaTicket ticket) => ticket.statusLabel;
 
   String _ticketTypeLabel(OvaTicket ticket) {
     final type = ticket.ovaType?.trim();
@@ -572,8 +566,6 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
                       },
                       onSelected: _selectSection,
                     ),
-                    const SizedBox(height: 18),
-                    _TicketStatusGuide(section: _selectedSection),
                     const SizedBox(height: 24),
 
                     if (_isLoading)
@@ -727,6 +719,15 @@ class _SectionTabs extends StatelessWidget {
     }
   }
 
+  String _tooltip(_TicketSection s) {
+    switch (s) {
+      case _TicketSection.open:
+        return 'Alle tickets die nog niet afgesloten zijn staan hier. Ontbrekende onderdelen worden in de tabel met een streepje aangeduid.';
+      case _TicketSection.closed:
+        return 'Afgesloten tickets blijven hier zichtbaar als historiek en bewijs van de uitgevoerde opvolging.';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -738,124 +739,67 @@ class _SectionTabs extends StatelessWidget {
         runSpacing: 10,
         children: _TicketSection.values.map((s) {
           final selected = s == selectedSection;
-          return InkWell(
-            onTap: () => onSelected(s),
-            child: Container(
-              padding: const EdgeInsets.only(bottom: 10),
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(
-                    color: selected
-                        ? const Color(0xFF8CC63F)
-                        : Colors.transparent,
-                    width: 2,
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              InkWell(
+                onTap: () => onSelected(s),
+                child: Container(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(
+                        color: selected
+                            ? const Color(0xFF8CC63F)
+                            : Colors.transparent,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                  child: Text(
+                    '${_label(s)} (${counts[s] ?? 0})',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      color: const Color(0xFF2F382E),
+                    ),
                   ),
                 ),
               ),
-              child: Text(
-                '${_label(s)} (${counts[s] ?? 0})',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                  color: const Color(0xFF2F382E),
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
-
-class _TicketStatusGuide extends StatelessWidget {
-  const _TicketStatusGuide({required this.section});
-
-  final _TicketSection section;
-
-  @override
-  Widget build(BuildContext context) {
-    switch (section) {
-      case _TicketSection.open:
-        return const _StatusGuideCard(
-          title: 'Open',
-          description:
-              'Alle tickets die nog niet afgesloten zijn staan hier. Ontbrekende onderdelen worden in de tabel met een streepje aangeduid.',
-          color: Color(0xFFFFF1EF),
-          iconColor: Color(0xFFC43C33),
-        );
-      case _TicketSection.closed:
-        return const _StatusGuideCard(
-          title: 'Gesloten',
-          description:
-              'Dit ticket is afgehandeld. Het blijft zichtbaar als historiek en bewijs van de uitgevoerde opvolging.',
-          color: Color(0xFFEAF4D9),
-          iconColor: Color(0xFF6F972D),
-        );
-    }
-  }
-}
-
-class _StatusGuideCard extends StatelessWidget {
-  const _StatusGuideCard({
-    required this.title,
-    required this.description,
-    required this.color,
-    required this.iconColor,
-  });
-
-  final String title;
-  final String description;
-  final Color color;
-  final Color iconColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: iconColor.withValues(alpha: 0.22)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.7),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Icon(Icons.info_outline_rounded, color: iconColor, size: 17),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: iconColor,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13,
+              const SizedBox(width: 6),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Tooltip(
+                  message: _tooltip(s),
+                  triggerMode: TooltipTriggerMode.tap,
+                  preferBelow: true,
+                  waitDuration: const Duration(milliseconds: 200),
+                  showDuration: const Duration(seconds: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: const TextStyle(
-                    color: Color(0xFF475142),
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  textStyle: const TextStyle(
+                    color: Colors.white,
                     fontSize: 12,
                     height: 1.35,
                   ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2F382E),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.info_outline_rounded,
+                    size: 16,
+                    color: Color(0xFF8A9384),
+                  ),
                 ),
-              ],
-            ),
-          ),
-        ],
+              ),
+            ],
+          );
+        }).toList(),
       ),
     );
   }
@@ -1590,18 +1534,22 @@ class _TicketStatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final normalized = label.trim().toLowerCase();
-    late final Color backgroundColor;
-    late final Color textColor;
+    final Color backgroundColor;
+    final Color textColor;
+    final Color borderColor;
 
-    if (normalized == 'open') {
-      backgroundColor = const Color(0xFFFFE1DD);
-      textColor = const Color(0xFFC43C33);
-    } else if (normalized == 'gesloten') {
-      backgroundColor = const Color(0xFFEAF4D9);
-      textColor = const Color(0xFF6F972D);
+    if (normalized == 'gesloten') {
+      backgroundColor = kSuccessBg;
+      textColor = kSuccess;
+      borderColor = kSuccessBorder;
+    } else if (normalized == 'open') {
+      backgroundColor = kWarningBg;
+      textColor = kWarning;
+      borderColor = kWarningBorder;
     } else {
-      backgroundColor = const Color(0xFFF5F1E2);
-      textColor = const Color(0xFF786233);
+      backgroundColor = kDangerBg;
+      textColor = kDanger;
+      borderColor = kDangerBorder;
     }
 
     return Align(
@@ -1611,6 +1559,7 @@ class _TicketStatusChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: backgroundColor,
           borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: borderColor),
         ),
         child: Text(
           label,

@@ -327,16 +327,16 @@ class _SidebarItem extends StatelessWidget {
           hoverColor: selected ? kBrandGreenSubtle : kSurfaceHover,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 120),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
             decoration: BoxDecoration(
               color: bg,
               border: Border.all(color: borderColor),
               borderRadius: BorderRadius.circular(kRadiusMd),
             ),
             child: Row(
-              mainAxisAlignment:
-                  expanded ? MainAxisAlignment.start : MainAxisAlignment.center,
+              mainAxisAlignment: expanded
+                  ? MainAxisAlignment.start
+                  : MainAxisAlignment.center,
               children: [
                 Icon(icon, color: fg, size: 20),
                 if (expanded) ...[
@@ -348,8 +348,9 @@ class _SidebarItem extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: fg,
-                        fontWeight:
-                            selected ? FontWeight.w700 : FontWeight.w500,
+                        fontWeight: selected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
                         fontSize: 14,
                       ),
                     ),
@@ -418,12 +419,24 @@ class _DashboardBodyState extends State<_DashboardBody> {
       final token = await widget.authService.getValidAccessToken();
 
       final results = await Future.wait<dynamic>([
-        ApiService.fetchOvaTickets(token: token).catchError((_) => <Map<String, dynamic>>[]),
-        ApiService.fetchMyOvaActions(token: token).catchError((_) => <Map<String, dynamic>>[]),
-        JapApiService.fetchJapEntries(token: token).catchError((_) => <JapEntry>[]),
-        JapApiService.fetchGppEntries(token: token).catchError((_) => <GppEntry>[]),
-        MaintenanceApiService.fetchUpcomingInspections(token: token).catchError((_) => <Map<String, dynamic>>[]),
-        WhsApiService.fetchRecentReports(token: token).catchError((_) => <Map<String, dynamic>>[]),
+        ApiService.fetchOvaTickets(
+          token: token,
+        ).catchError((_) => <Map<String, dynamic>>[]),
+        ApiService.fetchMyOvaActions(
+          token: token,
+        ).catchError((_) => <Map<String, dynamic>>[]),
+        JapApiService.fetchJapEntries(
+          token: token,
+        ).catchError((_) => <JapEntry>[]),
+        JapApiService.fetchGppEntries(
+          token: token,
+        ).catchError((_) => <GppEntry>[]),
+        MaintenanceApiService.fetchUpcomingInspections(
+          token: token,
+        ).catchError((_) => <Map<String, dynamic>>[]),
+        WhsApiService.fetchRecentReports(
+          token: token,
+        ).catchError((_) => <Map<String, dynamic>>[]),
       ]);
 
       if (!mounted) return;
@@ -442,18 +455,21 @@ class _DashboardBodyState extends State<_DashboardBody> {
 
       final maintenanceOverview =
           (results[4] as List<Map<String, dynamic>>).where((inspection) {
-        final dueDate = DateTime.tryParse(inspection['dueDate']?.toString() ?? '');
-        if (dueDate == null) return false;
-        return dueDate.isBefore(startOfToday) ||
-            !dueDate.isAfter(urgentCutoff);
-      }).toList()
-        ..sort((a, b) {
-          final aDate = DateTime.tryParse(a['dueDate']?.toString() ?? '') ??
-              DateTime.fromMillisecondsSinceEpoch(0);
-          final bDate = DateTime.tryParse(b['dueDate']?.toString() ?? '') ??
-              DateTime.fromMillisecondsSinceEpoch(0);
-          return aDate.compareTo(bDate);
-        });
+            final dueDate = DateTime.tryParse(
+              inspection['dueDate']?.toString() ?? '',
+            );
+            if (dueDate == null) return false;
+            return dueDate.isBefore(startOfToday) ||
+                !dueDate.isAfter(urgentCutoff);
+          }).toList()..sort((a, b) {
+            final aDate =
+                DateTime.tryParse(a['dueDate']?.toString() ?? '') ??
+                DateTime.fromMillisecondsSinceEpoch(0);
+            final bDate =
+                DateTime.tryParse(b['dueDate']?.toString() ?? '') ??
+                DateTime.fromMillisecondsSinceEpoch(0);
+            return aDate.compareTo(bDate);
+          });
 
       setState(() {
         _tickets = (results[0] as List)
@@ -463,7 +479,9 @@ class _DashboardBodyState extends State<_DashboardBody> {
             .map((j) => OvaAssignedAction.fromJson(j as Map<String, dynamic>))
             .toList();
         _recentJapGpp = [
-          ...japEntries.take(3).map(
+          ...japEntries
+              .take(3)
+              .map(
                 (entry) => JapGppComment(
                   title: entry.goalMeasure,
                   author: 'JAP ${entry.year} · ${entry.domain}',
@@ -471,7 +489,9 @@ class _DashboardBodyState extends State<_DashboardBody> {
                       '${_japPriorityLabel(entry.priority)} · ${_japRealisationLabel(entry.realisation)}',
                 ),
               ),
-          ...gppEntries.take(3).map(
+          ...gppEntries
+              .take(3)
+              .map(
                 (entry) => JapGppComment(
                   title: entry.goalMeasure,
                   author: 'GPP ${entry.yearLabel} · ${entry.domain}',
@@ -481,7 +501,9 @@ class _DashboardBodyState extends State<_DashboardBody> {
               ),
         ];
         _upcomingMaintenance = maintenanceOverview.take(20).map((inspection) {
-          final dueDate = DateTime.tryParse(inspection['dueDate']?.toString() ?? '');
+          final dueDate = DateTime.tryParse(
+            inspection['dueDate']?.toString() ?? '',
+          );
           final formatted = dueDate == null
               ? (inspection['dueDate']?.toString() ?? '')
               : '${dueDate.day.toString().padLeft(2, '0')}/${dueDate.month.toString().padLeft(2, '0')}/${dueDate.year}';
@@ -495,10 +517,13 @@ class _DashboardBodyState extends State<_DashboardBody> {
             dueDate: dueDate,
           );
         }).toList();
-        _whsRecent = (results.length > 5 ? (results[5] as List<Map<String, dynamic>>) : <Map<String, dynamic>>[])
-            .take(3)
-            .map((r) => Map<String, dynamic>.from(r))
-            .toList();
+        _whsRecent =
+            (results.length > 5
+                    ? (results[5] as List<Map<String, dynamic>>)
+                    : <Map<String, dynamic>>[])
+                .take(3)
+                .map((r) => Map<String, dynamic>.from(r))
+                .toList();
       });
     } catch (e) {
       if (!mounted) return;
@@ -707,7 +732,10 @@ class _DashboardSkeleton extends StatelessWidget {
         LayoutBuilder(
           builder: (context, constraints) {
             final wide = constraints.maxWidth > 880;
-            final cards = List.generate(3, (_) => const _OverviewCardSkeleton());
+            final cards = List.generate(
+              3,
+              (_) => const _OverviewCardSkeleton(),
+            );
             return wide
                 ? Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -859,16 +887,17 @@ class _StatCardRow extends StatelessWidget {
         return IntrinsicHeight(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: children
-                .map(
-                  (c) => Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 16),
-                      child: c,
+            children: [
+              for (var i = 0; i < children.length; i++)
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      right: i == children.length - 1 ? 0 : 16,
                     ),
+                    child: children[i],
                   ),
-                )
-                .toList(),
+                ),
+            ],
           ),
         );
       },
@@ -926,8 +955,11 @@ class _OvaTicketsCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const Icon(Icons.arrow_forward_rounded,
-                  color: kBrandGreenDark, size: 18),
+              const Icon(
+                Icons.arrow_forward_rounded,
+                color: kBrandGreenDark,
+                size: 18,
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -1022,8 +1054,11 @@ class _StatCard extends StatelessWidget {
                 child: Icon(icon, color: accentColor, size: 20),
               ),
               const Spacer(),
-              const Icon(Icons.arrow_forward_rounded,
-                  color: kBrandGreenDark, size: 18),
+              const Icon(
+                Icons.arrow_forward_rounded,
+                color: kBrandGreenDark,
+                size: 18,
+              ),
             ],
           ),
           const SizedBox(height: 14),
@@ -1050,10 +1085,7 @@ class _StatCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             subtitle,
-            style: const TextStyle(
-              fontSize: 12.5,
-              color: kTextTertiary,
-            ),
+            style: const TextStyle(fontSize: 12.5, color: kTextTertiary),
           ),
         ],
       ),
@@ -1085,8 +1117,7 @@ class _ErrorCard extends StatelessWidget {
         children: [
           const Row(
             children: [
-              Icon(Icons.error_outline_rounded,
-                  color: kDanger, size: 22),
+              Icon(Icons.error_outline_rounded, color: kDanger, size: 22),
               SizedBox(width: 10),
               Text(
                 'Fout bij laden',
@@ -1367,10 +1398,7 @@ class _WhsToursOverviewCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _OverviewCardHeader(
-            icon: Icons.tour_outlined,
-            title: 'WHS-Tours',
-          ),
+          _OverviewCardHeader(icon: Icons.tour_outlined, title: 'WHS-Tours'),
           const SizedBox(height: 4),
           Expanded(
             child: items.isEmpty
@@ -1381,7 +1409,7 @@ class _WhsToursOverviewCard extends StatelessWidget {
                     children: items.map((item) {
                       final location = item['vestiging'] is Map
                           ? (item['vestiging']['address'] ??
-                              item['vestiging']['name'])
+                                item['vestiging']['name'])
                           : (item['vestiging']?.toString() ?? 'Onbekend');
                       final rawDate = item['datum'] ?? item['date'];
                       String dateLabel = '';
@@ -1506,8 +1534,11 @@ class _OverviewCardHeader extends StatelessWidget {
             ),
           ),
         ),
-        const Icon(Icons.arrow_forward_rounded,
-            color: kBrandGreenDark, size: 18),
+        const Icon(
+          Icons.arrow_forward_rounded,
+          color: kBrandGreenDark,
+          size: 18,
+        ),
       ],
     );
   }
@@ -1551,19 +1582,13 @@ class _OverviewRow extends StatelessWidget {
               const SizedBox(height: 3),
               Text(
                 subtitle,
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  color: kTextTertiary,
-                ),
+                style: const TextStyle(fontSize: 12.5, color: kTextTertiary),
               ),
               if (trailing != null && trailing!.isNotEmpty) ...[
                 const SizedBox(height: 4),
                 Text(
                   trailing!,
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    color: kTextSecondary,
-                  ),
+                  style: const TextStyle(fontSize: 12.5, color: kTextSecondary),
                 ),
               ],
             ],

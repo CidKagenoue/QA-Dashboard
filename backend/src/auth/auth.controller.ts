@@ -1,137 +1,105 @@
-import { Controller, Post, Body, HttpStatus, HttpCode, Req, UnauthorizedException } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Req,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import { Request } from 'express';
 import { AuthService } from './auth.service';
 import {
+  ChangePasswordDto,
+  ForgotPasswordDto,
   LoginDto,
   RefreshTokenDto,
-  ForgotPasswordDto,
   ResetPasswordDto,
   VerifyResetTokenDto,
 } from './dto/auth.dto';
+import { AuthenticatedRequest } from './jwt-auth.guard';
 import { Public } from './public.decorator';
-import { JwtPayload } from 'jsonwebtoken';
 
 @Controller('auth')
+@UseGuards(ThrottlerGuard)
 export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(@Body() loginDto: LoginDto) {
-    try {
-      console.log('Login request received for email:', loginDto.email);
-      return await this.authService.login(loginDto);
-    } catch (error) {
-      console.error('Login error:', error.message);
-      throw error;
-    }
+  login(@Body() loginDto: LoginDto) {
+    return this.authService.login(loginDto);
   }
 
   @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
-  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto, @Req() req: any) {
-    try {
-      console.log('Forgot password request received for email:', forgotPasswordDto.email);
-      return await this.authService.forgotPassword(forgotPasswordDto, req?.headers?.origin);
-    } catch (error) {
-      console.error('Forgot password error:', error.message);
-      throw error;
-    }
+  forgotPassword(
+    @Body() forgotPasswordDto: ForgotPasswordDto,
+    @Req() req: Request,
+  ) {
+    return this.authService.forgotPassword(forgotPasswordDto, req.headers.origin);
   }
 
-   @Post('change-password')
+  @Post('change-password')
   @HttpCode(HttpStatus.OK)
-  async changePassword(
-    @Req() req: any,
-    @Body()
-    body: {
-      currentPassword: string;
-      newPassword: string;
-      confirmNewPassword: string;
-    },
+  changePassword(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: ChangePasswordDto,
   ) {
-    const authHeader = req.headers?.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new UnauthorizedException('Geen geldige token');
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-    const decoded = await this.authService.verifyToken(token);
-
-    if (typeof decoded !== 'object' || decoded === null) {
-      throw new UnauthorizedException('Ongeldig token formaat');
-    }
-
-    const payload = decoded as JwtPayload;
-
-    if (!payload.sub) {
-      throw new UnauthorizedException('Token bevat geen geldig user ID');
-    }
-
-    const userId = Number(payload.sub);
-
-    if (isNaN(userId)) {
-      throw new UnauthorizedException('Ongeldig user ID in token');
-    }
-
-    return await this.authService.changePassword(
+    // De globale JwtAuthGuard heeft de token al geverifieerd en req.user gezet.
+    const userId = this.readUserId(req);
+    return this.authService.changePassword(
       userId,
-      body.currentPassword,
-      body.newPassword,
-      body.confirmNewPassword,
+      dto.currentPassword,
+      dto.newPassword,
+      dto.confirmNewPassword,
     );
   }
 
   @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  async refresh(@Body() refreshTokenDto: RefreshTokenDto) {
-    try {
-      return await this.authService.refresh(refreshTokenDto);
-    } catch (error) {
-      console.error('Refresh error:', error.message);
-      throw error;
-    }
+  refresh(@Body() refreshTokenDto: RefreshTokenDto) {
+    return this.authService.refresh(refreshTokenDto);
   }
 
   @Public()
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  async logout(@Body() refreshTokenDto: RefreshTokenDto) {
-    try {
-      return await this.authService.revokeRefreshToken(
-        refreshTokenDto.refreshToken,
-      );
-    } catch (error) {
-      console.error('Logout error:', error.message);
-      throw error;
-    }
+  logout(@Body() refreshTokenDto: RefreshTokenDto) {
+    return this.authService.revokeRefreshToken(refreshTokenDto.refreshToken);
   }
 
   @Public()
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Post('verify-reset-token')
   @HttpCode(HttpStatus.OK)
-  async verifyResetToken(@Body() verifyResetTokenDto: VerifyResetTokenDto) {
-    try {
-      console.log('Verify reset token request received');
-      return await this.authService.verifyResetToken(verifyResetTokenDto);
-    } catch (error) {
-      console.error('Verify reset token error:', error.message);
-      throw error;
-    }
+  verifyResetToken(@Body() verifyResetTokenDto: VerifyResetTokenDto) {
+    return this.authService.verifyResetToken(verifyResetTokenDto);
   }
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
-  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
-    try {
-      console.log('Reset password request received');
-      return await this.authService.resetPassword(resetPasswordDto);
-    } catch (error) {
-      console.error('Reset password error:', error.message);
-      throw error;
+  resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    return this.authService.resetPassword(resetPasswordDto);
+  }
+
+  private readUserId(req: AuthenticatedRequest): number {
+    if (!req.user || typeof req.user === 'string') {
+      throw new UnauthorizedException('Ongeldige token payload');
     }
+    const userId = Number(req.user.sub);
+    if (!Number.isInteger(userId) || userId <= 0) {
+      throw new UnauthorizedException('Ongeldig user ID in token');
+    }
+    return userId;
   }
 }

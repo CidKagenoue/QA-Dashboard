@@ -14,6 +14,10 @@ import {
   UpdateAccountAccessDto,
 } from './dto/account-management.dto';
 import { ManagedAccount, UserService } from '../user/user.service';
+import {
+  assertPasswordPolicy,
+  PasswordPolicyContext,
+} from '../common/password-policy';
 
 type AccountAccessResponse = {
   basis: boolean;
@@ -50,8 +54,11 @@ export class AccountsService {
 
   async createAccount(createAccountDto: CreateAccountDto) {
     const email = this.normalizeEmail(createAccountDto.email);
-    const password = this.normalizePassword(createAccountDto.password);
     const name = this.normalizeName(createAccountDto.name);
+    const password = this.normalizePassword(createAccountDto.password, {
+      email,
+      name,
+    });
     const isAdmin = this.readBoolean(createAccountDto, 'isAdmin');
     const departmentIds = this.normalizeDepartmentIds(
       createAccountDto.departmentIds,
@@ -119,7 +126,14 @@ export class AccountsService {
 
     const password = updateAccountDetailsDto.password?.trim();
     if (password) {
-      updateData.password = await bcrypt.hash(this.normalizePassword(password), 12);
+      const policyContext: PasswordPolicyContext = {
+        email: (updateData.email as string) ?? existingAccount.email,
+        name: (updateData.name as string | null) ?? existingAccount.name,
+      };
+      updateData.password = await bcrypt.hash(
+        this.normalizePassword(password, policyContext),
+        12,
+      );
     }
 
     if (Object.keys(updateData).length === 0) {
@@ -260,12 +274,13 @@ export class AccountsService {
     return normalizedEmail;
   }
 
-  private normalizePassword(password: string) {
+  private normalizePassword(
+    password: string,
+    context: PasswordPolicyContext = {},
+  ) {
     const normalizedPassword = password.trim();
 
-    if (normalizedPassword.length < 6) {
-      throw new BadRequestException('Password must be at least 6 characters long');
-    }
+    assertPasswordPolicy(normalizedPassword, context);
 
     return normalizedPassword;
   }

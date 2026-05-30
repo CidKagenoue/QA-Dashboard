@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import '../models/department.dart';
 import '../services/department_api_service.dart';
 import '../services/auth_service.dart';
+import '../utils/password_policy.dart';
 import '../widgets/design/design_system.dart';
 import '../widgets/user_avatar.dart';
 import 'login_screen.dart';
@@ -613,7 +614,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             if (v == null || v.isEmpty) {
                               return 'Voer je huidige wachtwoord in';
                             }
-                            if (v.length < 8) return 'Minimaal 8 tekens';
                             return null;
                           },
                         ),
@@ -627,8 +627,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             if (v == null || v.isEmpty) {
                               return 'Voer een nieuw wachtwoord in';
                             }
-                            if (v.length < 8) return 'Minimaal 8 tekens';
-                            return null;
+                            return PasswordPolicy.validate(v);
                           },
                         ),
                         const SizedBox(height: 14),

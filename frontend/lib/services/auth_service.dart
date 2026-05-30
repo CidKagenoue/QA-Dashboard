@@ -86,6 +86,12 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  // Tokens worden bewust in SharedPreferences bewaard (op web = localStorage).
+  // Dit is JS-toegankelijk en dus kwetsbaar bij een XSS-lek; het is een bewuste,
+  // gedocumenteerde afweging (standaard SPA-patroon), gemitigeerd door een korte
+  // access-token-levensduur (15 min) + refresh-token-rotatie met server-side
+  // intrekken. De sterkere oplossing (refresh-token in een httpOnly-cookie)
+  // staat beschreven in SECURITY.md.
   Future<void> _storeAuth(
     User user,
     String token, {

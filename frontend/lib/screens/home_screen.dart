@@ -14,6 +14,7 @@ import 'maintenance_inspections_screen.dart';
 import '../services/jap_gpp_api_service.dart';
 import '../services/maintenance_api_service.dart';
 import '../services/whs_api_service.dart';
+import '../widgets/user_avatar.dart';
 import 'whs_tours_screen.dart';
 
 enum _HomeSection { dashboard, whsTours, ova, onderhoud, japGpp }
@@ -812,24 +813,13 @@ class _WelcomeHeader extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            color: kBrandGreenSoft,
-            borderRadius: BorderRadius.circular(kRadiusLg),
-            border: Border.all(color: kBrandGreenSoft),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            (user.displayName.isNotEmpty ? user.displayName[0] : '?')
-                .toUpperCase(),
-            style: const TextStyle(
-              color: kBrandGreenDeep,
-              fontWeight: FontWeight.w800,
-              fontSize: 22,
-            ),
-          ),
+        AppUserAvatar(
+          initial: (user.displayName.isNotEmpty ? user.displayName[0] : '?')
+              .toUpperCase(),
+          profileImage: user.profileImage as String?,
+          size: 56,
+          borderRadius: kRadiusLg,
+          fontSize: 22,
         ),
         const SizedBox(width: 16),
         Expanded(

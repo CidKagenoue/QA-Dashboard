@@ -68,10 +68,7 @@ class UserDepartment {
   final int id;
   final String name;
 
-  const UserDepartment({
-    required this.id,
-    required this.name,
-  });
+  const UserDepartment({required this.id, required this.name});
 
   factory UserDepartment.fromJson(Map<String, dynamic> json) {
     return UserDepartment(
@@ -81,13 +78,11 @@ class UserDepartment {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-    };
+    return {'id': id, 'name': name};
   }
 }
 
+const Object _profileImageUnset = Object();
 
 class User {
   final int id;
@@ -126,6 +121,7 @@ class User {
     List<UserDepartment>? departments,
     bool? isAdmin,
     AccountAccess? access,
+    Object? profileImage = _profileImageUnset,
   }) {
     return User(
       id: id ?? this.id,
@@ -134,6 +130,9 @@ class User {
       departments: departments ?? this.departments,
       isAdmin: isAdmin ?? this.isAdmin,
       access: access ?? this.access,
+      profileImage: identical(profileImage, _profileImageUnset)
+          ? this.profileImage
+          : profileImage as String?,
     );
   }
 
@@ -141,11 +140,13 @@ class User {
     final departmentsJson = json['departments'];
     final parsedDepartments = departmentsJson is List
         ? departmentsJson
-            .whereType<Map>()
-            .map((department) => UserDepartment.fromJson(
+              .whereType<Map>()
+              .map(
+                (department) => UserDepartment.fromJson(
                   Map<String, dynamic>.from(department),
-                ))
-            .toList()
+                ),
+              )
+              .toList()
         : <UserDepartment>[];
 
     return User(
@@ -164,8 +165,9 @@ class User {
       'id': id,
       'email': email,
       'name': name,
-      'departments':
-          departments.map((department) => department.toJson()).toList(),
+      'departments': departments
+          .map((department) => department.toJson())
+          .toList(),
       'isAdmin': isAdmin,
       'access': access.toJson(),
       'hasAnyAccess': hasAnyAccess,

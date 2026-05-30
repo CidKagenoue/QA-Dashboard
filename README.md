@@ -66,6 +66,10 @@ JWT_ISSUER="qa-login-backend"
 JWT_AUDIENCE="qa-dashboard"
 JWT_EXPIRES_IN="15m"
 
+# Initial admin account
+BOOTSTRAP_ADMIN_EMAIL="admin@example.com"
+BOOTSTRAP_ADMIN_PASSWORD="replace-with-a-strong-admin-password"
+
 # Password reset link target
 FRONTEND_URL="https://tst.vlotterqa.tech"
 PUBLIC_FRONTEND_URL="https://tst.vlotterqa.tech"
@@ -82,7 +86,7 @@ SMTP_IGNORE_TLS_ERRORS="false"
 
 For production deployment through GitHub Actions, keep secrets in repository settings instead of any file:
 
-`VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `POSTGRES_PASSWORD`, `JWT_SECRET`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`
+`VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `POSTGRES_PASSWORD`, `JWT_SECRET`, `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`
 
 Optional overrides: `JWT_REFRESH_SECRET`, `JWT_ISSUER`, `JWT_AUDIENCE`, `JWT_EXPIRES_IN`, `JWT_REFRESH_EXPIRES_IN`, `SMTP_SECURE`, `SMTP_IGNORE_TLS_ERRORS`
 
@@ -95,6 +99,8 @@ Optional overrides: `JWT_REFRESH_SECRET`, `JWT_ISSUER`, `JWT_AUDIENCE`, `JWT_EXP
 | `JWT_ISSUER` | JWT issuer claim | `qa-login-backend` |
 | `JWT_AUDIENCE` | JWT audience claim | `qa-dashboard` |
 | `JWT_EXPIRES_IN` | Access token expiration time | `15m` |
+| `BOOTSTRAP_ADMIN_EMAIL` | E-mail address for the initial administrator account | `admin@example.com` |
+| `BOOTSTRAP_ADMIN_PASSWORD` | Strong password for the initial administrator account | `replace-with-a-strong-admin-password` |
 | `FRONTEND_URL` / `PUBLIC_FRONTEND_URL` | URL used in reset links sent by e-mail | `https://tst.vlotterqa.tech` |
 | `SMTP_HOST` | SMTP server hostname | `smtp.your-provider.com` |
 | `SMTP_PORT` | SMTP server port | `587` |

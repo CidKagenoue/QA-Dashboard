@@ -1587,8 +1587,8 @@ class _OvaTypeChip extends StatelessWidget {
     final Color fg;
     switch (n) {
       case 'near miss':
-        bg = const Color(0xFFEAF4D9);
-        fg = const Color(0xFF6F972D);
+        bg = kInfoBg;
+        fg = kInfo;
       case 'ova 1':
         bg = const Color(0xFFFFF0C7);
         fg = const Color(0xFFAF7A00);

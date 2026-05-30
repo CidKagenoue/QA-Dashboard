@@ -1,15 +1,22 @@
 import 'dart:convert';
-
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'dart:math' as math;
 import 'dart:typed_data';
+
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:image/image.dart' as image;
+import 'package:provider/provider.dart';
 
 import '../models/department.dart';
 import '../services/department_api_service.dart';
 import '../services/auth_service.dart';
+import '../utils/password_policy.dart';
 import '../widgets/design/design_system.dart';
+import '../widgets/user_avatar.dart';
 import 'login_screen.dart';
+
+const int _avatarMaxDimension = 256;
+const int _avatarJpegQuality = 78;
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -21,15 +28,68 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   Uint8List? _avatarImageBytes;
   String? _avatarImageBase64;
+  bool _avatarImageChanged = false;
 
   Future<void> _pickAvatarImage() async {
     final result = await FilePicker.platform.pickFiles(type: FileType.image);
-    if (result != null && result.files.single.bytes != null) {
-      setState(() {
-        _avatarImageBytes = result.files.single.bytes;
-        _avatarImageBase64 = base64Encode(_avatarImageBytes!);
-      });
+    final pickedBytes = result?.files.single.bytes;
+    if (pickedBytes == null) {
+      return;
     }
+    if (!mounted) {
+      return;
+    }
+
+    try {
+      final compactBytes = _compactAvatarImage(pickedBytes);
+      setState(() {
+        _avatarImageBytes = compactBytes;
+        _avatarImageBase64 = base64Encode(_avatarImageBytes!);
+        _avatarImageChanged = true;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Kies een geldige afbeelding voor je profielfoto.'),
+          backgroundColor: kDanger,
+        ),
+      );
+    }
+  }
+
+  Uint8List _compactAvatarImage(Uint8List bytes) {
+    final decoded = image.decodeImage(bytes);
+    if (decoded == null) {
+      throw const FormatException('Unsupported image format');
+    }
+
+    final oriented = image.bakeOrientation(decoded);
+    final longestSide = math.max(oriented.width, oriented.height);
+    final avatar = longestSide > _avatarMaxDimension
+        ? image.copyResize(
+            oriented,
+            width: oriented.width >= oriented.height
+                ? _avatarMaxDimension
+                : null,
+            height: oriented.height > oriented.width
+                ? _avatarMaxDimension
+                : null,
+            interpolation: image.Interpolation.average,
+          )
+        : oriented;
+
+    return Uint8List.fromList(
+      image.encodeJpg(avatar, quality: _avatarJpegQuality),
+    );
+  }
+
+  void _removeAvatarImage() {
+    setState(() {
+      _avatarImageBytes = null;
+      _avatarImageBase64 = null;
+      _avatarImageChanged = true;
+    });
   }
 
   final _formKey = GlobalKey<FormState>();
@@ -61,9 +121,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             width: 320,
             child: DropdownButtonFormField<Department>(
               isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Kies een afdeling',
-              ),
+              decoration: const InputDecoration(labelText: 'Kies een afdeling'),
               items: availableDepartments
                   .map(
                     (dept) =>
@@ -149,8 +207,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final auth = Provider.of<AuthService>(context, listen: false);
     final user = auth.user;
     final isAdmin = user?.isAdmin ?? false;
-    final initial =
-        (user?.name?.isNotEmpty == true) ? user!.name![0].toUpperCase() : '?';
+    final initial = (user?.name?.isNotEmpty == true)
+        ? user!.name![0].toUpperCase()
+        : '?';
 
     return Container(
       color: kBackground,
@@ -168,8 +227,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const AppBreadcrumb(
-                    segments: ['Instellingen', 'Profiel']),
+                const AppBreadcrumb(segments: ['Instellingen', 'Profiel']),
                 const SizedBox(height: 16),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -208,13 +266,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _ProfileHeader(
                   avatarBytes: _avatarImageBytes,
                   initial: initial,
-                  displayName:
-                      _composedDisplayName().isEmpty ? '—' : _composedDisplayName(),
+                  displayName: _composedDisplayName().isEmpty
+                      ? '—'
+                      : _composedDisplayName(),
                   email: _emailController.text.isEmpty
                       ? user?.email ?? ''
                       : _emailController.text,
                   role: isAdmin ? 'Administrator' : 'Gebruiker',
                   onPickAvatar: _pickAvatarImage,
+                  onRemoveAvatar: _removeAvatarImage,
+                  canRemoveAvatar: _avatarImageBytes != null,
                 ),
                 const SizedBox(height: 22),
                 AppSectionPanel(
@@ -234,8 +295,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   controller: _firstNameController,
                                   validator: (v) =>
                                       v == null || v.trim().isEmpty
-                                          ? 'Voornaam is verplicht'
-                                          : null,
+                                      ? 'Voornaam is verplicht'
+                                      : null,
                                 ),
                                 const SizedBox(height: 16),
                                 _LabeledTextField(
@@ -253,8 +314,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   controller: _firstNameController,
                                   validator: (v) =>
                                       v == null || v.trim().isEmpty
-                                          ? 'Voornaam is verplicht'
-                                          : null,
+                                      ? 'Voornaam is verplicht'
+                                      : null,
                                 ),
                               ),
                               const SizedBox(width: 16),
@@ -392,14 +453,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
               runSpacing: 8,
               children: _allDepartments
                   .where((d) => _selectedDepartmentIds.contains(d.id))
-                  .map((dept) => _DepartmentChip(
-                        label: dept.name,
-                        onRemove: () {
-                          setState(() {
-                            _selectedDepartmentIds.remove(dept.id);
-                          });
-                        },
-                      ))
+                  .map(
+                    (dept) => _DepartmentChip(
+                      label: dept.name,
+                      onRemove: () {
+                        setState(() {
+                          _selectedDepartmentIds.remove(dept.id);
+                        });
+                      },
+                    ),
+                  )
                   .toList(),
             ),
           const SizedBox(height: 12),
@@ -436,8 +499,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final firstName = _firstNameController.text.trim();
     final lastName = _lastNameController.text.trim();
     final eMail = _emailController.text.trim();
-    final fullName =
-        [firstName, lastName].where((s) => s.isNotEmpty).join(' ');
+    final fullName = [firstName, lastName].where((s) => s.isNotEmpty).join(' ');
 
     try {
       final auth = Provider.of<AuthService>(context, listen: false);
@@ -445,37 +507,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await auth.updateProfile(
         name: fullName,
         email: eMail,
-        departmentIds:
-            isAdmin ? _selectedDepartmentIds.toList() : null,
+        departmentIds: isAdmin ? _selectedDepartmentIds.toList() : null,
         profileImage: _avatarImageBase64,
+        includeProfileImage: _avatarImageChanged,
       );
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Profiel succesvol opgeslagen'),
-          ),
-        );
-      }
+      _avatarImageChanged = false;
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profiel succesvol opgeslagen')),
+      );
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Opslaan mislukt: $e'),
-            backgroundColor: kDanger,
-          ),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Opslaan mislukt: $e'),
+          backgroundColor: kDanger,
+        ),
+      );
     }
   }
 
   Future<void> _logout() async {
     await Provider.of<AuthService>(context, listen: false).logout();
-    if (context.mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-        (route) => false,
-      );
-    }
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
+      (route) => false,
+    );
   }
 
   void _openPasswordChangeSheet() {
@@ -519,12 +577,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               height: 36,
                               decoration: BoxDecoration(
                                 color: kBrandGreenSoft,
-                                borderRadius:
-                                    BorderRadius.circular(kRadiusSm),
+                                borderRadius: BorderRadius.circular(kRadiusSm),
                               ),
                               alignment: Alignment.center,
-                              child: const Icon(Icons.lock_outline_rounded,
-                                  size: 18, color: kBrandGreenDeep),
+                              child: const Icon(
+                                Icons.lock_outline_rounded,
+                                size: 18,
+                                color: kBrandGreenDeep,
+                              ),
                             ),
                             const SizedBox(width: 12),
                             const Expanded(
@@ -554,7 +614,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             if (v == null || v.isEmpty) {
                               return 'Voer je huidige wachtwoord in';
                             }
-                            if (v.length < 8) return 'Minimaal 8 tekens';
                             return null;
                           },
                         ),
@@ -568,8 +627,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             if (v == null || v.isEmpty) {
                               return 'Voer een nieuw wachtwoord in';
                             }
-                            if (v.length < 8) return 'Minimaal 8 tekens';
-                            return null;
+                            return PasswordPolicy.validate(v);
                           },
                         ),
                         const SizedBox(height: 14),
@@ -613,16 +671,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                                         if (!mounted) return;
                                         Navigator.of(context).pop();
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
                                           const SnackBar(
                                             content: Text(
-                                                'Wachtwoord succesvol gewijzigd'),
+                                              'Wachtwoord succesvol gewijzigd',
+                                            ),
                                           ),
                                         );
                                       } catch (e) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
                                           SnackBar(
                                             content: Text(e.toString()),
                                             backgroundColor: kDanger,
@@ -635,7 +696,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       width: 18,
                                       height: 18,
                                       child: CircularProgressIndicator(
-                                          color: Colors.white, strokeWidth: 2),
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
                                     )
                                   : const Text('Wachtwoord opslaan'),
                             ),
@@ -662,6 +725,8 @@ class _ProfileHeader extends StatelessWidget {
     required this.email,
     required this.role,
     required this.onPickAvatar,
+    required this.onRemoveAvatar,
+    required this.canRemoveAvatar,
   });
 
   final Uint8List? avatarBytes;
@@ -670,6 +735,8 @@ class _ProfileHeader extends StatelessWidget {
   final String email;
   final String role;
   final VoidCallback onPickAvatar;
+  final VoidCallback onRemoveAvatar;
+  final bool canRemoveAvatar;
 
   @override
   Widget build(BuildContext context) {
@@ -687,48 +754,36 @@ class _ProfileHeader extends StatelessWidget {
             alignment: Alignment.bottomRight,
             children: [
               Container(
-                width: 96,
-                height: 96,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   shape: BoxShape.circle,
-                  color: kBrandGreenSoft,
-                  border: Border.all(color: kSurface, width: 3),
                   boxShadow: kShadowSoft,
                 ),
-                child: avatarBytes != null
-                    ? ClipOval(
-                        child: Image.memory(
-                          avatarBytes!,
-                          width: 96,
-                          height: 96,
-                          fit: BoxFit.cover,
-                        ),
-                      )
-                    : Center(
-                        child: Text(
-                          initial,
-                          style: const TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.w800,
-                            color: kBrandGreenDeep,
-                          ),
-                        ),
-                      ),
+                child: AppUserAvatar(
+                  initial: initial,
+                  imageBytes: avatarBytes,
+                  size: 96,
+                  circle: true,
+                  fontSize: 36,
+                  borderColor: kSurface,
+                  borderWidth: 3,
+                ),
               ),
               Positioned(
                 bottom: -4,
                 right: -4,
                 child: Material(
                   color: kSurface,
-                  shape: const CircleBorder(
-                      side: BorderSide(color: kBorder)),
+                  shape: const CircleBorder(side: BorderSide(color: kBorder)),
                   child: InkWell(
                     customBorder: const CircleBorder(),
                     onTap: onPickAvatar,
                     child: const Padding(
                       padding: EdgeInsets.all(8),
-                      child: Icon(Icons.edit_outlined,
-                          size: 16, color: kBrandGreenDeep),
+                      child: Icon(
+                        Icons.edit_outlined,
+                        size: 16,
+                        color: kBrandGreenDeep,
+                      ),
                     ),
                   ),
                 ),
@@ -755,15 +810,19 @@ class _ProfileHeader extends StatelessWidget {
                       ),
                     ),
                     AppStatusPill(
-                        label: role.toUpperCase(),
-                        tone: AppStatusTone.brand),
+                      label: role.toUpperCase(),
+                      tone: AppStatusTone.brand,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Icon(Icons.mail_outline_rounded,
-                        size: 16, color: kTextTertiary),
+                    const Icon(
+                      Icons.mail_outline_rounded,
+                      size: 16,
+                      color: kTextTertiary,
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
@@ -777,6 +836,28 @@ class _ProfileHeader extends StatelessWidget {
                         ),
                       ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: onPickAvatar,
+                      icon: const Icon(Icons.photo_camera_outlined, size: 18),
+                      label: const Text('Profielfoto kiezen'),
+                    ),
+                    if (canRemoveAvatar)
+                      TextButton.icon(
+                        onPressed: onRemoveAvatar,
+                        icon: const Icon(
+                          Icons.delete_outline_rounded,
+                          size: 18,
+                        ),
+                        label: const Text('Profielfoto verwijderen'),
+                        style: TextButton.styleFrom(foregroundColor: kDanger),
+                      ),
                   ],
                 ),
               ],
@@ -869,13 +950,13 @@ class _PasswordField extends StatelessWidget {
       ),
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon:
-            const Icon(Icons.lock_outline_rounded, color: kTextTertiary),
+        prefixIcon: const Icon(
+          Icons.lock_outline_rounded,
+          color: kTextTertiary,
+        ),
         suffixIcon: IconButton(
           icon: Icon(
-            visible
-                ? Icons.visibility_off_rounded
-                : Icons.visibility_rounded,
+            visible ? Icons.visibility_off_rounded : Icons.visibility_rounded,
             color: kTextTertiary,
             size: 20,
           ),
@@ -906,8 +987,7 @@ class _DepartmentChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.apartment_rounded,
-              size: 14, color: kBrandGreenDeep),
+          const Icon(Icons.apartment_rounded, size: 14, color: kBrandGreenDeep),
           const SizedBox(width: 6),
           Text(
             label,
@@ -924,8 +1004,11 @@ class _DepartmentChip extends StatelessWidget {
               borderRadius: BorderRadius.circular(999),
               child: const Padding(
                 padding: EdgeInsets.all(5),
-                child: Icon(Icons.close_rounded,
-                    size: 14, color: kBrandGreenDeep),
+                child: Icon(
+                  Icons.close_rounded,
+                  size: 14,
+                  color: kBrandGreenDeep,
+                ),
               ),
             ),
           ],

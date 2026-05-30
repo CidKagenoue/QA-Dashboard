@@ -8,9 +8,9 @@ import 'api_service.dart';
 
 class AuthService extends ChangeNotifier {
   Future<void> changePassword({
-  required String currentPassword,
-  required String newPassword,
-  required String confirmNewPassword,
+    required String currentPassword,
+    required String newPassword,
+    required String confirmNewPassword,
   }) async {
     if (_token == null) {
       throw Exception('Niet ingelogd');
@@ -31,6 +31,7 @@ class AuthService extends ChangeNotifier {
       notifyListeners();
     }
   }
+
   User? _user;
   String? _token;
   String? _refreshToken;
@@ -72,11 +73,7 @@ class AuthService extends ChangeNotifier {
       if (storedToken != null && userId != null && userEmail != null) {
         _token = storedToken;
         _refreshToken = storedRefreshToken;
-        _user = User(
-          id: userId,
-          email: userEmail,
-          name: userName,
-        );
+        _user = User(id: userId, email: userEmail, name: userName);
       }
     } catch (_) {
       await _clearStoredAuth();
@@ -89,6 +86,12 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  // Tokens worden bewust in SharedPreferences bewaard (op web = localStorage).
+  // Dit is JS-toegankelijk en dus kwetsbaar bij een XSS-lek; het is een bewuste,
+  // gedocumenteerde afweging (standaard SPA-patroon), gemitigeerd door een korte
+  // access-token-levensduur (15 min) + refresh-token-rotatie met server-side
+  // intrekken. De sterkere oplossing (refresh-token in een httpOnly-cookie)
+  // staat beschreven in SECURITY.md.
   Future<void> _storeAuth(
     User user,
     String token, {
@@ -138,9 +141,7 @@ class AuthService extends ChangeNotifier {
         return true;
       }
 
-      final expiresAt = DateTime.fromMillisecondsSinceEpoch(
-        exp.toInt() * 1000,
-      );
+      final expiresAt = DateTime.fromMillisecondsSinceEpoch(exp.toInt() * 1000);
       return DateTime.now().isAfter(
         expiresAt.subtract(const Duration(seconds: 30)),
       );
@@ -195,10 +196,7 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await ApiService.login(
-        email: email,
-        password: password,
-      );
+      final response = await ApiService.login(email: email, password: password);
 
       await _applyAuthResponse(response);
     } finally {
@@ -222,6 +220,7 @@ class AuthService extends ChangeNotifier {
     required String name,
     List<int>? departmentIds,
     String? profileImage,
+    bool includeProfileImage = false,
   }) async {
     if (_user == null || _token == null) {
       throw Exception('Not authenticated');
@@ -239,6 +238,7 @@ class AuthService extends ChangeNotifier {
         name: name,
         departmentIds: departmentIds,
         profileImage: profileImage,
+        includeProfileImage: includeProfileImage,
       );
 
       _user = User.fromJson(response);

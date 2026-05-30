@@ -1,12 +1,31 @@
 import 'dotenv/config';
+import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { assertJwtConfiguration } from './auth/jwt.config';
+import { assertBootstrapAdminConfiguration } from './auth/admin-bootstrap.config';
 
 async function bootstrap() {
   assertJwtConfiguration();
+  assertBootstrapAdminConfiguration();
 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Eén reverse proxy (Traefik) staat voor de API, dus vertrouw één hop.
+  // Hierdoor reflecteert req.ip het echte client-IP (uit X-Forwarded-For),
+  // wat de rate-limiting per gebruiker laat werken i.p.v. per proxy.
+  app.set('trust proxy', 1);
+
+  // Globale input-validatie. `whitelist` stript velden zonder decorator uit de
+  // body (voorkomt mass-assignment, bv. een gebruiker die zichzelf isAdmin
+  // probeert te zetten). `transform` zet bodies om naar hun DTO-type.
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+    }),
+  );
 
   const allowedOrigins = new Set(
     [

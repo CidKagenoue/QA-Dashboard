@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/password_policy.dart';
 import '../widgets/vlotter_logo.dart';
 import 'login_screen.dart';
 
@@ -324,10 +325,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               if (value == null || value.isEmpty) {
                 return 'Voer een nieuw wachtwoord in';
               }
-              if (value.length < 8) {
-                return 'Wachtwoord moet minstens 8 tekens zijn';
-              }
-              return null;
+              return PasswordPolicy.validate(value);
             },
           ),
           const SizedBox(height: 18),

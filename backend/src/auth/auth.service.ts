@@ -28,6 +28,8 @@ import {
 } from './jwt.config';
 import { NotificationService } from '../notifications/notifications.service';
 import { NotificationType } from '@prisma/client';
+import { assertPasswordPolicy } from '../common/password-policy';
+import { getBootstrapAdminCredentials } from './admin-bootstrap.config';
 
 import type { ManagedAccount } from '../user/user.service';
 
@@ -42,7 +44,6 @@ export class AuthService implements OnModuleInit {
 
   async onModuleInit() {
     await this.ensureDefaultAdmin();
-    await this.ensureTestUser();
   }
 
   async login(loginDto: LoginDto) {
@@ -189,11 +190,18 @@ export class AuthService implements OnModuleInit {
     requestOrigin?: string,
   ) {
     const email = forgotPasswordDto.email.trim().toLowerCase();
+
+    // Altijd exact dezelfde respons, ongeacht of het account bestaat. Zo kan
+    // niemand via dit endpoint achterhalen welke e-mailadressen geregistreerd
+    // zijn (anti-enumeratie).
+    const genericResponse = {
+      message:
+        'Als er een account bestaat met dit e-mailadres, is er een resetlink verzonden.',
+    };
+
     const user = await this.userService.findByEmail(email);
     if (!user) {
-      throw new BadRequestException(
-        'Deze e-mail is niet gelinkt aan een gebruiker.',
-      );
+      return genericResponse;
     }
 
     const resetToken = crypto.randomBytes(32).toString('hex');
@@ -221,13 +229,12 @@ export class AuthService implements OnModuleInit {
         resetLink,
       );
     } catch (error) {
+      // Server-side loggen, maar geen foutmelding teruggeven die het bestaan
+      // van het account zou verraden.
       console.error('Verzenden van reset e-mail is mislukt:', error);
-      throw new BadRequestException('Verzenden van reset e-mail is mislukt');
     }
 
-    return {
-      message: 'Resetlink is verzonden. Controleer je e-mail.',
-    };
+    return genericResponse;
   }
 
   async verifyResetToken(verifyResetTokenDto: VerifyResetTokenDto) {
@@ -269,12 +276,6 @@ export class AuthService implements OnModuleInit {
       throw new BadRequestException('Wachtwoorden komen niet overeen');
     }
 
-    if (password.length < 8) {
-      throw new BadRequestException(
-        'Wachtwoord moet minimaal 8 tekens lang zijn',
-      );
-    }
-
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
 
     const resetTokenRecord =
@@ -294,6 +295,11 @@ export class AuthService implements OnModuleInit {
     if (resetTokenRecord.usedAt) {
       throw new BadRequestException('Reset-link is al gebruikt');
     }
+
+    assertPasswordPolicy(password, {
+      email: resetTokenRecord.user.email,
+      name: resetTokenRecord.user.name,
+    });
 
     const hashedPassword = await bcrypt.hash(password, 12);
 
@@ -341,9 +347,10 @@ export class AuthService implements OnModuleInit {
         throw new BadRequestException('Wachtwoorden komen niet overeen');
       }
 
-      if (newPassword.length < 8) {
-        throw new BadRequestException('Wachtwoord moet minimaal 8 tekens zijn');
-      }
+      assertPasswordPolicy(newPassword, {
+        email: user.email,
+        name: user.name,
+      });
 
       const hashed = await bcrypt.hash(newPassword, 12);
 
@@ -459,7 +466,9 @@ export class AuthService implements OnModuleInit {
   }
 
   private async ensureDefaultAdmin() {
-    const existingAdmin = await this.userService.findByEmail('admin');
+    const { email, password } = getBootstrapAdminCredentials();
+
+    const existingAdmin = await this.userService.findByEmail(email);
     if (existingAdmin) {
       if (!existingAdmin.isAdmin) {
         await this.userService.update(existingAdmin.id, {
@@ -469,9 +478,9 @@ export class AuthService implements OnModuleInit {
       return;
     }
 
-    const hashedPassword = await bcrypt.hash('root123', 12);
+    const hashedPassword = await bcrypt.hash(password, 12);
     await this.userService.create({
-      email: 'admin',
+      email,
       password: hashedPassword,
       name: 'Administrator',
       isAdmin: true,
@@ -484,21 +493,5 @@ export class AuthService implements OnModuleInit {
     const baseUrl = requestOrigin?.trim() || configuredUrl.trim();
 
     return baseUrl.replace(/\/+$/, '');
-  }
-
-  private async ensureTestUser() {
-    const existingUser = await this.userService.findByEmail(
-      'Oualidkasmi5@gmail.com',
-    );
-    if (existingUser) {
-      return;
-    }
-
-    const hashedPassword = await bcrypt.hash('root123', 12);
-    await this.userService.create({
-      email: 'Oualidkasmi5@gmail.com',
-      password: hashedPassword,
-      name: 'Ouali Kasmi',
-    });
   }
 }

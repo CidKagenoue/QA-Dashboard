@@ -6,6 +6,7 @@ import '../models/user.dart';
 import '../services/account_management_service.dart';
 import '../services/auth_service.dart';
 import '../services/department_api_service.dart';
+import '../utils/password_policy.dart';
 import '../widgets/design/design_system.dart';
 
 class AccountManagementScreen extends StatefulWidget {
@@ -1195,11 +1196,15 @@ class _EditAccountDialogState extends State<_EditAccountDialog> {
                   ),
                   validator: (value) {
                     final password = value?.trim() ?? '';
-                    if (password.isNotEmpty && password.length < 6) {
-                      return 'Minstens 6 tekens';
+                    if (password.isEmpty) {
+                      // Leeg laten = wachtwoord niet wijzigen.
+                      return null;
                     }
-
-                    return null;
+                    return PasswordPolicy.validate(
+                      password,
+                      email: _emailController.text,
+                      name: _nameController.text,
+                    );
                   },
                 ),
                 if (_error != null) ...[
@@ -1544,10 +1549,12 @@ class _CreateAccountDialogState extends State<_CreateAccountDialog> {
                     labelText: 'Tijdelijk wachtwoord *',
                   ),
                   validator: (value) {
-                    if ((value ?? '').trim().length < 6) {
-                      return 'Minstens 6 tekens';
-                    }
-                    return null;
+                    return PasswordPolicy.validate(
+                      (value ?? '').trim(),
+                      email: _emailController.text,
+                      name:
+                          '${_firstNameController.text} ${_lastNameController.text}',
+                    );
                   },
                 ),
                 const SizedBox(height: 14),

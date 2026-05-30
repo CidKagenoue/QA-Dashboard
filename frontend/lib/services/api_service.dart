@@ -140,6 +140,7 @@ class ApiService {
     String? email,
     List<int>? departmentIds,
     String? profileImage,
+    bool includeProfileImage = false,
   }) async {
     final payload = <String, dynamic>{};
     if (name != null) {
@@ -151,7 +152,7 @@ class ApiService {
     if (departmentIds != null) {
       payload['departmentIds'] = departmentIds;
     }
-    if (profileImage != null) {
+    if (includeProfileImage) {
       payload['profileImage'] = profileImage;
     }
 

@@ -48,8 +48,21 @@ export class UserController {
     @Body() dto: UpdateUserDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    await this.assertSelfOrAdmin(req, id);
-    const user = await this.userService.update(id, dto);
+    const { isAdmin } = await this.assertSelfOrAdmin(req, id);
+
+    // Whitelist: via deze route mogen enkel profielvelden gewijzigd worden.
+    // Rechten (isAdmin / *Access) lopen uitsluitend via accountbeheer, zodat
+    // een gebruiker zichzelf hier nooit kan promoveren.
+    const safeUpdate: UpdateUserDto = {};
+    if (dto.name !== undefined) safeUpdate.name = dto.name;
+    if (dto.email !== undefined) safeUpdate.email = dto.email;
+    if (dto.profileImage !== undefined) safeUpdate.profileImage = dto.profileImage;
+    // Afdelingen bepalen welke data je ziet → alleen admins mogen ze wijzigen.
+    if (isAdmin && dto.departmentIds !== undefined) {
+      safeUpdate.departmentIds = dto.departmentIds;
+    }
+
+    const user = await this.userService.update(id, safeUpdate);
     return {
       ...user,
       departments: user.departments.map((d) => d.department),
@@ -59,20 +72,22 @@ export class UserController {
   private async assertSelfOrAdmin(
     req: AuthenticatedRequest,
     requestedUserId: number,
-  ) {
+  ): Promise<{ isAdmin: boolean }> {
     const actorId = this.readActorId(req);
-    if (actorId == requestedUserId) {
-      return;
-    }
-
     const actor = await this.userService.findById(actorId);
     if (!actor) {
       throw new UnauthorizedException('User does not exist');
     }
 
+    if (actorId === requestedUserId) {
+      return { isAdmin: actor.isAdmin };
+    }
+
     if (!actor.isAdmin) {
       throw new ForbiddenException('Admin access is required');
     }
+
+    return { isAdmin: true };
   }
 
   private readActorId(req: AuthenticatedRequest) {

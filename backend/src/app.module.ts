@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { BranchesModule } from './branches/branches.module';
 import { LocationsModule } from './locations/locations.module';
 import { MaintenanceInspectionsModule } from './maintenance-inspections/maintenance-inspections.module';
@@ -20,6 +21,8 @@ import { UserModule } from './user/user.module';
 
 @Module({
   imports: [
+    // Standaard rate-limit; strengere limieten staan per route op de auth-endpoints.
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     PrismaModule,
     AuthModule,
     UserModule,

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -284,7 +285,26 @@ export class GppController {
   ) {}
 
   @Post('import-excel')
-  @UseInterceptors(FileInterceptor('file', { storage: multer.memoryStorage() }))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: multer.memoryStorage(),
+      // Begrens grootte en aantal: memoryStorage laadt het bestand volledig in
+      // RAM, dus zonder limiet is een grote upload een geheugen-DoS.
+      limits: { fileSize: 10 * 1024 * 1024, files: 1 },
+      fileFilter: (_req, file, cb) => {
+        if (!/\.(xlsx|xls|csv)$/i.test(file.originalname)) {
+          cb(
+            new BadRequestException(
+              'Alleen .xlsx, .xls of .csv bestanden zijn toegestaan',
+            ),
+            false,
+          );
+          return;
+        }
+        cb(null, true);
+      },
+    }),
+  )
   async importExcel(
     @UploadedFile() file: any,
     @Query('clearExisting') clearExisting: string | undefined,

@@ -152,6 +152,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildSectionContent(_HomeSection section) {
     final authService = Provider.of<AuthService>(context, listen: false);
     final token = authService.token;
+    final user = authService.user;
 
     switch (section) {
       case _HomeSection.dashboard:
@@ -194,11 +195,25 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         );
       case _HomeSection.onderhoud:
+        if (user == null ||
+            (!user.isAdmin && !user.access.maintenanceInspections)) {
+          return const AppAccessDenied(
+            title: 'Geen toegang tot Onderhoud & Keuringen',
+            message:
+                'Je hebt rechten voor Onderhoud & Keuringen nodig om dit scherm te openen.',
+          );
+        }
         return MaintenanceInspectionsScreen(
           key: ValueKey<String>('maintenance-$_breadcrumbNavigationVersion'),
           initialInspectionId: _initialMaintenanceInspectionId,
         );
       case _HomeSection.japGpp:
+        if (user == null || (!user.isAdmin && !user.access.japGpp)) {
+          return const AppAccessDenied(
+            title: 'Geen JAP/GPP-toegang',
+            message: 'Je hebt JAP/GPP-rechten nodig om dit scherm te openen.',
+          );
+        }
         return JapGppScreen(
           key: ValueKey<String>('japGpp-$_breadcrumbNavigationVersion'),
           token: token ?? '',

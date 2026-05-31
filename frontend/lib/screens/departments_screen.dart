@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:qa_dashboard/models/branch.dart';
 import '../services/auth_service.dart';
 import '../services/department_api_service.dart';
-import '../services/location_api_service.dart';
+import '../services/branch_api_service.dart';
 import '../models/department.dart';
 import '../models/user.dart';
 import '../widgets/design/design_system.dart';
@@ -49,7 +49,7 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
       final token = await auth.getValidAccessToken();
       final results = await Future.wait<dynamic>([
         DepartmentApiService.getDepartments(token),
-        LocationApiService.getBranches(token),
+        BranchApiService.getBranches(token),
       ]);
       final departments = results[0] as List<Department>;
       final branches = results[1] as List<Branch>;
@@ -203,11 +203,16 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
                       controller: searchController,
                       decoration: InputDecoration(
                         hintText: 'Zoeken op naam of e-mail',
-                        prefixIcon: const Icon(Icons.search_rounded,
-                            size: 18, color: kTextTertiary),
+                        prefixIcon: const Icon(
+                          Icons.search_rounded,
+                          size: 18,
+                          color: kTextTertiary,
+                        ),
                         isDense: true,
                         contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 10),
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
                       ),
                       onChanged: (_) => setDialogState(() {}),
                     ),
@@ -232,7 +237,9 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
                             }),
                             child: Padding(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 4, vertical: 8),
+                                horizontal: 4,
+                                vertical: 8,
+                              ),
                               child: Row(
                                 children: [
                                   Expanded(
@@ -328,7 +335,7 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
       if (linkToSelectedBranch && _selectedBranch != null) {
         final departmentIds = _selectedBranch!.departmentIds.toSet()
           ..add(saved.id);
-        await LocationApiService.saveBranch(
+        await BranchApiService.saveBranch(
           token: token,
           id: _selectedBranch!.id,
           name: _selectedBranch!.name,
@@ -427,8 +434,7 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const AppBreadcrumb(
-                  segments: ['Instellingen', 'Afdelingen']),
+              const AppBreadcrumb(segments: ['Instellingen', 'Afdelingen']),
               const SizedBox(height: 16),
               const Text(
                 'Afdelingen',
@@ -493,11 +499,16 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
       title: 'Afdelingen per vestiging',
       icon: Icons.apartment_rounded,
       trailing: IconButton(
-        icon: const Icon(Icons.add_rounded, size: 20),
+        icon: const Icon(Icons.add_rounded, size: 26),
         tooltip: 'Afdeling toevoegen',
         color: kBrandGreenDeep,
-        onPressed:
-            _selectedBranch == null ? null : () => _openDepartmentDialog(),
+        style: IconButton.styleFrom(
+          fixedSize: const Size.square(42),
+          backgroundColor: kBrandGreenSubtle,
+        ),
+        onPressed: _selectedBranch == null
+            ? null
+            : () => _openDepartmentDialog(),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -550,7 +561,9 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
                       onTap: () => setState(() => _selected = dept),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 10),
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
                         child: Row(
                           children: [
                             Icon(
@@ -583,8 +596,10 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
                               tooltip: 'Bewerken',
                             ),
                             IconButton(
-                              icon: const Icon(Icons.delete_outline_rounded,
-                                  size: 18),
+                              icon: const Icon(
+                                Icons.delete_outline_rounded,
+                                size: 18,
+                              ),
                               color: kDanger,
                               onPressed: () => _deleteDepartment(dept),
                               tooltip: 'Verwijderen',
@@ -608,9 +623,13 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
       title: 'Leidinggevenden',
       icon: Icons.supervisor_account_outlined,
       trailing: IconButton(
-        icon: const Icon(Icons.person_add_alt_1_rounded, size: 20),
+        icon: const Icon(Icons.person_add_alt_1_rounded, size: 24),
         tooltip: 'Leidinggevenden kiezen',
         color: kBrandGreenDeep,
+        style: IconButton.styleFrom(
+          fixedSize: const Size.square(42),
+          backgroundColor: kBrandGreenSubtle,
+        ),
         onPressed: _selected == null ? null : _openLeadersPopup,
       ),
       child: _selected == null
@@ -622,80 +641,83 @@ class _DepartmentsScreenState extends State<DepartmentsScreen> {
               ),
             )
           : leaders.isEmpty
-              ? const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 18),
-                  child: Text(
-                    'Geen leidinggevenden gekoppeld.',
-                    style: TextStyle(fontSize: 13.5, color: kTextTertiary),
+          ? const Padding(
+              padding: EdgeInsets.symmetric(vertical: 18),
+              child: Text(
+                'Geen leidinggevenden gekoppeld.',
+                style: TextStyle(fontSize: 13.5, color: kTextTertiary),
+              ),
+            )
+          : Column(
+              children: List.generate(leaders.length, (index) {
+                final leader = leaders[index];
+                return Container(
+                  margin: EdgeInsets.only(
+                    bottom: index == leaders.length - 1 ? 0 : 8,
                   ),
-                )
-              : Column(
-                  children: List.generate(leaders.length, (index) {
-                    final leader = leaders[index];
-                    return Container(
-                      margin: EdgeInsets.only(
-                          bottom: index == leaders.length - 1 ? 0 : 8),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: kSurfaceMuted,
-                        borderRadius: BorderRadius.circular(kRadiusMd),
-                        border: Border.all(color: kBorder),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: kSurfaceMuted,
+                    borderRadius: BorderRadius.circular(kRadiusMd),
+                    border: Border.all(color: kBorder),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          color: kBrandGreenSoft,
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          ((leader.name ?? leader.email).isNotEmpty
+                                  ? (leader.name ?? leader.email)[0]
+                                  : '?')
+                              .toUpperCase(),
+                          style: const TextStyle(
+                            color: kBrandGreenDeep,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                          ),
+                        ),
                       ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 30,
-                            height: 30,
-                            decoration: BoxDecoration(
-                              color: kBrandGreenSoft,
-                              shape: BoxShape.circle,
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              ((leader.name ?? leader.email).isNotEmpty
-                                      ? (leader.name ?? leader.email)[0]
-                                      : '?')
-                                  .toUpperCase(),
-                              style: const TextStyle(
-                                color: kBrandGreenDeep,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 13,
-                              ),
-                            ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          leader.name ?? leader.email,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: kTextPrimary,
+                            fontWeight: FontWeight.w600,
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              leader.name ?? leader.email,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: kTextPrimary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.close_rounded, size: 18),
-                            color: kTextTertiary,
-                            tooltip: 'Verwijderen',
-                            onPressed: () async {
-                              final remaining = _selected!.leaders
-                                  .where((u) => u.id != leader.id)
-                                  .map((u) => u.id)
-                                  .toList();
-                              await _saveDepartment(
-                                id: _selected!.id,
-                                name: _selected!.name,
-                                leaderIds: remaining,
-                              );
-                            },
-                          ),
-                        ],
+                        ),
                       ),
-                    );
-                  }),
-                ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, size: 18),
+                        color: kTextTertiary,
+                        tooltip: 'Verwijderen',
+                        onPressed: () async {
+                          final remaining = _selected!.leaders
+                              .where((u) => u.id != leader.id)
+                              .map((u) => u.id)
+                              .toList();
+                          await _saveDepartment(
+                            id: _selected!.id,
+                            name: _selected!.name,
+                            leaderIds: remaining,
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ),
     );
   }
 }

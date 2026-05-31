@@ -2,31 +2,32 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common';
-import { NotificationType } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
-import { NotificationService } from '../notifications/notifications.service';
+} from "@nestjs/common";
+import { NotificationType, Prisma } from "@prisma/client";
+import { PrismaService } from "../prisma/prisma.service";
+import { NotificationService } from "../notifications/notifications.service";
 import {
   CreateMaintenanceInspectionDto,
   UpdateMaintenanceInspectionDto,
-} from './dto/create_maintenance_inspection.dto';
+} from "./dto/create_maintenance_inspection.dto";
 
-interface MaintenanceInspectionRecord {
-  id: number;
-  equipment: string;
-  inspectionType: string;
-  inspectionInstitution: string;
-  contactInfo: string | null;
-  locationIds: number[];
-  frequency: string;
-  selfContact: boolean;
-  lastInspectionDate: Date | null;
-  dueDate: Date;
-  status: string | null;
-  notes: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
+const MAINTENANCE_INCLUDE = {
+  branches: {
+    include: {
+      branch: true,
+    },
+    orderBy: {
+      branch: {
+        name: "asc",
+      },
+    },
+  },
+} satisfies Prisma.MaintenanceInspectionInclude;
+
+type MaintenanceInspectionWithBranches =
+  Prisma.MaintenanceInspectionGetPayload<{
+    include: typeof MAINTENANCE_INCLUDE;
+  }>;
 
 @Injectable()
 export class MaintenanceInspectionsService {
@@ -35,79 +36,74 @@ export class MaintenanceInspectionsService {
     private readonly notificationService: NotificationService,
   ) {}
 
-  private get maintenanceInspectionModel(): any {
-    return this.prisma as any;
-  }
-
   async getFormData() {
     const branches = await this.prisma.branch.findMany({
       select: { id: true, name: true },
-      orderBy: { name: 'asc' },
+      orderBy: { name: "asc" },
     });
 
     return { branches };
   }
 
   async findAll() {
-    const [records, branches] = await Promise.all([
-      this.maintenanceInspectionModel.maintenanceInspection.findMany({
-        orderBy: [{ dueDate: 'asc' }, { id: 'desc' }],
-      }),
-      this.prisma.branch.findMany({
-        select: { id: true, name: true },
-      }),
-    ]);
+    const records = await this.prisma.maintenanceInspection.findMany({
+      include: MAINTENANCE_INCLUDE,
+      orderBy: [{ dueDate: "asc" }, { id: "desc" }],
+    });
 
-    const branchLookup = new Map(
-      branches.map((branch) => [branch.id, branch.name]),
-    );
-
-    return records.map((record) => this.serialize(record, branchLookup));
+    return records.map((record) => this.serialize(record));
   }
 
   async findOne(id: number) {
-    const record = await this.maintenanceInspectionModel.maintenanceInspection.findUnique({
+    const record = await this.prisma.maintenanceInspection.findUnique({
       where: { id },
+      include: MAINTENANCE_INCLUDE,
     });
     if (!record) {
       throw new NotFoundException(`Onderhoud/keuring #${id} niet gevonden`);
     }
 
-    const branches = await this.prisma.branch.findMany({
-      select: { id: true, name: true },
-    });
-
-    const branchLookup = new Map(
-      branches.map((branch) => [branch.id, branch.name]),
-    );
-
-    return this.serialize(record, branchLookup);
+    return this.serialize(record);
   }
 
   async create(dto: CreateMaintenanceInspectionDto) {
-    const payload = await this.buildPayload(dto);
-    const record = await this.maintenanceInspectionModel.maintenanceInspection.create({
-      data: payload,
+    const { branchIds, ...payload } = await this.buildPayload(dto);
+    const record = await this.prisma.maintenanceInspection.create({
+      data: {
+        ...payload,
+        branches: {
+          create: branchIds.map((branchId) => ({ branchId })),
+        },
+      },
+      include: MAINTENANCE_INCLUDE,
     });
-    const branchLookup = await this.getLocationLookup();
-    const serialized = this.serialize(record, branchLookup);
+    const serialized = this.serialize(record);
     await this.notifyMaintenanceCreated(serialized);
     return serialized;
   }
 
   async update(id: number, dto: UpdateMaintenanceInspectionDto) {
     await this.assertExists(id);
-    const payload = await this.buildPayload(dto);
-    const record = await this.maintenanceInspectionModel.maintenanceInspection.update({
+    const { branchIds, ...payload } = await this.buildPayload(dto);
+    const record = await this.prisma.maintenanceInspection.update({
       where: { id },
-      data: payload,
+      data: {
+        ...payload,
+        branches: {
+          deleteMany: {},
+          create: branchIds.map((branchId) => ({ branchId })),
+        },
+      },
+      include: MAINTENANCE_INCLUDE,
     });
-    return this.serialize(record, await this.getLocationLookup());
+    return this.serialize(record);
   }
 
   async remove(id: number) {
     await this.assertExists(id);
-    return this.maintenanceInspectionModel.maintenanceInspection.delete({ where: { id } });
+    return this.prisma.maintenanceInspection.delete({
+      where: { id },
+    });
   }
 
   async findUpcoming(limit = 20) {
@@ -116,32 +112,26 @@ export class MaintenanceInspectionsService {
     const cutoff = new Date(now);
     cutoff.setDate(cutoff.getDate() + 30);
 
-    const records = await this.maintenanceInspectionModel.maintenanceInspection.findMany({
+    const records = await this.prisma.maintenanceInspection.findMany({
       where: {
         dueDate: { lte: cutoff },
-        NOT: { status: 'Closed' },
+        NOT: { status: "Closed" },
       },
-      orderBy: { dueDate: 'asc' },
+      include: MAINTENANCE_INCLUDE,
+      orderBy: { dueDate: "asc" },
       take: limit,
     });
-
-    const branches = await this.prisma.branch.findMany({
-      select: { id: true, name: true },
-    });
-    const branchLookup = new Map(branches.map((b) => [b.id, b.name]));
 
     return records.map((record) => ({
       id: record.id,
       equipment: record.equipment,
       dueDate: record.dueDate,
-      locations: record.locationIds
-        .map((id) => branchLookup.get(id))
-        .filter((name): name is string => Boolean(name)),
+      branches: record.branches.map((link) => link.branch.name),
     }));
   }
 
   private async assertExists(id: number) {
-    const existing = await this.maintenanceInspectionModel.maintenanceInspection.findUnique({
+    const existing = await this.prisma.maintenanceInspection.findUnique({
       where: { id },
       select: { id: true },
     });
@@ -151,23 +141,15 @@ export class MaintenanceInspectionsService {
     }
   }
 
-  private async getLocationLookup() {
-    const branches = await this.prisma.branch.findMany({
-      select: { id: true, name: true },
-    });
-
-    return new Map(branches.map((branch) => [branch.id, branch.name]));
-  }
-
   private async buildPayload(dto: CreateMaintenanceInspectionDto) {
-    const equipment = dto.equipment?.trim() ?? '';
-    const inspectionType = dto.inspectionType?.trim() ?? '';
-    const inspectionInstitution = dto.inspectionInstitution?.trim() ?? '';
-    const frequency = dto.frequency?.trim() ?? '';
-    const dueDate = this.parseDate(dto.dueDate, 'dueDate');
+    const equipment = dto.equipment?.trim() ?? "";
+    const inspectionType = dto.inspectionType?.trim() ?? "";
+    const inspectionInstitution = dto.inspectionInstitution?.trim() ?? "";
+    const frequency = dto.frequency?.trim() ?? "";
+    const dueDate = this.parseDate(dto.dueDate, "dueDate");
     let dueDateComputed: Date | null = dueDate;
     if (!dueDateComputed) {
-      const last = this.parseDate(dto.lastInspectionDate, 'lastInspectionDate');
+      const last = this.parseDate(dto.lastInspectionDate, "lastInspectionDate");
       const numMatch = (frequency.match(/(\d+)/) || [null])[0];
       const yearsToAdd = numMatch ? Math.max(1, parseInt(numMatch, 10)) : 1;
       const base = last ?? new Date();
@@ -176,27 +158,35 @@ export class MaintenanceInspectionsService {
     }
 
     if (!equipment || !inspectionType || !inspectionInstitution || !frequency) {
-      throw new BadRequestException('Verplichte velden ontbreken');
+      throw new BadRequestException("Verplichte velden ontbreken");
     }
 
-    const locationIds = Array.isArray(dto.locationIds)
-      ? dto.locationIds.filter((value) => Number.isInteger(value) && value > 0)
-      : [];
+    const branchIds = Array.from(
+      new Set(
+        Array.isArray(dto.branchIds)
+          ? dto.branchIds.filter(
+              (value) => Number.isInteger(value) && value > 0,
+            )
+          : [],
+      ),
+    );
 
-    if (locationIds.length === 0) {
-      throw new BadRequestException('Selecteer minstens één vestiging');
+    if (branchIds.length === 0) {
+      throw new BadRequestException("Selecteer minstens een vestiging");
     }
 
     const existingBranches = await this.prisma.branch.findMany({
-      where: { id: { in: locationIds } },
+      where: { id: { in: branchIds } },
       select: { id: true },
     });
     const existingIds = new Set(existingBranches.map((branch) => branch.id));
-    const missingIds = locationIds.filter((locationId) => !existingIds.has(locationId));
+    const missingIds = branchIds.filter(
+      (branchId) => !existingIds.has(branchId),
+    );
 
     if (missingIds.length > 0) {
       throw new BadRequestException(
-        `Onbekende vestigingen geselecteerd: ${missingIds.join(', ')}`,
+        `Onbekende vestigingen geselecteerd: ${missingIds.join(", ")}`,
       );
     }
 
@@ -205,11 +195,14 @@ export class MaintenanceInspectionsService {
       inspectionType,
       inspectionInstitution,
       contactInfo: dto.contactInfo?.trim() || null,
-      locationIds,
+      branchIds,
       frequency,
       selfContact: dto.selfContact ?? false,
-      lastInspectionDate: this.parseDate(dto.lastInspectionDate, 'lastInspectionDate'),
-      dueDate: dueDateComputed!,
+      lastInspectionDate: this.parseDate(
+        dto.lastInspectionDate,
+        "lastInspectionDate",
+      ),
+      dueDate: dueDateComputed,
       status: dto.status?.trim() || null,
       notes: dto.notes?.trim() || null,
     };
@@ -228,19 +221,14 @@ export class MaintenanceInspectionsService {
     return parsed;
   }
 
-  private serialize(
-    record: MaintenanceInspectionRecord,
-    branches: Map<number, string>,
-  ) {
+  private serialize(record: MaintenanceInspectionWithBranches) {
     return {
       id: record.id,
       equipment: record.equipment,
       inspectionType: record.inspectionType,
       inspectionInstitution: record.inspectionInstitution,
       contactInfo: record.contactInfo,
-      locations: record.locationIds
-        .map((locationId) => branches.get(locationId))
-        .filter((branchName): branchName is string => Boolean(branchName)),
+      branches: record.branches.map((link) => link.branch.name),
       frequency: record.frequency,
       selfContact: record.selfContact,
       lastInspectionDate: record.lastInspectionDate,
@@ -257,7 +245,7 @@ export class MaintenanceInspectionsService {
     equipment: string;
     inspectionType: string;
     inspectionInstitution: string;
-    locations: string[];
+    branches: string[];
     dueDate: Date;
   }) {
     const recipients = await this.prisma.user.findMany({
@@ -270,15 +258,15 @@ export class MaintenanceInspectionsService {
     await this.notificationService.notifyUsers({
       recipientUserIds: recipients.map((user) => user.id),
       type: NotificationType.MAINTENANCE_NEW,
-      title: 'Nieuwe onderhoud/keuring aangemaakt',
-      body: `${record.equipment} (${record.inspectionType}) is aangemaakt voor ${record.locations.join(', ') || 'onbekende vestiging'} en is gepland tegen ${record.dueDate.toLocaleDateString('nl-BE')}.`,
+      title: "Nieuwe onderhoud/keuring aangemaakt",
+      body: `${record.equipment} (${record.inspectionType}) is aangemaakt voor ${record.branches.join(", ") || "onbekende vestiging"} en is gepland tegen ${record.dueDate.toLocaleDateString("nl-BE")}.`,
       metadata: {
         maintenanceInspectionId: record.id,
         equipment: record.equipment,
         inspectionType: record.inspectionType,
         inspectionInstitution: record.inspectionInstitution,
         dueDate: record.dueDate,
-        locations: record.locations,
+        branches: record.branches,
       },
     });
   }

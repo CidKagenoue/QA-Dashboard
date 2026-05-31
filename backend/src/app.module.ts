@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { BranchesModule } from './branches/branches.module';
-import { LocationsModule } from './locations/locations.module';
 import { MaintenanceInspectionsModule } from './maintenance-inspections/maintenance-inspections.module';
 import { AccountsModule } from './accounts/accounts.module';
 import { AppController } from './app.controller';
@@ -31,7 +30,6 @@ import { UserModule } from './user/user.module';
     ExecutorModule,
     AccountsModule,
     BranchesModule,
-    LocationsModule,
     MaintenanceInspectionsModule,
     JapGppModule,
     OvaModule,

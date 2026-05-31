@@ -1,8 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import { NotificationType } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
-import { NotificationService } from '../notifications/notifications.service';
+import { Injectable, Logger } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import { NotificationType } from "@prisma/client";
+import { PrismaService } from "../prisma/prisma.service";
+import { NotificationService } from "../notifications/notifications.service";
 
 @Injectable()
 export class MaintenanceDeadlineJob {
@@ -28,26 +28,31 @@ export class MaintenanceDeadlineJob {
           gte: twoDaysFromNow,
           lt: nextDay,
         },
-        status: { not: 'Closed' },
+        status: { not: "Closed" },
       },
       select: {
         id: true,
         equipment: true,
         inspectionType: true,
         dueDate: true,
-        locationIds: true,
+        branches: {
+          select: {
+            branch: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
       },
     });
 
     if (inspections.length === 0) {
-      this.logger.log('Geen naderende onderhouds- of keuringsdeadlines gevonden.');
+      this.logger.log(
+        "Geen naderende onderhouds- of keuringsdeadlines gevonden.",
+      );
       return;
     }
-
-    const branches = await this.prisma.branch.findMany({
-      select: { id: true, name: true },
-    });
-    const branchLookup = new Map(branches.map((branch) => [branch.id, branch.name]));
 
     const recipients = await this.prisma.user.findMany({
       where: {
@@ -58,30 +63,32 @@ export class MaintenanceDeadlineJob {
 
     const recipientUserIds = recipients.map((user) => user.id);
     if (recipientUserIds.length === 0) {
-      this.logger.warn('Geen ontvangers met onderhoudstoegang gevonden voor deadline-notificaties.');
+      this.logger.warn(
+        "Geen ontvangers met onderhoudstoegang gevonden voor deadline-notificaties.",
+      );
       return;
     }
 
     for (const inspection of inspections) {
-      const locations = inspection.locationIds
-        .map((locationId) => branchLookup.get(locationId))
-        .filter((location): location is string => Boolean(location));
+      const branches = inspection.branches.map((link) => link.branch.name);
 
       await this.notificationService.notifyUsers({
         recipientUserIds,
         type: NotificationType.MAINTENANCE_DUE,
-        title: 'Onderhouds- of keuringsdeadline nadert',
-        body: `${inspection.equipment} (${inspection.inspectionType}) voor ${locations.join(', ') || 'onbekende vestiging'} vervalt op ${inspection.dueDate.toLocaleDateString('nl-BE')}.`,
+        title: "Onderhouds- of keuringsdeadline nadert",
+        body: `${inspection.equipment} (${inspection.inspectionType}) voor ${branches.join(", ") || "onbekende vestiging"} vervalt op ${inspection.dueDate.toLocaleDateString("nl-BE")}.`,
         metadata: {
           maintenanceInspectionId: inspection.id,
           equipment: inspection.equipment,
           inspectionType: inspection.inspectionType,
           dueDate: inspection.dueDate,
-          locations,
+          branches,
         },
       });
     }
 
-    this.logger.log(`Verstuurde ${inspections.length} onderhoudsdeadline-herinneringen.`);
+    this.logger.log(
+      `Verstuurde ${inspections.length} onderhoudsdeadline-herinneringen.`,
+    );
   }
 }

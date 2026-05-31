@@ -175,12 +175,12 @@ model OvaFollowUpAction {
 }
 
 model Branch {
-  id          Int                @id @default(autoincrement())
-  name        String
-  createdAt   DateTime           @default(now())
-  locations   Location[]
-  ovaTickets  OvaTicket[]
-  departments BranchDepartment[]
+  id                     Int                           @id @default(autoincrement())
+  name                   String
+  createdAt              DateTime                      @default(now())
+  ovaTickets             OvaTicket[]
+  departments            BranchDepartment[]
+  maintenanceInspections MaintenanceInspectionBranch[]
 }
 
 model BranchDepartment {
@@ -193,31 +193,34 @@ model BranchDepartment {
   @@index([departmentId], map: "BranchDepartment_departmentId_idx")
 }
 
-model Location {
-  id        Int      @id @default(autoincrement())
-  name      String
-  createdAt DateTime @default(now())
-  branchId  Int?
-  branch    Branch?  @relation(fields: [branchId], references: [id])
-}
-
 model MaintenanceInspection {
-  id                    Int       @id @default(autoincrement())
+  id                    Int                           @id @default(autoincrement())
   equipment             String
   inspectionType        String
   inspectionInstitution String
   contactInfo           String?
-  locationIds           Int[]     @default([])
+  branches              MaintenanceInspectionBranch[]
   frequency             String
-  selfContact           Boolean   @default(false)
+  selfContact           Boolean                       @default(false)
   lastInspectionDate    DateTime?
   dueDate               DateTime
-  status                String?   @default("Open")
+  status                String?                       @default("Open")
   notes                 String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  createdAt             DateTime                      @default(now())
+  updatedAt             DateTime                      @updatedAt
 
   @@map("maintenance_inspections")
+}
+
+model MaintenanceInspectionBranch {
+  maintenanceInspectionId Int                   @map("maintenance_inspection_id")
+  branchId                Int                   @map("branch_id")
+  maintenanceInspection   MaintenanceInspection @relation(fields: [maintenanceInspectionId], references: [id], onDelete: Cascade)
+  branch                  Branch                @relation(fields: [branchId], references: [id], onDelete: Restrict)
+
+  @@id([maintenanceInspectionId, branchId])
+  @@index([branchId], map: "maintenance_inspection_branches_branch_id_idx")
+  @@map("maintenance_inspection_branches")
 }
 
 // This is your Prisma schema file,

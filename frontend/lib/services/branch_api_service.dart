@@ -2,10 +2,9 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:qa_dashboard/models/branch.dart';
 
-import '../models/location.dart';
 import 'api_service.dart';
 
-class LocationApiService {
+class BranchApiService {
   static String get baseUrl => ApiService.baseUrl;
 
   // ── Branches ───────────────────────────────────────────────────────────────
@@ -71,60 +70,6 @@ class LocationApiService {
   }) async {
     final response = await http.delete(
       Uri.parse('$baseUrl/branches/$id'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    );
-    if (response.statusCode != 200 && response.statusCode != 204) {
-      throw Exception(_extractErrorMessage(response));
-    }
-  }
-
-  // ── Locaties ───────────────────────────────────────────────────────────────
-
-  static Future<Location> saveLocation({
-    required String token,
-    int? id,
-    required String name,
-    required int branchId,
-  }) async {
-    final body = jsonEncode({'name': name, 'branchId': branchId});
-    final uri = id == null
-        ? Uri.parse('$baseUrl/locations')
-        : Uri.parse('$baseUrl/locations/$id');
-
-    final response = await (id == null
-        ? http.post(
-            uri,
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-            body: body,
-          )
-        : http.put(
-            uri,
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-            body: body,
-          ));
-
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      return Location.fromJson(jsonDecode(response.body));
-    } else {
-      throw Exception(_extractErrorMessage(response));
-    }
-  }
-
-  static Future<void> deleteLocation({
-    required String token,
-    required int id,
-  }) async {
-    final response = await http.delete(
-      Uri.parse('$baseUrl/locations/$id'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',

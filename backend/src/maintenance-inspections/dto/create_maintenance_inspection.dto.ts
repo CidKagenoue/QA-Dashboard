@@ -26,7 +26,7 @@ export class CreateMaintenanceInspectionDto {
   @IsOptional()
   @IsArray()
   @IsInt({ each: true })
-  locationIds?: number[];
+  branchIds?: number[];
 
   @IsOptional()
   @IsString()

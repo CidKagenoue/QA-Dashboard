@@ -508,12 +508,13 @@ class _DashboardBodyState extends State<_DashboardBody> {
           final formatted = dueDate == null
               ? (inspection['dueDate']?.toString() ?? '')
               : '${dueDate.day.toString().padLeft(2, '0')}/${dueDate.month.toString().padLeft(2, '0')}/${dueDate.year}';
-          final locations = inspection['locations'] is List
-              ? (inspection['locations'] as List).whereType<String>().join(', ')
+          final branchValues = inspection['branches'];
+          final branches = branchValues is List
+              ? branchValues.whereType<String>().join(', ')
               : '';
           final title = inspection['equipment']?.toString() ?? '';
           return MaintenanceItem(
-            title: '$title${locations.isEmpty ? '' : ' ($locations)'}',
+            title: '$title${branches.isEmpty ? '' : ' ($branches)'}',
             date: formatted,
             dueDate: dueDate,
           );

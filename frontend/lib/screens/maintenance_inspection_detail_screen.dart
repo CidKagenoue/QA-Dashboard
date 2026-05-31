@@ -191,7 +191,7 @@ class _MaintenanceInspectionDetailScreenState
   void _syncBranchSelection(MaintenanceInspection inspection) {
     _selectedBranchIds.clear();
     for (final branch in _branches) {
-      if (inspection.locations.contains(branch.name)) {
+      if (inspection.branches.contains(branch.name)) {
         _selectedBranchIds.add(branch.id);
       }
     }
@@ -254,7 +254,7 @@ class _MaintenanceInspectionDetailScreenState
     if (inspection == null) return <int>[];
 
     return _branches
-        .where((branch) => inspection.locations.contains(branch.name))
+        .where((branch) => inspection.branches.contains(branch.name))
         .map((branch) => branch.id)
         .toList();
   }
@@ -399,22 +399,23 @@ class _MaintenanceInspectionDetailScreenState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Onderhoud/keuring verwijderen'),
+        title: const Text('Onderhoud/keuring verwijderen?'),
         content: const Text(
-          'Weet je zeker dat je dit onderhouds- of keuringsitem wilt verwijderen?',
+          'Dit onderhouds- of keuringsitem wordt definitief verwijderd. Dit kun je niet ongedaan maken.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Annuleren'),
           ),
-          ElevatedButton(
+          ElevatedButton.icon(
             onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.delete_outline_rounded),
+            label: const Text('Verwijderen'),
             style: ElevatedButton.styleFrom(
               backgroundColor: kDanger,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Verwijderen'),
           ),
         ],
       ),
@@ -1149,16 +1150,16 @@ class _MaintenanceInspectionDetailScreenState
   }
 
   Widget _buildBranchReadOnly(MaintenanceInspection inspection) {
-    if (inspection.locations.isEmpty) {
+    if (inspection.branches.isEmpty) {
       return const _ReadOnlyValue(value: '-');
     }
 
     return Wrap(
       spacing: 8,
       runSpacing: 8,
-      children: inspection.locations
+      children: inspection.branches
           .map(
-            (location) => Container(
+            (branch) => Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
                 color: kBrandGreenSubtle,
@@ -1166,7 +1167,7 @@ class _MaintenanceInspectionDetailScreenState
                 border: Border.all(color: kBrandGreenSoft),
               ),
               child: Text(
-                location,
+                branch,
                 style: const TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,

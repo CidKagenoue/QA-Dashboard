@@ -20,7 +20,7 @@ class MaintenanceInspectionForm {
       'contactInfo': contactInfo,
       'frequency': 'Elke $frequencyValue $frequencyUnit',
       'selfContact': selfContact,
-      'locationIds': selectedBranchIds,
+      'branchIds': selectedBranchIds,
       'lastInspectionDate': lastInspectionDate?.toIso8601String(),
       'dueDate': nextInspectionDate?.toIso8601String(),
       'status': status,

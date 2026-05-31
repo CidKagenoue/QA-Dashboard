@@ -112,8 +112,8 @@ class _MaintenanceInspectionsScreenState
       final matchesSearch =
           inspection.equipment.toLowerCase().contains(query) ||
           inspection.inspectionInstitution.toLowerCase().contains(query) ||
-          inspection.locations.any(
-            (location) => location.toLowerCase().contains(query),
+          inspection.branches.any(
+            (branch) => branch.toLowerCase().contains(query),
           );
 
       if (!matchesSearch) return false;
@@ -135,9 +135,9 @@ class _MaintenanceInspectionsScreenState
         final hasBranch = selectedFilterBranches.any((branchId) {
           final branch = availableBranches.firstWhere(
             (b) => b.id == branchId,
-            orElse: () => Branch(id: -1, name: '', locations: []),
+            orElse: () => Branch(id: -1, name: ''),
           );
-          return inspection.locations.contains(branch.name);
+          return inspection.branches.contains(branch.name);
         });
         if (!hasBranch) return false;
       }
@@ -532,7 +532,7 @@ class _MaintenanceInspectionsScreenState
   static const double _maintenanceTableColumnGap = 10;
   static const int _equipmentFlex = 23;
   static const int _institutionFlex = 20;
-  static const int _locationsFlex = 20;
+  static const int _branchesFlex = 20;
   static const int _frequencyFlex = 12;
   static const int _statusFlex = 13;
   static const int _dueDateFlex = 14;
@@ -597,9 +597,9 @@ class _MaintenanceInspectionsScreenState
                                     ),
                                   ),
                                   _MaintenanceCellData(
-                                    flex: _locationsFlex,
+                                    flex: _branchesFlex,
                                     child: _MaintenanceCellText(
-                                      inspection.locations.join(', '),
+                                      inspection.branches.join(', '),
                                     ),
                                   ),
                                   _MaintenanceCellData(
@@ -798,7 +798,7 @@ class _MaintenanceTableHeader extends StatelessWidget {
           ),
           _MaintenanceHeaderColumn(
             label: 'Vestigingen',
-            flex: _MaintenanceInspectionsScreenState._locationsFlex,
+            flex: _MaintenanceInspectionsScreenState._branchesFlex,
           ),
           _MaintenanceHeaderColumn(
             label: 'Frequentie',
@@ -1040,8 +1040,8 @@ class _MaintenanceInspectionDialogState
   String frequencyUnit = 'Jaar';
   bool selfContact = false;
   String? status;
-  final Set<int> selectedLocationIds = {};
-  final ScrollController _locationsScrollController = ScrollController();
+  final Set<int> selectedBranchIds = {};
+  final ScrollController _branchesScrollController = ScrollController();
   DateTime? lastInspectionDate;
   DateTime? dueDate;
   String? _equipmentError;
@@ -1064,7 +1064,7 @@ class _MaintenanceInspectionDialogState
           .where((type) => type.isNotEmpty),
     );
     if (branches.isNotEmpty) {
-      selectedLocationIds.add(branches.first.id);
+      selectedBranchIds.add(branches.first.id);
     }
     equipmentController.addListener(() {
       if (_equipmentError != null &&
@@ -1088,7 +1088,7 @@ class _MaintenanceInspectionDialogState
     notesController.dispose();
     lastInspectionController.dispose();
     dueDateController.dispose();
-    _locationsScrollController.dispose();
+    _branchesScrollController.dispose();
     super.dispose();
   }
 
@@ -1205,20 +1205,23 @@ class _MaintenanceInspectionDialogState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Keuringstype verwijderen'),
-        content: Text('Wil je "$type" verwijderen uit de keuzelijst?'),
+        title: const Text('Keuringstype verwijderen?'),
+        content: Text(
+          '"$type" wordt definitief uit de keuzelijst verwijderd. Dit kun je niet ongedaan maken.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Annuleren'),
           ),
-          ElevatedButton(
+          ElevatedButton.icon(
             onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.delete_outline_rounded),
+            label: const Text('Verwijderen'),
             style: ElevatedButton.styleFrom(
               backgroundColor: kDanger,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Verwijderen'),
           ),
         ],
       ),
@@ -1448,7 +1451,9 @@ class _MaintenanceInspectionDialogState
                                     DropdownButtonFormField<String>(
                                       initialValue: inspectionType,
                                       isExpanded: true,
-                                      borderRadius: BorderRadius.circular(kRadiusMd),
+                                      borderRadius: BorderRadius.circular(
+                                        kRadiusMd,
+                                      ),
                                       dropdownColor: kSurface,
                                       items: _inspectionTypeItems(),
                                       selectedItemBuilder: (_) =>
@@ -1477,8 +1482,9 @@ class _MaintenanceInspectionDialogState
                                           child: DropdownButtonFormField<int>(
                                             isExpanded: true,
                                             initialValue: frequencyValue,
-                                            borderRadius:
-                                                BorderRadius.circular(kRadiusMd),
+                                            borderRadius: BorderRadius.circular(
+                                              kRadiusMd,
+                                            ),
                                             dropdownColor: kSurface,
                                             items: List.generate(
                                               12,
@@ -1504,7 +1510,9 @@ class _MaintenanceInspectionDialogState
                                                 isExpanded: true,
                                                 initialValue: frequencyUnit,
                                                 borderRadius:
-                                                    BorderRadius.circular(kRadiusMd),
+                                                    BorderRadius.circular(
+                                                      kRadiusMd,
+                                                    ),
                                                 dropdownColor: kSurface,
                                                 items: const [
                                                   DropdownMenuItem(
@@ -1678,12 +1686,12 @@ class _MaintenanceInspectionDialogState
                               ),
                             )
                           : Scrollbar(
-                              controller: _locationsScrollController,
+                              controller: _branchesScrollController,
                               child: ListView(
-                                controller: _locationsScrollController,
+                                controller: _branchesScrollController,
                                 padding: EdgeInsets.zero,
                                 children: branches.map((branch) {
-                                  final selected = selectedLocationIds.contains(
+                                  final selected = selectedBranchIds.contains(
                                     branch.id,
                                   );
                                   return CheckboxListTile(
@@ -1703,13 +1711,13 @@ class _MaintenanceInspectionDialogState
                                     onChanged: (isChecked) {
                                       setState(() {
                                         if (isChecked == true) {
-                                          selectedLocationIds.add(branch.id);
+                                          selectedBranchIds.add(branch.id);
                                           if (_branchesError != null &&
-                                              selectedLocationIds.isNotEmpty) {
+                                              selectedBranchIds.isNotEmpty) {
                                             _branchesError = null;
                                           }
                                         } else {
-                                          selectedLocationIds.remove(branch.id);
+                                          selectedBranchIds.remove(branch.id);
                                         }
                                       });
                                     },
@@ -1808,8 +1816,11 @@ class _MaintenanceInspectionDialogState
               borderRadius: BorderRadius.circular(kRadiusSm),
             ),
             alignment: Alignment.center,
-            child: const Icon(Icons.fact_check_outlined,
-                color: kBrandGreenDeep, size: 20),
+            child: const Icon(
+              Icons.fact_check_outlined,
+              color: kBrandGreenDeep,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 14),
           const Expanded(
@@ -1887,8 +1898,7 @@ class _MaintenanceInspectionDialogState
       } catch (_) {}
     }
 
-    if (parsedDueDate == null &&
-        dueDateController.text.trim().isNotEmpty) {
+    if (parsedDueDate == null && dueDateController.text.trim().isNotEmpty) {
       try {
         final parts = dueDateController.text.split('/');
         if (parts.length == 3) {
@@ -1908,7 +1918,7 @@ class _MaintenanceInspectionDialogState
     if (institutionController.text.trim().isEmpty) {
       missing.add('Naam keurinstelling');
     }
-    if (selectedLocationIds.isEmpty) {
+    if (selectedBranchIds.isEmpty) {
       missing.add('Vestiging');
     }
 
@@ -1939,7 +1949,7 @@ class _MaintenanceInspectionDialogState
       ..frequencyUnit = frequencyUnit
       ..selfContact = selfContact
       ..status = _mapFrontendStatusToBackend(status)
-      ..selectedBranchIds = selectedLocationIds.toList()
+      ..selectedBranchIds = selectedBranchIds.toList()
       ..lastInspectionDate = parsedLastInspection
       ..nextInspectionDate = parsedDueDate;
 
@@ -1999,8 +2009,7 @@ class _MaintenanceInspectionDialogState
 
   InputDecoration _dropdownDecoration() {
     return _baseInputDecoration().copyWith(
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     );
   }
 
@@ -2010,8 +2019,11 @@ class _MaintenanceInspectionDialogState
       hintText:
           '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}',
       suffixIcon: IconButton(
-        icon: const Icon(Icons.calendar_today_outlined,
-            size: 18, color: kTextTertiary),
+        icon: const Icon(
+          Icons.calendar_today_outlined,
+          size: 18,
+          color: kTextTertiary,
+        ),
         onPressed: onTap,
       ),
     );
@@ -2026,8 +2038,7 @@ class _MaintenanceInspectionDialogState
         color: kTextMuted,
         fontWeight: FontWeight.w500,
       ),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(kRadiusMd),
         borderSide: const BorderSide(color: kBorder),

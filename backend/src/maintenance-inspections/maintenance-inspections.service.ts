@@ -9,7 +9,7 @@ import { NotificationService } from "../notifications/notifications.service";
 import {
   CreateMaintenanceInspectionDto,
   UpdateMaintenanceInspectionDto,
-} from "./dto/create_maintenance_inspection.dto";
+} from "./dto/create-maintenance-inspection.dto";
 
 const MAINTENANCE_INCLUDE = {
   branches: {

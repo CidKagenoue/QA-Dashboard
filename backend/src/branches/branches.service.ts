@@ -5,7 +5,7 @@ import {
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
-import { CreateBranchDto } from "./dto/create_branches.dto";
+import { CreateBranchDto } from "./dto/create-branch.dto";
 
 const BRANCH_INCLUDE = {
   departments: {

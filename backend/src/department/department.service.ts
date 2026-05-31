@@ -1,8 +1,8 @@
 // src/departments/departments.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { UpdateDepartmentDto } from './dto/update_department.dto';
-import { CreateDepartmentDto } from './dto/create_department.dto';
+import { UpdateDepartmentDto } from './dto/update-department.dto';
+import { CreateDepartmentDto } from './dto/create-department.dto';
 
 const INCLUDE = {
   leaders: {

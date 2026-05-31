@@ -18,7 +18,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import {
   CreateMaintenanceInspectionDto,
   UpdateMaintenanceInspectionDto,
-} from './dto/create_maintenance_inspection.dto';
+} from './dto/create-maintenance-inspection.dto';
 import { MaintenanceInspectionsService } from './maintenance-inspections.service';
 
 @UseGuards(JwtAuthGuard)

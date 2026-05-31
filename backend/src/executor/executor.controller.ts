@@ -1,9 +1,10 @@
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { JapGppAccessGuard } from '../jap-gpp/jap-gpp-access.guard';
 import { ExecutorService } from './executor.service';
 
 @Controller('executor')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, JapGppAccessGuard)
 export class ExecutorController {
   constructor(private readonly executorService: ExecutorService) {}
 

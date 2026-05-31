@@ -3,10 +3,10 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../models/whs_tour.dart';
-import 'api_service.dart';
+import 'api_client.dart';
 
 class WhsApiService {
-  static String get baseUrl => ApiService.baseUrl;
+  static String get baseUrl => ApiClient.baseUrl;
 
   static Future<List<WhsTour>> fetchTours({required String token}) async {
     final response = await http.get(

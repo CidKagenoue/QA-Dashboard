@@ -4,7 +4,7 @@ class MaintenanceInspection {
   final String inspectionType;
   final String inspectionInstitution;
   final String? contactInfo;
-  final List<String> locations;
+  final List<String> branches;
   final String frequency;
   final bool selfContact;
   final DateTime? lastInspectionDate;
@@ -17,7 +17,7 @@ class MaintenanceInspection {
     required this.equipment,
     required this.inspectionType,
     required this.inspectionInstitution,
-    required this.locations,
+    required this.branches,
     required this.frequency,
     required this.dueDate,
     this.contactInfo,
@@ -28,13 +28,16 @@ class MaintenanceInspection {
   });
 
   factory MaintenanceInspection.fromJson(Map<String, dynamic> json) {
+    final branchesJson = json['branches'];
     return MaintenanceInspection(
       id: json['id'] as int,
       equipment: json['equipment'] as String,
       inspectionType: json['inspectionType'] as String? ?? '',
       inspectionInstitution: json['inspectionInstitution'] as String,
       contactInfo: json['contactInfo'] as String?,
-      locations: List<String>.from(json['locations'] as List),
+      branches: branchesJson is List
+          ? branchesJson.whereType<String>().toList()
+          : const [],
       frequency: json['frequency'] as String,
       selfContact: json['selfContact'] as bool? ?? false,
       lastInspectionDate: json['lastInspectionDate'] != null
@@ -53,7 +56,7 @@ class MaintenanceInspection {
       'inspectionType': inspectionType,
       'inspectionInstitution': inspectionInstitution,
       'contactInfo': contactInfo,
-      'locations': locations,
+      'branches': branches,
       'frequency': frequency,
       'selfContact': selfContact,
       'lastInspectionDate': lastInspectionDate?.toIso8601String(),
@@ -69,7 +72,7 @@ class MaintenanceInspection {
     String? inspectionType,
     String? inspectionInstitution,
     String? contactInfo,
-    List<String>? locations,
+    List<String>? branches,
     String? frequency,
     bool? selfContact,
     DateTime? lastInspectionDate,
@@ -81,9 +84,10 @@ class MaintenanceInspection {
       id: id ?? this.id,
       equipment: equipment ?? this.equipment,
       inspectionType: inspectionType ?? this.inspectionType,
-      inspectionInstitution: inspectionInstitution ?? this.inspectionInstitution,
+      inspectionInstitution:
+          inspectionInstitution ?? this.inspectionInstitution,
       contactInfo: contactInfo ?? this.contactInfo,
-      locations: locations ?? this.locations,
+      branches: branches ?? this.branches,
       frequency: frequency ?? this.frequency,
       selfContact: selfContact ?? this.selfContact,
       lastInspectionDate: lastInspectionDate ?? this.lastInspectionDate,

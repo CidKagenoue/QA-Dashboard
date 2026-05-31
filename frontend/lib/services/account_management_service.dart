@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../models/user.dart';
-import 'api_service.dart';
+import 'account_api_service.dart';
 import 'auth_service.dart';
 
 class AccountManagementService extends ChangeNotifier {
@@ -62,7 +62,7 @@ class AccountManagementService extends ChangeNotifier {
 
     try {
       final token = await _requireToken();
-      final accountsJson = await ApiService.fetchAccounts(
+      final accountsJson = await AccountApiService.fetchAccounts(
         token: token,
         search: search,
       );
@@ -91,7 +91,7 @@ class AccountManagementService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await ApiService.createAccount(
+      final response = await AccountApiService.createAccount(
         token: token,
         email: email,
         password: password,
@@ -122,7 +122,7 @@ class AccountManagementService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await ApiService.updateAccountAccess(
+      final response = await AccountApiService.updateAccountAccess(
         token: token,
         accountId: account.id,
         isAdmin: isAdmin,
@@ -155,7 +155,7 @@ class AccountManagementService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await ApiService.updateAccountDetails(
+      final response = await AccountApiService.updateAccountDetails(
         token: token,
         accountId: account.id,
         email: email,
@@ -179,7 +179,7 @@ class AccountManagementService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await ApiService.deleteAccount(token: token, accountId: accountId);
+      await AccountApiService.deleteAccount(token: token, accountId: accountId);
 
       _accounts = _accounts.where((account) => account.id != accountId).toList()
         ..sort(_sortUsers);

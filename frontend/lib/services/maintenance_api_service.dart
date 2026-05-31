@@ -5,10 +5,10 @@ import 'package:http/http.dart' as http;
 import '../models/branch.dart';
 import '../models/maintenance_inspection_form.dart';
 import '../models/maintenance_inspections.dart';
-import 'api_service.dart';
+import 'api_client.dart';
 
 class MaintenanceApiService {
-  static String get baseUrl => ApiService.baseUrl;
+  static String get baseUrl => ApiClient.baseUrl;
 
   static Future<List<MaintenanceInspection>> getInspections({
     required String token,

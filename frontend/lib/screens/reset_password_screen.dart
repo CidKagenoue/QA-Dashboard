@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
+import '../services/auth_api_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/password_policy.dart';
 import '../widgets/vlotter_logo.dart';
@@ -52,7 +52,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     }
 
     try {
-      await ApiService.verifyResetToken(token);
+      await AuthApiService.verifyResetToken(token);
       setState(() {
         _isCheckingToken = false;
         _isTokenValid = true;
@@ -83,7 +83,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       final password = _passwordController.text;
       final confirmPassword = _confirmPasswordController.text;
 
-      await ApiService.resetPassword(
+      await AuthApiService.resetPassword(
         token: token,
         password: password,
         confirmPassword: confirmPassword,

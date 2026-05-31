@@ -5,7 +5,7 @@ import 'package:qa_dashboard/screens/ova_ticket_detail_screen.dart';
 import 'package:qa_dashboard/widgets/app_bars/main_app_bar.dart';
 import '../models/ova_sort_option.dart';
 import '../models/ova_ticket.dart';
-import '../services/api_service.dart';
+import '../services/ova_api_service.dart';
 import '../services/auth_service.dart';
 import '../widgets/design/design_system.dart';
 import 'ova_ticket_wizard_screen.dart';
@@ -87,7 +87,7 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
 
     try {
       final token = await context.read<AuthService>().getValidAccessToken();
-      final response = await ApiService.fetchOvaTickets(token: token);
+      final response = await OvaApiService.fetchOvaTickets(token: token);
       if (!mounted) return;
       setState(() {
         _tickets = response.map(OvaTicket.fromJson).toList();
@@ -199,6 +199,13 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
   void _setBranch(int? id) {
     setState(() {
       _selectedBranchId = id;
+      // Reset een afdelingskeuze die niet (meer) bij de gekozen vestiging hoort.
+      if (_selectedDepartmentId != null &&
+          !_availableDepartments.any(
+            (department) => department.id == _selectedDepartmentId,
+          )) {
+        _selectedDepartmentId = null;
+      }
     });
   }
 
@@ -244,10 +251,69 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
   List<OvaTicket> get _closedTickets =>
       _sortTickets(_tickets.where((t) => t.isClosed));
   List<String> get _availableOvaTypes => _resolveAvailableOvaTypes(_tickets);
-  List<OvaTicketOption> get _availableDepartments =>
-      _resolveAvailableOptions(_tickets.map((ticket) => ticket.department));
+  /// Tickets die de afdelingsfilter voeden. Zodra er een vestiging gekozen is,
+  /// tellen alleen de tickets van die vestiging mee, zodat de afdelingslijst
+  /// enkel de afdelingen van die vestiging toont (geen dubbele namen meer over
+  /// vestigingen heen).
+  Iterable<OvaTicket> get _departmentSourceTickets => _selectedBranchId == null
+      ? _tickets
+      : _tickets.where((ticket) => ticket.branch?.id == _selectedBranchId);
+
+  List<OvaTicketOption> get _availableDepartments => _resolveAvailableOptions(
+    _departmentSourceTickets.map((ticket) => ticket.department),
+  );
   List<OvaTicketOption> get _availableBranches =>
       _resolveAvailableOptions(_tickets.map((ticket) => ticket.branch));
+
+  /// Mapt elke afdeling (id) op de vestiging waaronder die op tickets voorkomt.
+  /// Enkel eenduidige koppelingen (precies één vestiging) houden we bij, zodat
+  /// we een afdeling kunnen verduidelijken als dezelfde naam in meerdere
+  /// vestigingen terugkomt.
+  Map<int, String> get _departmentBranchNames {
+    final byDepartment = <int, Set<String>>{};
+    for (final ticket in _tickets) {
+      final department = ticket.department;
+      final branchName = ticket.branch?.name.trim();
+      if (department == null || branchName == null || branchName.isEmpty) {
+        continue;
+      }
+      byDepartment.putIfAbsent(department.id, () => <String>{}).add(branchName);
+    }
+    return {
+      for (final entry in byDepartment.entries)
+        if (entry.value.length == 1) entry.key: entry.value.first,
+    };
+  }
+
+  /// Label voor een afdeling in de filter. Bij "Alle vestigingen" voegen we de
+  /// vestiging toe wanneer dezelfde afdelingsnaam in meerdere vestigingen
+  /// voorkomt (bv. "FIETS (Magazijn)"); met een gekozen vestiging is de naam al
+  /// eenduidig.
+  String _departmentFilterLabel(OvaTicketOption department) {
+    if (_selectedBranchId != null) {
+      return department.name;
+    }
+    final sameName = _availableDepartments.where(
+      (other) =>
+          _normalizeValue(other.name) == _normalizeValue(department.name),
+    );
+    if (sameName.length <= 1) {
+      return department.name;
+    }
+    final branchName = _departmentBranchNames[department.id];
+    return branchName == null || branchName.isEmpty
+        ? department.name
+        : '${department.name} ($branchName)';
+  }
+
+  List<_FilterOption<int>> get _departmentFilterOptions => _availableDepartments
+      .map(
+        (department) => _FilterOption<int>(
+          value: department.id,
+          label: _departmentFilterLabel(department),
+        ),
+      )
+      .toList();
 
   List<OvaTicket> get _filteredTickets {
     final query = _normalizeValue(_searchController.text);
@@ -304,7 +370,9 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
 
   String? get _selectedDepartmentLabel {
     for (final department in _availableDepartments) {
-      if (department.id == _selectedDepartmentId) return department.name;
+      if (department.id == _selectedDepartmentId) {
+        return _departmentFilterLabel(department);
+      }
     }
     return null;
   }
@@ -595,7 +663,7 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
                         availableOvaTypes: _availableOvaTypes,
                         selectedOvaType: _selectedOvaType,
                         onOvaTypeChanged: _setOvaType,
-                        availableDepartments: _availableDepartments,
+                        departmentOptions: _departmentFilterOptions,
                         selectedDepartmentId: _selectedDepartmentId,
                         selectedDepartmentLabel: _selectedDepartmentLabel,
                         onDepartmentChanged: _setDepartment,
@@ -819,7 +887,7 @@ class _TicketToolbar extends StatelessWidget {
     required this.availableOvaTypes,
     required this.selectedOvaType,
     required this.onOvaTypeChanged,
-    required this.availableDepartments,
+    required this.departmentOptions,
     required this.selectedDepartmentId,
     required this.selectedDepartmentLabel,
     required this.onDepartmentChanged,
@@ -844,7 +912,7 @@ class _TicketToolbar extends StatelessWidget {
   final List<String> availableOvaTypes;
   final String? selectedOvaType;
   final ValueChanged<String?> onOvaTypeChanged;
-  final List<OvaTicketOption> availableDepartments;
+  final List<_FilterOption<int>> departmentOptions;
   final int? selectedDepartmentId;
   final String? selectedDepartmentLabel;
   final ValueChanged<int?> onDepartmentChanged;
@@ -1064,7 +1132,7 @@ class _TicketToolbar extends StatelessWidget {
                 availableOvaTypes: availableOvaTypes,
                 selectedOvaType: selectedOvaType,
                 onOvaTypeChanged: onOvaTypeChanged,
-                availableDepartments: availableDepartments,
+                departmentOptions: departmentOptions,
                 selectedDepartmentId: selectedDepartmentId,
                 onDepartmentChanged: onDepartmentChanged,
                 availableBranches: availableBranches,
@@ -1089,7 +1157,7 @@ class _TicketFilterPanel extends StatelessWidget {
     required this.availableOvaTypes,
     required this.selectedOvaType,
     required this.onOvaTypeChanged,
-    required this.availableDepartments,
+    required this.departmentOptions,
     required this.selectedDepartmentId,
     required this.onDepartmentChanged,
     required this.availableBranches,
@@ -1105,7 +1173,7 @@ class _TicketFilterPanel extends StatelessWidget {
   final List<String> availableOvaTypes;
   final String? selectedOvaType;
   final ValueChanged<String?> onOvaTypeChanged;
-  final List<OvaTicketOption> availableDepartments;
+  final List<_FilterOption<int>> departmentOptions;
   final int? selectedDepartmentId;
   final ValueChanged<int?> onDepartmentChanged;
   final List<OvaTicketOption> availableBranches;
@@ -1165,14 +1233,7 @@ class _TicketFilterPanel extends StatelessWidget {
                 label: 'Afdeling',
                 value: selectedDepartmentId,
                 allLabel: 'Alle afdelingen',
-                options: availableDepartments
-                    .map(
-                      (department) => _FilterOption(
-                        value: department.id,
-                        label: department.name,
-                      ),
-                    )
-                    .toList(),
+                options: departmentOptions,
                 onChanged: onDepartmentChanged,
               ),
               _FilterSelectField<String>(

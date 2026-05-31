@@ -3,6 +3,7 @@
 library;
 
 export '../../theme/app_theme.dart';
+export 'app_access_denied.dart';
 export 'app_breadcrumb.dart';
 export 'app_back_button.dart';
 export 'app_card.dart';

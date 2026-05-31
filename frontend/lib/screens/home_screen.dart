@@ -5,7 +5,7 @@ import '../widgets/resizable_sidebar.dart';
 import '../models/ova_assigned_action.dart';
 import '../models/ova_ticket.dart';
 import '../models/jap_gpp_entry.dart';
-import '../services/api_service.dart';
+import '../services/ova_api_service.dart';
 import '../services/auth_service.dart';
 import '../widgets/design/design_system.dart';
 import 'jap_gpp_screen.dart';
@@ -152,6 +152,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildSectionContent(_HomeSection section) {
     final authService = Provider.of<AuthService>(context, listen: false);
     final token = authService.token;
+    final user = authService.user;
 
     switch (section) {
       case _HomeSection.dashboard:
@@ -194,11 +195,25 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         );
       case _HomeSection.onderhoud:
+        if (user == null ||
+            (!user.isAdmin && !user.access.maintenanceInspections)) {
+          return const AppAccessDenied(
+            title: 'Geen toegang tot Onderhoud & Keuringen',
+            message:
+                'Je hebt rechten voor Onderhoud & Keuringen nodig om dit scherm te openen.',
+          );
+        }
         return MaintenanceInspectionsScreen(
           key: ValueKey<String>('maintenance-$_breadcrumbNavigationVersion'),
           initialInspectionId: _initialMaintenanceInspectionId,
         );
       case _HomeSection.japGpp:
+        if (user == null || (!user.isAdmin && !user.access.japGpp)) {
+          return const AppAccessDenied(
+            title: 'Geen JAP/GPP-toegang',
+            message: 'Je hebt JAP/GPP-rechten nodig om dit scherm te openen.',
+          );
+        }
         return JapGppScreen(
           key: ValueKey<String>('japGpp-$_breadcrumbNavigationVersion'),
           token: token ?? '',
@@ -420,10 +435,10 @@ class _DashboardBodyState extends State<_DashboardBody> {
       final token = await widget.authService.getValidAccessToken();
 
       final results = await Future.wait<dynamic>([
-        ApiService.fetchOvaTickets(
+        OvaApiService.fetchOvaTickets(
           token: token,
         ).catchError((_) => <Map<String, dynamic>>[]),
-        ApiService.fetchMyOvaActions(
+        OvaApiService.fetchMyOvaActions(
           token: token,
         ).catchError((_) => <Map<String, dynamic>>[]),
         JapApiService.fetchJapEntries(
@@ -508,12 +523,13 @@ class _DashboardBodyState extends State<_DashboardBody> {
           final formatted = dueDate == null
               ? (inspection['dueDate']?.toString() ?? '')
               : '${dueDate.day.toString().padLeft(2, '0')}/${dueDate.month.toString().padLeft(2, '0')}/${dueDate.year}';
-          final locations = inspection['locations'] is List
-              ? (inspection['locations'] as List).whereType<String>().join(', ')
+          final branchValues = inspection['branches'];
+          final branches = branchValues is List
+              ? branchValues.whereType<String>().join(', ')
               : '';
           final title = inspection['equipment']?.toString() ?? '';
           return MaintenanceItem(
-            title: '$title${locations.isEmpty ? '' : ' ($locations)'}',
+            title: '$title${branches.isEmpty ? '' : ' ($branches)'}',
             date: formatted,
             dueDate: dueDate,
           );

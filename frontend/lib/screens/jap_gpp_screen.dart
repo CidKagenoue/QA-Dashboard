@@ -7,7 +7,7 @@ import '../theme/app_theme.dart';
 import '../widgets/design/app_breadcrumb.dart';
 import '../widgets/design/app_inline_filter_panel.dart';
 import '../widgets/design/app_toolbar_controls.dart';
-import 'jap_gpp_detail_pane.dart';
+import '../widgets/jap_gpp_detail_pane.dart';
 
 class JapGppScreen extends StatefulWidget {
   final String token;

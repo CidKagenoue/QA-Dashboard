@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
+import '../services/auth_api_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/vlotter_logo.dart';
 import 'login_screen.dart';
@@ -41,7 +41,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     try {
       final email = _emailController.text.trim();
-      await ApiService.forgotPassword(email);
+      await AuthApiService.forgotPassword(email);
 
       setState(() {
         _isLoading = false;

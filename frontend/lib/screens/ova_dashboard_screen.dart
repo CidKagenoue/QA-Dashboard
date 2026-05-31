@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/design/app_access_denied.dart';
 import '../widgets/design/app_breadcrumb.dart';
 import 'ova_actions_screen.dart';
 import 'ova_ticket_list_screen.dart';
@@ -181,14 +182,16 @@ class _OvaContent extends StatelessWidget {
                               padding: const EdgeInsets.all(18),
                               decoration: BoxDecoration(
                                 color: kBrandGreenSubtle,
-                                borderRadius:
-                                    BorderRadius.circular(kRadiusLg),
+                                borderRadius: BorderRadius.circular(kRadiusLg),
                                 border: Border.all(color: kBrandGreenSoft),
                               ),
                               child: const Row(
                                 children: [
-                                  Icon(Icons.info_outline_rounded,
-                                      color: kBrandGreenDeep, size: 22),
+                                  Icon(
+                                    Icons.info_outline_rounded,
+                                    color: kBrandGreenDeep,
+                                    size: 22,
+                                  ),
                                   SizedBox(width: 14),
                                   Expanded(
                                     child: Text(
@@ -220,47 +223,10 @@ class _OvaContent extends StatelessWidget {
                       )
                     : SizedBox(
                         height: constraints.maxHeight,
-                        child: Center(
-                          child: Container(
-                            constraints:
-                                const BoxConstraints(maxWidth: 520),
-                            padding: const EdgeInsets.all(32),
-                            decoration: BoxDecoration(
-                              color: kSurfaceMuted,
-                              borderRadius:
-                                  BorderRadius.circular(kRadiusXl),
-                              border: Border.all(color: kBorder),
-                            ),
-                            child: const Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.lock_outline_rounded,
-                                  size: 48,
-                                  color: kTextTertiary,
-                                ),
-                                SizedBox(height: 18),
-                                Text(
-                                  'Geen OVA-toegang',
-                                  style: TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w700,
-                                    color: kTextPrimary,
-                                  ),
-                                ),
-                                SizedBox(height: 8),
-                                Text(
-                                  'Je hebt Basis (OVA Acties) of OVA-rechten nodig om dit startscherm te openen.',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: kTextTertiary,
-                                    fontSize: 14,
-                                    height: 1.5,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                        child: const AppAccessDenied(
+                          title: 'Geen OVA-toegang',
+                          message:
+                              'Je hebt Basis (OVA Acties) of OVA-rechten nodig om dit startscherm te openen.',
                         ),
                       ),
               ),
@@ -297,17 +263,16 @@ class _OvaTileCardState extends State<_OvaTileCard> {
           borderRadius: BorderRadius.circular(kRadiusXl),
           child: InkWell(
             onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: widget.data.pageBuilder),
-              );
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: widget.data.pageBuilder));
             },
             borderRadius: BorderRadius.circular(kRadiusXl),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 160),
               width: 240,
               height: 224,
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 24, vertical: 24),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(kRadiusXl),
                 border: Border.all(
@@ -325,8 +290,11 @@ class _OvaTileCardState extends State<_OvaTileCard> {
                       color: kBrandGreenSoft,
                       borderRadius: BorderRadius.circular(kRadiusLg),
                     ),
-                    child: Icon(widget.data.icon,
-                        size: 28, color: kBrandGreenDeep),
+                    child: Icon(
+                      widget.data.icon,
+                      size: 28,
+                      color: kBrandGreenDeep,
+                    ),
                   ),
                   const SizedBox(height: 18),
                   Text(

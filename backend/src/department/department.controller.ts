@@ -13,8 +13,8 @@ import {
 import { AdminGuard } from '../accounts/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { DepartmentsService } from './department.service';
-import { UpdateDepartmentDto } from './dto/update_department.dto';
-import { CreateDepartmentDto } from './dto/create_department.dto';
+import { UpdateDepartmentDto } from './dto/update-department.dto';
+import { CreateDepartmentDto } from './dto/create-department.dto';
 
 @UseGuards(JwtAuthGuard, AdminGuard)
 @Controller('departments')

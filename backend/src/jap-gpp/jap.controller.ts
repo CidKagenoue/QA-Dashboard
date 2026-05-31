@@ -1,8 +1,10 @@
-import { Controller, Get, Param, Query, Res } from '@nestjs/common';
+import { Controller, Get, Param, Query, Res, UseGuards } from '@nestjs/common';
 import { Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
+import { JapGppAccessGuard } from './jap-gpp-access.guard';
 
 @Controller('jap')
+@UseGuards(JapGppAccessGuard)
 export class JapController {
   constructor(private readonly prismaService: PrismaService) {}
 

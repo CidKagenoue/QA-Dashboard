@@ -12,7 +12,7 @@ import {
 import { AdminGuard } from '../accounts/admin.guard';
 import { BranchesService } from './branches.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CreateBranchDto } from './dto/create_branches.dto';
+import { CreateBranchDto } from './dto/create-branch.dto';
 
 @UseGuards(JwtAuthGuard, AdminGuard)
 @Controller('branches')

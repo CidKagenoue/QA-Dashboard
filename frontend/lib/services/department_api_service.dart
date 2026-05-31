@@ -4,12 +4,12 @@ import 'package:http/http.dart' as http;
 
 import '../models/department.dart';
 import '../models/user.dart';
-import 'api_service.dart';
+import 'api_client.dart';
 
 class DepartmentApiService {
   static Future<List<Department>> getDepartments(String token) async {
     final response = await http.get(
-      Uri.parse('${ApiService.baseUrl}/departments'),
+      Uri.parse('${ApiClient.baseUrl}/departments'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -26,7 +26,7 @@ class DepartmentApiService {
 
   static Future<List<User>> getAllUsers(String token) async {
     final response = await http.get(
-      Uri.parse('${ApiService.baseUrl}/users'),
+      Uri.parse('${ApiClient.baseUrl}/users'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -53,8 +53,8 @@ class DepartmentApiService {
     });
 
     final uri = id == null
-        ? Uri.parse('${ApiService.baseUrl}/departments')
-        : Uri.parse('${ApiService.baseUrl}/departments/$id');
+        ? Uri.parse('${ApiClient.baseUrl}/departments')
+        : Uri.parse('${ApiClient.baseUrl}/departments/$id');
 
     final response = await (id == null
         ? http.post(uri,
@@ -82,7 +82,7 @@ class DepartmentApiService {
     required int id,
   }) async {
     final response = await http.delete(
-      Uri.parse('${ApiService.baseUrl}/departments/$id'),
+      Uri.parse('${ApiClient.baseUrl}/departments/$id'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',

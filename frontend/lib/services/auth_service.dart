@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/user.dart';
-import 'api_service.dart';
+import 'auth_api_service.dart';
 
 class AuthService extends ChangeNotifier {
   Future<void> changePassword({
@@ -20,7 +20,7 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await ApiService.changePassword(
+      await AuthApiService.changePassword(
         token: _token!,
         currentPassword: currentPassword,
         newPassword: newPassword,
@@ -157,7 +157,7 @@ class AuthService extends ChangeNotifier {
     }
 
     try {
-      final response = await ApiService.refreshToken(
+      final response = await AuthApiService.refreshToken(
         refreshToken: _refreshToken!,
       );
       _token = (response['accessToken'] ?? response['token']) as String?;
@@ -196,7 +196,7 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await ApiService.login(email: email, password: password);
+      final response = await AuthApiService.login(email: email, password: password);
 
       await _applyAuthResponse(response);
     } finally {
@@ -231,7 +231,7 @@ class AuthService extends ChangeNotifier {
 
     try {
       final validToken = await getValidAccessToken();
-      final response = await ApiService.updateProfile(
+      final response = await AuthApiService.updateProfile(
         userId: _user!.id,
         token: validToken,
         email: email,
@@ -260,7 +260,7 @@ class AuthService extends ChangeNotifier {
 
     if (refreshToken != null && refreshToken.isNotEmpty) {
       try {
-        await ApiService.logout(refreshToken: refreshToken);
+        await AuthApiService.logout(refreshToken: refreshToken);
       } catch (_) {
         debugPrint(
           'Logout token revocation failed, local session was still cleared.',

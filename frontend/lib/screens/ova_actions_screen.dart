@@ -4,7 +4,7 @@ import 'package:qa_dashboard/widgets/app_bars/main_app_bar.dart';
 import '../models/ova_sort_option.dart';
 import '../models/ova_assigned_action.dart';
 import '../models/ova_ticket.dart';
-import '../services/api_service.dart';
+import '../services/ova_api_service.dart';
 import '../services/auth_service.dart';
 import '../widgets/design/design_system.dart';
 import 'ova_action_detail_screen.dart';
@@ -175,7 +175,7 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
         requestedScope = _ActionScope.mine;
       }
 
-      final response = await ApiService.fetchOvaActions(
+      final response = await OvaApiService.fetchOvaActions(
         token: token,
         scope: _scopeApiValue(requestedScope),
       );
@@ -298,7 +298,7 @@ class _OvaActionsScreenState extends State<OvaActionsScreen> {
 
     try {
       final token = await context.read<AuthService>().getValidAccessToken();
-      final response = await ApiService.updateOvaAction(
+      final response = await OvaApiService.updateOvaAction(
         token: token,
         actionId: item.action.id,
         payload: {'status': isOk ? 'ok' : 'nok'},

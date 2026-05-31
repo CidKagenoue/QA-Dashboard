@@ -2,20 +2,19 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateBranchDto } from './dto/create_branches.dto';
+} from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import { PrismaService } from "../prisma/prisma.service";
+import { CreateBranchDto } from "./dto/create-branch.dto";
 
 const BRANCH_INCLUDE = {
-  locations: true,
   departments: {
     include: {
       department: true,
     },
     orderBy: {
       department: {
-        name: 'asc',
+        name: "asc",
       },
     },
   },
@@ -32,7 +31,7 @@ export class BranchesService {
   async findAll() {
     const branches = await this.prisma.branch.findMany({
       include: BRANCH_INCLUDE,
-      orderBy: { name: 'asc' },
+      orderBy: { name: "asc" },
     });
     return branches.map((branch) => this.serializeBranch(branch));
   }
@@ -102,6 +101,17 @@ export class BranchesService {
 
   async remove(id: number) {
     await this.findOne(id);
+
+    const maintenanceInspectionCount =
+      await this.prisma.maintenanceInspectionBranch.count({
+        where: { branchId: id },
+      });
+    if (maintenanceInspectionCount > 0) {
+      throw new BadRequestException(
+        "Vestiging kan niet verwijderd worden zolang ze aan onderhoud of keuringen gekoppeld is",
+      );
+    }
+
     return this.prisma.branch.delete({
       where: { id },
     });
@@ -113,13 +123,13 @@ export class BranchesService {
     }
 
     if (!Array.isArray(departmentIds)) {
-      throw new BadRequestException('departmentIds must be an array');
+      throw new BadRequestException("departmentIds must be an array");
     }
 
     const uniqueDepartmentIds = Array.from(new Set(departmentIds));
     if (uniqueDepartmentIds.some((id) => !Number.isInteger(id) || id <= 0)) {
       throw new BadRequestException(
-        'departmentIds must contain positive integers',
+        "departmentIds must contain positive integers",
       );
     }
 
@@ -130,7 +140,7 @@ export class BranchesService {
     const departments = await this.prisma.department.findMany({
       where: {
         name: {
-          not: 'Ander',
+          not: "Ander",
           mode: Prisma.QueryMode.insensitive,
         },
       },
@@ -156,7 +166,7 @@ export class BranchesService {
     });
 
     if (count !== departmentIds.length) {
-      throw new BadRequestException('One or more departments do not exist');
+      throw new BadRequestException("One or more departments do not exist");
     }
   }
 
@@ -167,7 +177,6 @@ export class BranchesService {
       id: branch.id,
       name: branch.name,
       createdAt: branch.createdAt,
-      locations: branch.locations,
       departmentIds: departments.map((department) => department.id),
       departments,
     };

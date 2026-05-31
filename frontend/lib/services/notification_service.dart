@@ -1,27 +1,11 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 
 import '../models/notification_setting.dart';
 import '../screens/account_management_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/ova_ticket_wizard_screen.dart';
 import '../services/auth_service.dart';
-import '../services/api_service.dart';
-
-class NotificationApiService {
-  final String baseUrl;
-  NotificationApiService(this.baseUrl);
-
-  Future<int> getUnreadCount(int userId) async {
-    final response = await http.get(Uri.parse('$baseUrl/notifications/user/$userId/unread-count'));
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      return data['count'] ?? 0;
-    }
-    throw Exception('Failed to load unread count');
-  }
-}
+import '../services/notification_api_service.dart';
 
 // Notification data service (notifications, unread count, mark as read, etc)
 class NotificationService extends ChangeNotifier {
@@ -87,7 +71,7 @@ class NotificationService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await ApiService.fetchNotifications(
+      final response = await NotificationApiService.fetchNotifications(
         token: token,
         limit: limit,
       );
@@ -123,7 +107,7 @@ class NotificationService extends ChangeNotifier {
     
     try {
       final token = await _requireToken();
-      final count = await ApiService.fetchUnreadNotificationCount(token: token);
+      final count = await NotificationApiService.fetchUnreadNotificationCount(token: token);
       _unreadCount = count;
       debugPrint('[NotificationService] refreshUnreadCount -> $count');
       notifyListeners();
@@ -136,7 +120,7 @@ class NotificationService extends ChangeNotifier {
   Future<void> markAsRead(List<int> notificationIds) async {
     if (notificationIds.isEmpty) return;
     final token = await _requireToken();
-    await ApiService.markNotificationsAsRead(
+    await NotificationApiService.markNotificationsAsRead(
       token: token,
       notificationIds: notificationIds,
     );
@@ -163,7 +147,7 @@ class NotificationService extends ChangeNotifier {
 
   Future<void> markAllRead() async {
     final token = await _requireToken();
-    await ApiService.markAllNotificationsAsRead(token: token);
+    await NotificationApiService.markAllNotificationsAsRead(token: token);
     _notifications = _notifications
         .map(
           (item) => item.isRead
@@ -186,7 +170,7 @@ class NotificationService extends ChangeNotifier {
 
   Future<void> deleteNotification(int notificationId) async {
     final token = await _requireToken();
-    await ApiService.deleteNotification(
+    await NotificationApiService.deleteNotification(
       token: token,
       notificationId: notificationId,
     );
@@ -198,7 +182,7 @@ class NotificationService extends ChangeNotifier {
 
   Future<void> deleteAllNotifications() async {
     final token = await _requireToken();
-    await ApiService.deleteAllNotifications(token: token);
+    await NotificationApiService.deleteAllNotifications(token: token);
     _notifications = const [];
     _unreadCount = 0;
     notifyListeners();

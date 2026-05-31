@@ -1,56 +1,226 @@
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 
-class OvaApiService {
-  static const String baseUrl = 'YOUR_API_BASE_URL'; // Vul je API URL in
+import 'api_client.dart';
 
-  // PATCH ticket
+/// API-calls voor OVA-tickets en hun opvolgingsacties.
+class OvaApiService {
+  static Future<List<Map<String, dynamic>>> fetchOvaTickets({
+    required String token,
+  }) async {
+    final response = await ApiClient.requestObject(
+      () => http.get(
+        Uri.parse('${ApiClient.baseUrl}/ova/tickets'),
+        headers: ApiClient.headers(token: token),
+      ),
+    );
+
+    final tickets = response['tickets'];
+    if (tickets is! List) {
+      throw Exception('Invalid OVA ticket list received from the server');
+    }
+
+    return tickets
+        .whereType<Map>()
+        .map((ticket) => Map<String, dynamic>.from(ticket))
+        .toList();
+  }
+
+  static Future<Map<String, dynamic>> fetchOvaTicket({
+    required String token,
+    required int ticketId,
+  }) async {
+    final response = await ApiClient.requestObject(
+      () => http.get(
+        Uri.parse('${ApiClient.baseUrl}/ova/tickets/$ticketId'),
+        headers: ApiClient.headers(token: token),
+      ),
+    );
+
+    final ticket = response['ticket'];
+    if (ticket is! Map) {
+      throw Exception('Invalid OVA ticket received from the server');
+    }
+
+    return Map<String, dynamic>.from(ticket);
+  }
+
+  static Future<Map<String, dynamic>> fetchOvaFormData({
+    required String token,
+  }) async {
+    return ApiClient.requestObject(
+      () => http.get(
+        Uri.parse('${ApiClient.baseUrl}/ova/form-data'),
+        headers: ApiClient.headers(token: token),
+      ),
+    );
+  }
+
+  static Future<List<Map<String, dynamic>>> fetchOvaAssignableUsers({
+    required String token,
+  }) async {
+    final response = await ApiClient.requestObject(
+      () => http.get(
+        Uri.parse('${ApiClient.baseUrl}/ova/tickets/assignable-users'),
+        headers: ApiClient.headers(token: token),
+      ),
+    );
+
+    final users = response['users'];
+    if (users is! List) {
+      throw Exception(
+        'Invalid OVA assignable user list received from the server',
+      );
+    }
+
+    return users
+        .whereType<Map>()
+        .map((user) => Map<String, dynamic>.from(user))
+        .toList();
+  }
+
+  static Future<List<Map<String, dynamic>>> fetchOvaExternalContacts({
+    required String token,
+    String? query,
+  }) async {
+    final uri = Uri.parse('${ApiClient.baseUrl}/ova/tickets/external-contacts')
+        .replace(
+          queryParameters: query != null && query.trim().isNotEmpty
+              ? {'query': query.trim()}
+              : null,
+        );
+
+    final response = await ApiClient.requestObject(
+      () => http.get(uri, headers: ApiClient.headers(token: token)),
+    );
+
+    final contacts = response['contacts'];
+    if (contacts is! List) {
+      throw Exception(
+        'Invalid OVA external contact list received from the server',
+      );
+    }
+
+    return contacts
+        .whereType<Map>()
+        .map((contact) => Map<String, dynamic>.from(contact))
+        .toList();
+  }
+
+  static Future<Map<String, dynamic>> createOvaTicket({
+    required String token,
+    required Map<String, dynamic> payload,
+  }) async {
+    final response = await ApiClient.requestObject(
+      () => http.post(
+        Uri.parse('${ApiClient.baseUrl}/ova/tickets'),
+        headers: ApiClient.headers(token: token),
+        body: jsonEncode(payload),
+      ),
+    );
+
+    final ticket = response['ticket'];
+    if (ticket is! Map) {
+      throw Exception('Invalid OVA ticket received from the server');
+    }
+
+    return Map<String, dynamic>.from(ticket);
+  }
+
   static Future<Map<String, dynamic>> updateOvaTicket({
     required String token,
     required int ticketId,
     required Map<String, dynamic> payload,
   }) async {
-    final response = await http.patch(
-      Uri.parse('$baseUrl/ova/tickets/$ticketId'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode(payload),
+    final response = await ApiClient.requestObject(
+      () => http.patch(
+        Uri.parse('${ApiClient.baseUrl}/ova/tickets/$ticketId'),
+        headers: ApiClient.headers(token: token),
+        body: jsonEncode(payload),
+      ),
     );
 
-    if (response.statusCode == 200) {
-      return Map<String, dynamic>.from(jsonDecode(response.body));
+    final ticket = response['ticket'];
+    if (ticket is! Map) {
+      throw Exception('Invalid OVA ticket received from the server');
     }
 
-    throw Exception(_extractErrorMessage(response));
+    return Map<String, dynamic>.from(ticket);
   }
 
-  // DELETE ticket
   static Future<void> deleteOvaTicket({
     required String token,
     required int ticketId,
   }) async {
-    final response = await http.delete(
-      Uri.parse('$baseUrl/ova/tickets/$ticketId'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
+    await ApiClient.requestObject(
+      () => http.delete(
+        Uri.parse('${ApiClient.baseUrl}/ova/tickets/$ticketId'),
+        headers: ApiClient.headers(token: token),
+      ),
     );
-
-    if (response.statusCode != 200 && response.statusCode != 204) {
-      throw Exception(_extractErrorMessage(response));
-    }
   }
 
-  // Helper method om error messages te extraheren
-  static String _extractErrorMessage(http.Response response) {
-    try {
-      final body = jsonDecode(response.body);
-      return body['message'] ?? 'Unknown error occurred';
-    } catch (e) {
-      return 'Error: ${response.statusCode} - ${response.reasonPhrase}';
+  static Future<List<Map<String, dynamic>>> fetchMyOvaActions({
+    required String token,
+  }) async {
+    final response = await fetchOvaActions(token: token, scope: 'mine');
+    final actions = response['actions'];
+    if (actions is! List) {
+      throw Exception('Invalid OVA action list received from the server');
     }
+
+    return actions
+        .whereType<Map>()
+        .map((action) => Map<String, dynamic>.from(action))
+        .toList();
+  }
+
+  static Future<Map<String, dynamic>> fetchOvaActions({
+    required String token,
+    String scope = 'mine',
+  }) async {
+    final response = await ApiClient.requestObject(
+      () => http.get(
+        Uri.parse(
+          '${ApiClient.baseUrl}/ova/actions',
+        ).replace(queryParameters: {'scope': scope}),
+        headers: ApiClient.headers(token: token),
+      ),
+    );
+    return response;
+  }
+
+  static Future<Map<String, dynamic>> updateOvaAction({
+    required String token,
+    required int actionId,
+    required Map<String, dynamic> payload,
+  }) async {
+    final response = await ApiClient.requestObject(
+      () => http.patch(
+        Uri.parse('${ApiClient.baseUrl}/ova/actions/$actionId'),
+        headers: ApiClient.headers(token: token),
+        body: jsonEncode(payload),
+      ),
+    );
+
+    final action = response['action'];
+    if (action is! Map) {
+      throw Exception('Invalid OVA action received from the server');
+    }
+
+    return Map<String, dynamic>.from(action);
+  }
+
+  static Future<void> deleteOvaAction({
+    required String token,
+    required int actionId,
+  }) async {
+    await ApiClient.requestObject(
+      () => http.delete(
+        Uri.parse('${ApiClient.baseUrl}/ova/actions/$actionId'),
+        headers: ApiClient.headers(token: token),
+      ),
+    );
   }
 }

@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:qa_dashboard/models/branch.dart';
 
-import 'api_service.dart';
+import 'api_client.dart';
 
 class BranchApiService {
-  static String get baseUrl => ApiService.baseUrl;
+  static String get baseUrl => ApiClient.baseUrl;
 
   // ── Branches ───────────────────────────────────────────────────────────────
 

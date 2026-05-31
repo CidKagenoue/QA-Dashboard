@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/api_service.dart';
+import '../services/api_client.dart';
 import '../services/notification_settings_service.dart';
 import '../services/auth_service.dart';
 import '../models/notification_setting.dart';
@@ -25,7 +25,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     super.didChangeDependencies();
     final authService = Provider.of<AuthService>(context, listen: false);
     _service = NotificationSettingsService(
-      baseUrl: ApiService.baseUrl,
+      baseUrl: ApiClient.baseUrl,
       authService: authService,
     );
     _fetchSettings();

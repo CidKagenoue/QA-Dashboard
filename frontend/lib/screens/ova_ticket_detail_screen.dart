@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/ova_ticket.dart';
-import '../services/api_service.dart';
+import '../services/ova_api_service.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/design/app_breadcrumb.dart';
@@ -50,7 +50,7 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
 
     try {
       final token = await context.read<AuthService>().getValidAccessToken();
-      final response = await ApiService.fetchOvaTicket(
+      final response = await OvaApiService.fetchOvaTicket(
         token: token,
         ticketId: ticketId,
       );
@@ -132,7 +132,7 @@ class _OvaTicketDetailScreenState extends State<OvaTicketDetailScreen> {
       final authService = context.read<AuthService>();
       final messenger = ScaffoldMessenger.of(context);
       final token = await authService.getValidAccessToken();
-      await ApiService.deleteOvaTicket(token: token, ticketId: ticket.id);
+      await OvaApiService.deleteOvaTicket(token: token, ticketId: ticket.id);
 
       if (!mounted) return;
 

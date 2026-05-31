@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../models/ova_assigned_action.dart';
 import '../models/ova_ticket.dart';
-import '../services/api_service.dart';
+import '../services/ova_api_service.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/design/app_breadcrumb.dart';
@@ -49,7 +49,7 @@ class _OvaActionDetailScreenState extends State<OvaActionDetailScreen> {
 
     try {
       final token = await context.read<AuthService>().getValidAccessToken();
-      final response = await ApiService.fetchOvaTicket(
+      final response = await OvaApiService.fetchOvaTicket(
         token: token,
         ticketId: _item.ticket.id,
       );
@@ -108,7 +108,7 @@ class _OvaActionDetailScreenState extends State<OvaActionDetailScreen> {
 
     try {
       final token = await context.read<AuthService>().getValidAccessToken();
-      final response = await ApiService.updateOvaAction(
+      final response = await OvaApiService.updateOvaAction(
         token: token,
         actionId: _item.action.id,
         payload: {'status': isOk ? 'ok' : 'nok'},
@@ -190,7 +190,7 @@ class _OvaActionDetailScreenState extends State<OvaActionDetailScreen> {
 
     try {
       final token = await context.read<AuthService>().getValidAccessToken();
-      await ApiService.deleteOvaAction(token: token, actionId: _item.action.id);
+      await OvaApiService.deleteOvaAction(token: token, actionId: _item.action.id);
 
       if (!mounted) {
         return;

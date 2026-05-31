@@ -5,7 +5,7 @@ import 'package:qa_dashboard/screens/ova_ticket_detail_screen.dart';
 import 'package:qa_dashboard/widgets/app_bars/main_app_bar.dart';
 import '../models/ova_sort_option.dart';
 import '../models/ova_ticket.dart';
-import '../services/api_service.dart';
+import '../services/ova_api_service.dart';
 import '../services/auth_service.dart';
 import '../widgets/design/design_system.dart';
 import 'ova_ticket_wizard_screen.dart';
@@ -87,7 +87,7 @@ class _OvaTicketListScreenState extends State<OvaTicketListScreen> {
 
     try {
       final token = await context.read<AuthService>().getValidAccessToken();
-      final response = await ApiService.fetchOvaTickets(token: token);
+      final response = await OvaApiService.fetchOvaTickets(token: token);
       if (!mounted) return;
       setState(() {
         _tickets = response.map(OvaTicket.fromJson).toList();

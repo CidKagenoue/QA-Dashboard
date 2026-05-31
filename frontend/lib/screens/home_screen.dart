@@ -5,7 +5,7 @@ import '../widgets/resizable_sidebar.dart';
 import '../models/ova_assigned_action.dart';
 import '../models/ova_ticket.dart';
 import '../models/jap_gpp_entry.dart';
-import '../services/api_service.dart';
+import '../services/ova_api_service.dart';
 import '../services/auth_service.dart';
 import '../widgets/design/design_system.dart';
 import 'jap_gpp_screen.dart';
@@ -435,10 +435,10 @@ class _DashboardBodyState extends State<_DashboardBody> {
       final token = await widget.authService.getValidAccessToken();
 
       final results = await Future.wait<dynamic>([
-        ApiService.fetchOvaTickets(
+        OvaApiService.fetchOvaTickets(
           token: token,
         ).catchError((_) => <Map<String, dynamic>>[]),
-        ApiService.fetchMyOvaActions(
+        OvaApiService.fetchMyOvaActions(
           token: token,
         ).catchError((_) => <Map<String, dynamic>>[]),
         JapApiService.fetchJapEntries(

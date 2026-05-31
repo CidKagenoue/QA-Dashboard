@@ -3,11 +3,11 @@ import 'package:provider/provider.dart';
 import 'package:qa_dashboard/widgets/app_bars/main_app_bar.dart';
 
 import '../models/ova_ticket.dart';
-import '../services/api_service.dart';
+import '../services/ova_api_service.dart';
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
-import 'ova_follow_up_action_components.dart';
+import '../widgets/ova_follow_up_action_components.dart';
 
 const List<String> kOvaTicketStepLabels = [
   'Basisinformatie',
@@ -140,7 +140,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
 
     try {
       final token = await context.read<AuthService>().getValidAccessToken();
-      final response = await ApiService.fetchOvaTicket(
+      final response = await OvaApiService.fetchOvaTicket(
         token: token,
         ticketId: widget.ticketId!,
       );
@@ -173,7 +173,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
   Future<void> _loadAssignableUsers() async {
     try {
       final token = await context.read<AuthService>().getValidAccessToken();
-      final response = await ApiService.fetchOvaAssignableUsers(token: token);
+      final response = await OvaApiService.fetchOvaAssignableUsers(token: token);
       if (!mounted) {
         return;
       }
@@ -197,7 +197,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
 
     try {
       final token = await context.read<AuthService>().getValidAccessToken();
-      final response = await ApiService.fetchOvaFormData(token: token);
+      final response = await OvaApiService.fetchOvaFormData(token: token);
       final formData = OvaTicketFormData.fromJson(response);
       if (!mounted) {
         return;
@@ -367,8 +367,8 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
       final payload = _buildPayload(advance: advance, complete: complete);
 
       final response = _ticket == null
-          ? await ApiService.createOvaTicket(token: token, payload: payload)
-          : await ApiService.updateOvaTicket(
+          ? await OvaApiService.createOvaTicket(token: token, payload: payload)
+          : await OvaApiService.updateOvaTicket(
               token: token,
               ticketId: _ticket!.id,
               payload: payload,
@@ -756,7 +756,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
     String query,
   ) async {
     final token = await context.read<AuthService>().getValidAccessToken();
-    final response = await ApiService.fetchOvaExternalContacts(
+    final response = await OvaApiService.fetchOvaExternalContacts(
       token: token,
       query: query,
     );
@@ -882,7 +882,7 @@ class _OvaTicketWizardScreenState extends State<OvaTicketWizardScreen> {
       final actionId = action.id;
       if (actionId != null) {
         final token = await context.read<AuthService>().getValidAccessToken();
-        await ApiService.deleteOvaAction(token: token, actionId: actionId);
+        await OvaApiService.deleteOvaAction(token: token, actionId: actionId);
       }
 
       if (!mounted) {

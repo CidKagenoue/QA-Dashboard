@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import '../models/jap_gpp_entry.dart';
-import 'api_service.dart';
+import 'api_client.dart';
 
 class _DomainRecord {
   const _DomainRecord({required this.id, required this.name});
@@ -48,7 +48,7 @@ class JapApiService {
     required String token,
   }) async {
     final response = await http.get(
-      Uri.parse('${ApiService.baseUrl}/domain'),
+      Uri.parse('${ApiClient.baseUrl}/domain'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -78,7 +78,7 @@ class JapApiService {
     required String name,
   }) async {
     final response = await http.post(
-      Uri.parse('${ApiService.baseUrl}/domain'),
+      Uri.parse('${ApiClient.baseUrl}/domain'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -112,7 +112,7 @@ class JapApiService {
     if (domain == null) throw Exception('Domein niet gevonden');
 
     final response = await http.delete(
-      Uri.parse('${ApiService.baseUrl}/domain/${domain.id}'),
+      Uri.parse('${ApiClient.baseUrl}/domain/${domain.id}'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -132,7 +132,7 @@ class JapApiService {
 
   static Future<List<String>> fetchExecutors({required String token}) async {
     final response = await http.get(
-      Uri.parse('${ApiService.baseUrl}/executor'),
+      Uri.parse('${ApiClient.baseUrl}/executor'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -157,7 +157,7 @@ class JapApiService {
     required String name,
   }) async {
     final response = await http.post(
-      Uri.parse('${ApiService.baseUrl}/executor'),
+      Uri.parse('${ApiClient.baseUrl}/executor'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -181,7 +181,7 @@ class JapApiService {
   }) async {
     final response = await http.delete(
       Uri.parse(
-        '${ApiService.baseUrl}/executor/${Uri.encodeComponent(executorName)}',
+        '${ApiClient.baseUrl}/executor/${Uri.encodeComponent(executorName)}',
       ),
       headers: {
         'Content-Type': 'application/json',
@@ -205,7 +205,7 @@ class JapApiService {
       queryParameters['search'] = search.trim();
     }
 
-    final uri = Uri.parse('${ApiService.baseUrl}/gpp').replace(
+    final uri = Uri.parse('${ApiClient.baseUrl}/gpp').replace(
       queryParameters: queryParameters.isEmpty ? null : queryParameters,
     );
 
@@ -232,7 +232,7 @@ class JapApiService {
     required String token,
   }) async {
     final response = await http.get(
-      Uri.parse('${ApiService.baseUrl}/jap/recent-comments'),
+      Uri.parse('${ApiClient.baseUrl}/jap/recent-comments'),
       headers: {'Authorization': 'Bearer $token'},
     );
     if (response.statusCode != 200) {
@@ -247,7 +247,7 @@ class JapApiService {
     required Map<String, dynamic> payload,
   }) async {
     final response = await http.post(
-      Uri.parse('${ApiService.baseUrl}/gpp'),
+      Uri.parse('${ApiClient.baseUrl}/gpp'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -271,7 +271,7 @@ class JapApiService {
     required Map<String, dynamic> payload,
   }) async {
     final response = await http.patch(
-      Uri.parse('${ApiService.baseUrl}/gpp/$id'),
+      Uri.parse('${ApiClient.baseUrl}/gpp/$id'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -294,7 +294,7 @@ class JapApiService {
     required int id,
   }) async {
     final response = await http.delete(
-      Uri.parse('${ApiService.baseUrl}/gpp/$id'),
+      Uri.parse('${ApiClient.baseUrl}/gpp/$id'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -312,7 +312,7 @@ class JapApiService {
     required Uint8List bytes,
     bool clearExisting = true,
   }) async {
-    final uri = Uri.parse('${ApiService.baseUrl}/gpp/import-excel').replace(
+    final uri = Uri.parse('${ApiClient.baseUrl}/gpp/import-excel').replace(
       queryParameters: {'clearExisting': clearExisting ? 'true' : 'false'},
     );
 
@@ -339,7 +339,7 @@ class JapApiService {
     required int id,
   }) async {
     final response = await http.get(
-      Uri.parse('${ApiService.baseUrl}/jap/$id/comments'),
+      Uri.parse('${ApiClient.baseUrl}/jap/$id/comments'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
@@ -357,7 +357,7 @@ class JapApiService {
     required String text,
   }) async {
     final response = await http.post(
-      Uri.parse('${ApiService.baseUrl}/jap/$id/comments'),
+      Uri.parse('${ApiClient.baseUrl}/jap/$id/comments'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
@@ -374,7 +374,7 @@ class JapApiService {
     required int id,
   }) async {
     final response = await http.get(
-      Uri.parse('${ApiService.baseUrl}/gpp/$id/comments'),
+      Uri.parse('${ApiClient.baseUrl}/gpp/$id/comments'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
@@ -392,7 +392,7 @@ class JapApiService {
     required String text,
   }) async {
     final response = await http.post(
-      Uri.parse('${ApiService.baseUrl}/gpp/$id/comments'),
+      Uri.parse('${ApiClient.baseUrl}/gpp/$id/comments'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
@@ -412,7 +412,7 @@ class JapApiService {
     required Map<String, dynamic> payload,
   }) async {
     final response = await http.patch(
-      Uri.parse('${ApiService.baseUrl}/jap/$id'),
+      Uri.parse('${ApiClient.baseUrl}/jap/$id'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
@@ -439,7 +439,7 @@ class JapApiService {
       queryParameters['search'] = search.trim();
     }
 
-    final uri = Uri.parse('${ApiService.baseUrl}/jap').replace(
+    final uri = Uri.parse('${ApiClient.baseUrl}/jap').replace(
       queryParameters: queryParameters.isEmpty ? null : queryParameters,
     );
 
@@ -467,7 +467,7 @@ class JapApiService {
     required Map<String, dynamic> payload,
   }) async {
     final response = await http.post(
-      Uri.parse('${ApiService.baseUrl}/jap'),
+      Uri.parse('${ApiClient.baseUrl}/jap'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -491,7 +491,7 @@ class JapApiService {
     required String remark,
   }) async {
     final response = await http.patch(
-      Uri.parse('${ApiService.baseUrl}/jap/$id'), // ← dit was $baseUrl
+      Uri.parse('${ApiClient.baseUrl}/jap/$id'), // ← dit was $baseUrl
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
@@ -509,7 +509,7 @@ class JapApiService {
     required int id,
   }) async {
     final response = await http.delete(
-      Uri.parse('${ApiService.baseUrl}/jap/$id'),
+      Uri.parse('${ApiClient.baseUrl}/jap/$id'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',

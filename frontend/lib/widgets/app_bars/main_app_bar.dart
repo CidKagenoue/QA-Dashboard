@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:qa_dashboard/screens/settings_screen_navigation.dart';
+import 'package:qa_dashboard/screens/settings_screen.dart';
 import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
 import '../notifications_popup.dart';

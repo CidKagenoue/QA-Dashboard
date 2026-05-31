@@ -10,6 +10,7 @@ import {
   Query,
   Res,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -19,6 +20,7 @@ import * as ExcelJS from 'exceljs';
 import * as multer from 'multer';
 import { NotificationService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { JapGppAccessGuard } from './jap-gpp-access.guard';
 
 const NORMALISED_HEADER_ALIASES: Record<string, string[]> = {
   jaar: ['jaar'],
@@ -278,6 +280,7 @@ async function ensureExecutor(prismaService: any, executorName: string | null | 
 }
 
 @Controller('gpp')
+@UseGuards(JapGppAccessGuard)
 export class GppController {
   constructor(
     private readonly notificationsService: NotificationService,

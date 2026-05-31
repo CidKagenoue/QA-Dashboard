@@ -11,9 +11,10 @@ import {
 } from '@nestjs/common';
 import { DomainService } from './domain.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { JapGppAccessGuard } from '../jap-gpp/jap-gpp-access.guard';
 
 @Controller('domain')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, JapGppAccessGuard)
 export class DomainController {
   constructor(private readonly domainService: DomainService) {}
 

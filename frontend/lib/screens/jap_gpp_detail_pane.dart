@@ -289,18 +289,20 @@ class _JapGppDetailPaneState extends State<JapGppDetailPane> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Verwijderen?'),
+          title: const Text('JAP/GPP-item verwijderen?'),
           content: const Text(
-            'Weet je zeker dat je dit item wilt verwijderen?',
+            'Dit JAP/GPP-item wordt definitief verwijderd. Dit kun je niet ongedaan maken.',
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
               child: const Text('Annuleren'),
             ),
-            ElevatedButton(
+            ElevatedButton.icon(
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Verwijderen'),
+              icon: const Icon(Icons.delete_outline_rounded),
+              label: const Text('Verwijderen'),
+              style: ElevatedButton.styleFrom(backgroundColor: kDanger),
             ),
           ],
         );

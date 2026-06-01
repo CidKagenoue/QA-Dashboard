@@ -46,10 +46,7 @@ export class BranchesService {
   }
 
   async create(dto: CreateBranchDto) {
-    const departmentIds =
-      dto.departmentIds === undefined
-        ? await this.findAllDepartmentIds()
-        : this.normalizeDepartmentIds(dto.departmentIds);
+    const departmentIds = this.normalizeDepartmentIds(dto.departmentIds);
     await this.assertDepartmentsExist(departmentIds);
 
     const branch = await this.prisma.branch.create({
@@ -134,22 +131,6 @@ export class BranchesService {
     }
 
     return uniqueDepartmentIds;
-  }
-
-  private async findAllDepartmentIds() {
-    const departments = await this.prisma.department.findMany({
-      where: {
-        name: {
-          not: "Ander",
-          mode: Prisma.QueryMode.insensitive,
-        },
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    return departments.map((department) => department.id);
   }
 
   private async assertDepartmentsExist(departmentIds: number[]) {
